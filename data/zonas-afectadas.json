@@ -1,0 +1,86 @@
+[
+  {
+    "id": "epicentro",
+    "nombre": "San José del Palmar (epicentro)",
+    "tipo": "epicentro",
+    "lat": 5.04,
+    "lng": -76.34,
+    "detalle": "Epicentro del sismo M7.4 — a ~20 km del casco urbano",
+    "fuente": "https://www2.sgc.gov.co/Noticias/Paginas/SGC-actualiza-la-informacion-sobre-el-sismo-ocurrido-en-San-Jose-del-Palmar-Choco.aspx",
+    "verificado_por": "equipo-enlacesismo (seed inicial)",
+    "fecha_verificacion": "2026-08-10",
+    "verificacion": "oficial"
+  },
+  {
+    "id": "bogota",
+    "nombre": "Bogotá",
+    "tipo": "ciudad",
+    "lat": 4.711,
+    "lng": -74.0721,
+    "detalle": "Sismo sentido",
+    "fuente": "https://www2.sgc.gov.co/Noticias/Paginas/SGC-actualiza-la-informacion-sobre-el-sismo-ocurrido-en-San-Jose-del-Palmar-Choco.aspx",
+    "verificado_por": "equipo-enlacesismo (seed inicial)",
+    "fecha_verificacion": "2026-08-10",
+    "verificacion": "oficial"
+  },
+  {
+    "id": "cali",
+    "nombre": "Cali",
+    "tipo": "ciudad",
+    "lat": 3.4516,
+    "lng": -76.532,
+    "detalle": "Sismo sentido",
+    "fuente": "https://www2.sgc.gov.co/Noticias/Paginas/SGC-actualiza-la-informacion-sobre-el-sismo-ocurrido-en-San-Jose-del-Palmar-Choco.aspx",
+    "verificado_por": "equipo-enlacesismo (seed inicial)",
+    "fecha_verificacion": "2026-08-10",
+    "verificacion": "oficial"
+  },
+  {
+    "id": "medellin",
+    "nombre": "Medellín",
+    "tipo": "ciudad",
+    "lat": 6.2442,
+    "lng": -75.5812,
+    "detalle": "Sismo sentido",
+    "fuente": "https://www2.sgc.gov.co/Noticias/Paginas/SGC-actualiza-la-informacion-sobre-el-sismo-ocurrido-en-San-Jose-del-Palmar-Choco.aspx",
+    "verificado_por": "equipo-enlacesismo (seed inicial)",
+    "fecha_verificacion": "2026-08-10",
+    "verificacion": "oficial"
+  },
+  {
+    "id": "pereira",
+    "nombre": "Pereira",
+    "tipo": "ciudad",
+    "lat": 4.8133,
+    "lng": -75.6961,
+    "detalle": "Sismo sentido",
+    "fuente": "https://www2.sgc.gov.co/Noticias/Paginas/SGC-actualiza-la-informacion-sobre-el-sismo-ocurrido-en-San-Jose-del-Palmar-Choco.aspx",
+    "verificado_por": "equipo-enlacesismo (seed inicial)",
+    "fecha_verificacion": "2026-08-10",
+    "verificacion": "oficial"
+  },
+  {
+    "id": "manizales",
+    "nombre": "Manizales",
+    "tipo": "ciudad",
+    "lat": 5.0689,
+    "lng": -75.5174,
+    "detalle": "Sismo sentido",
+    "fuente": "https://www2.sgc.gov.co/Noticias/Paginas/SGC-actualiza-la-informacion-sobre-el-sismo-ocurrido-en-San-Jose-del-Palmar-Choco.aspx",
+    "verificado_por": "equipo-enlacesismo (seed inicial)",
+    "fecha_verificacion": "2026-08-10",
+    "verificacion": "oficial"
+  },
+  {
+    "id": "armenia",
+    "nombre": "Armenia",
+    "tipo": "ciudad",
+    "lat": 4.5339,
+    "lng": -75.6811,
+    "detalle": "Sismo sentido",
+    "fuente": "https://www2.sgc.gov.co/Noticias/Paginas/SGC-actualiza-la-informacion-sobre-el-sismo-ocurrido-en-San-Jose-del-Palmar-Choco.aspx",
+    "verificado_por": "equipo-enlacesismo (seed inicial)",
+    "fecha_verificacion": "2026-08-10",
+    "verificacion": "oficial"
+  }
+]

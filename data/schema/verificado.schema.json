@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://enlacesismo.app/schemas/verificado.schema.json",
+  "title": "Campos obligatorios de verificación",
+  "description": "Todo dato publicado debe tener fuente verificable, quién lo verificó y cuándo. Sin estos campos, CI bloquea el merge.",
+  "type": "object",
+  "properties": {
+    "fuente": {
+      "type": "string",
+      "format": "uri",
+      "description": "URL o identificación de la fuente oficial (boletín, cuenta oficial, comunicado de alcaldía). OBLIGATORIA."
+    },
+    "verificado_por": {
+      "type": "string",
+      "minLength": 2,
+      "description": "Nombre o handle real de quien verificó el dato contra la fuente. OBLIGATORIO."
+    },
+    "fecha_verificacion": {
+      "type": "string",
+      "format": "date",
+      "description": "Fecha en que se verificó el dato (YYYY-MM-DD). OBLIGATORIA."
+    },
+    "verificacion": {
+      "type": "string",
+      "enum": ["oficial", "confirmado", "sin-confirmar"],
+      "default": "sin-confirmar",
+      "description": "oficial: publicado por entidad oficial. confirmado: verificado contra fuente por 2+ revisores. sin-confirmar: pendiente de confirmación adicional (se muestra con advertencia en la UI)."
+    }
+  },
+  "required": ["fuente", "verificado_por", "fecha_verificacion"]
+}

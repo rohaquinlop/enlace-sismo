@@ -1,0 +1,4 @@
+{
+  "_comentario": "Lista de albergues/refugios verificados. Aún sin datos: los albergues oficiales se están confirmando. Para agregar uno, abre un PR siguiendo CONTRIBUTING.md. Ejemplo del formato: data/acopios.example.json (mismos campos base + capacidad).",
+  "albergues": []
+}

@@ -1,0 +1,4 @@
+{
+  "_comentario": "Lista de puntos de acopio verificados. Aún no hay datos publicados: los primeros acopios oficiales están siendo confirmados por alcaldías y UNGRD. Para agregar uno, abre un PR siguiendo CONTRIBUTING.md — cada entrada DEBE tener fuente verificable. Ejemplo del formato: data/acopios.example.json",
+  "acopios": []
+}

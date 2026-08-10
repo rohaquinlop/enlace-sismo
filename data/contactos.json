@@ -1,0 +1,68 @@
+[
+  {
+    "id": "contacto-123",
+    "nombre": "Línea única de emergencias 123",
+    "telefono": "123",
+    "descripcion": "Atiende emergencias de Policía, Bomberos, Cruz Roja y Defensa Civil a nivel nacional.",
+    "tipo": "emergencia",
+    "fuente": "https://www.policia.gov.co/",
+    "verificado_por": "equipo-enlacesismo (seed inicial)",
+    "fecha_verificacion": "2026-08-10",
+    "estado": "oficial"
+  },
+  {
+    "id": "contacto-119",
+    "nombre": "Bomberos",
+    "telefono": "119",
+    "descripcion": "Cuerpo de Bomberos — incendios, rescates y atención de estructuras colapsadas.",
+    "tipo": "emergencia",
+    "fuente": "https://www.policia.gov.co/",
+    "verificado_por": "equipo-enlacesismo (seed inicial)",
+    "fecha_verificacion": "2026-08-10",
+    "estado": "oficial"
+  },
+  {
+    "id": "contacto-132",
+    "nombre": "Cruz Roja Colombiana — línea de emergencias",
+    "telefono": "132",
+    "descripcion": "Atención de emergencias y primeros auxilios de la Cruz Roja Colombiana.",
+    "tipo": "emergencia",
+    "fuente": "https://www.cruzrojacolombiana.org/",
+    "verificado_por": "equipo-enlacesismo (seed inicial)",
+    "fecha_verificacion": "2026-08-10",
+    "estado": "oficial"
+  },
+  {
+    "id": "contacto-144",
+    "nombre": "Defensa Civil Colombiana",
+    "telefono": "144",
+    "descripcion": "Apoyo en emergencias, búsqueda y rescate de la Defensa Civil Colombiana.",
+    "tipo": "emergencia",
+    "fuente": "https://www.defensacivil.gov.co/",
+    "verificado_por": "equipo-enlacesismo (seed inicial)",
+    "fecha_verificacion": "2026-08-10",
+    "estado": "oficial"
+  },
+  {
+    "id": "contacto-ungrd",
+    "nombre": "UNGRD — Unidad Nacional para la Gestión del Riesgo de Desastres",
+    "telefono": "018000 113 200",
+    "descripcion": "Coordinación nacional de la respuesta al desastre. Boletines y puntos de acopio oficiales.",
+    "tipo": "oficial",
+    "fuente": "https://gestiondelriesgo.gov.co/",
+    "verificado_por": "equipo-enlacesismo (seed inicial)",
+    "fecha_verificacion": "2026-08-10",
+    "estado": "oficial"
+  },
+  {
+    "id": "contacto-sgc",
+    "nombre": "SGC — Servicio Geológico Colombiano",
+    "telefono": "018000 151 717",
+    "descripcion": "Información sísmica oficial: réplicas, magnitud y epicentro. Cuenta @sgcol en redes.",
+    "tipo": "oficial",
+    "fuente": "https://www.sgc.gov.co/",
+    "verificado_por": "equipo-enlacesismo (seed inicial)",
+    "fecha_verificacion": "2026-08-10",
+    "estado": "oficial"
+  }
+]

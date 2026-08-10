@@ -1,0 +1,19 @@
+{
+  "id": "sismo-2026-08-10",
+  "titulo": "Sismo magnitud 7.4 — San José del Palmar, Chocó",
+  "fecha": "2026-08-10T07:34:00-05:00",
+  "magnitud": 7.4,
+  "profundidad_km": 103,
+  "epicentro": "San José del Palmar, Chocó",
+  "replicas": "18+ al momento del último comunicado del SGC; es probable que continúen",
+  "ciudades_sentido": [
+    "Bogotá", "Cali", "Medellín", "Pereira", "Manizales", "Armenia",
+    "Eje Cafetero", "Valle del Cauca", "Chocó"
+  ],
+  "contexto": "Evento sísmico de mayor magnitud registrado en Colombia en el siglo XXI.",
+  "fuente": "Servicio Geológico Colombiano (SGC)",
+  "fuente_url": "https://www2.sgc.gov.co/Noticias/Paginas/SGC-actualiza-la-informacion-sobre-el-sismo-ocurrido-en-San-Jose-del-Palmar-Choco.aspx",
+  "verificado_por": "equipo-enlacesismo (seed inicial)",
+  "fecha_verificacion": "2026-08-10",
+  "estado": "oficial"
+}

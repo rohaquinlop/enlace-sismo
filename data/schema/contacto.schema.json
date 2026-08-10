@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://enlacesismo.app/schemas/contacto.schema.json",
+  "title": "Contacto de emergencia",
+  "allOf": [{ "$ref": "https://enlacesismo.app/schemas/verificado.schema.json" }],
+  "properties": {
+    "id": { "type": "string", "pattern": "^[a-z0-9-]{3,40}$" },
+    "nombre": { "type": "string", "minLength": 3 },
+    "telefono": { "type": "string", "minLength": 3 },
+    "descripcion": { "type": "string" },
+    "tipo": { "type": "string", "enum": ["emergencia", "oficial", "voluntariado"] },
+    "estado": { "type": "string", "enum": ["oficial", "confirmado", "sin-confirmar"] }
+  },
+  "required": ["id", "nombre", "telefono", "tipo", "estado"]
+}

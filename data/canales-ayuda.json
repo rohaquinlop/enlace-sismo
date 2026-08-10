@@ -1,0 +1,54 @@
+[
+  {
+    "id": "ayuda-cruz-roja",
+    "organizacion": "Cruz Roja Colombiana",
+    "tipo": "donacion-oficial",
+    "descripcion": "Canal oficial de donaciones de la Cruz Roja Colombiana para la respuesta humanitaria.",
+    "como_aportar": "Ingresa al sitio oficial y sigue las instrucciones de donación publicadas por la organización.",
+    "sitio": "https://www.cruzrojacolombiana.org/",
+    "redes": "https://x.com/CruzRojaCol",
+    "fuente": "https://www.cruzrojacolombiana.org/",
+    "verificado_por": "equipo-enlacesismo (seed inicial)",
+    "fecha_verificacion": "2026-08-10",
+    "estado": "oficial"
+  },
+  {
+    "id": "ayuda-ungrd",
+    "organizacion": "UNGRD — Unidad Nacional para la Gestión del Riesgo de Desastres",
+    "tipo": "coordinacion-oficial",
+    "descripcion": "Entidad que coordina la respuesta nacional. Publica los puntos de acopio oficiales por departamento.",
+    "como_aportar": "Consulta los boletines oficiales de UNGRD antes de enviar ayudas; confirma los puntos de acopio vigentes.",
+    "sitio": "https://gestiondelriesgo.gov.co/",
+    "redes": "https://x.com/UNGRD",
+    "fuente": "https://gestiondelriesgo.gov.co/",
+    "verificado_por": "equipo-enlacesismo (seed inicial)",
+    "fecha_verificacion": "2026-08-10",
+    "estado": "oficial"
+  },
+  {
+    "id": "ayuda-defensa-civil",
+    "organizacion": "Defensa Civil Colombiana",
+    "tipo": "voluntariado",
+    "descripcion": "Voluntariado en búsqueda, rescate y atención de albergues.",
+    "como_aportar": "Contacta la sede departamental más cercana o el número 144 para ofrecerte como voluntario.",
+    "sitio": "https://www.defensacivil.gov.co/",
+    "redes": "https://x.com/DefensaCivilCol",
+    "fuente": "https://www.defensacivil.gov.co/",
+    "verificado_por": "equipo-enlacesismo (seed inicial)",
+    "fecha_verificacion": "2026-08-10",
+    "estado": "oficial"
+  },
+  {
+    "id": "ayuda-sgc",
+    "organizacion": "Servicio Geológico Colombiano",
+    "tipo": "informacion-oficial",
+    "descripcion": "Fuente oficial de datos sísmicos: magnitud, epicentro y réplicas.",
+    "como_aportar": "Comparte solo boletines oficiales del SGC. Reporta sismos sentidos en su visor oficial.",
+    "sitio": "https://www.sgc.gov.co/sismos",
+    "redes": "https://x.com/sgcol",
+    "fuente": "https://www.sgc.gov.co/sismos",
+    "verificado_por": "equipo-enlacesismo (seed inicial)",
+    "fecha_verificacion": "2026-08-10",
+    "estado": "oficial"
+  }
+]

@@ -1,0 +1,22 @@
+{
+  "_comentario": "PLANTILLA EJEMPLO — NO ES UN PUNTO DE ACOPIO REAL. Este archivo no se valida ni se publica (validate-data.mjs ignora *.example.json). Copia este formato a acopios.json y reemplaza con datos REALES verificados contra una fuente oficial antes de abrir el PR.",
+  "acopios": [
+    {
+      "id": "cal-ejemplo-001",
+      "nombre": "Ejemplo: Bodega Alcaldía — Centro",
+      "ciudad": "Cali",
+      "departamento": "Valle del Cauca",
+      "direccion": "Calle X # Y-Z, Centro",
+      "lat": 3.4516,
+      "lng": -76.532,
+      "horario": "8:00 - 18:00",
+      "necesidades": ["agua", "alimentos-no-perecederos", "elementos-aseo"],
+      "estado": "abierto",
+      "contacto": "300 000 0000",
+      "fuente": "https://www.cali.gov.co/boletin-oficial/...",
+      "verificado_por": "@tu_usuario_real",
+      "fecha_verificacion": "2026-08-10",
+      "verificacion": "oficial"
+    }
+  ]
+}

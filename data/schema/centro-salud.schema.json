@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://enlacesismo.app/schemas/centro-salud.schema.json",
+  "title": "Centro de salud",
+  "allOf": [{ "$ref": "https://enlacesismo.app/schemas/verificado.schema.json" }],
+  "properties": {
+    "id": { "type": "string", "pattern": "^[a-z0-9-]{3,40}$" },
+    "nombre": { "type": "string", "minLength": 3 },
+    "ciudad": { "type": "string", "minLength": 2 },
+    "departamento": { "type": "string", "minLength": 2 },
+    "direccion": { "type": "string", "minLength": 5 },
+    "lat": { "type": "number", "minimum": -90, "maximum": 90 },
+    "lng": { "type": "number", "minimum": -180, "maximum": 180 },
+    "tipo": { "type": "string", "enum": ["hospital", "clinica", "punto-primeros-auxilios", "puesto-vacunacion"] },
+    "estado": { "type": "string", "enum": ["operativo", "limitado", "cerrado", "sin-confirmar"] },
+    "urgencias_24h": { "type": "boolean" },
+    "contacto": { "type": "string" }
+  },
+  "required": ["id", "nombre", "ciudad", "departamento", "direccion", "lat", "lng", "tipo", "estado"]
+}
