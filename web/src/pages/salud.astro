@@ -1,0 +1,61 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import CatalogCard from "../components/CatalogCard.astro";
+import { centrosSalud, todasLasCiudades } from "../lib/catalogs";
+---
+
+<BaseLayout
+  title="Centros de salud — Enlace Sismo"
+  description="Hospitales, clínicas y puntos de primeros auxilios operativos tras el sismo en Colombia. Información verificada."
+>
+  <section class="seccion-titulo">
+    <h1>Centros de salud</h1>
+    <p>
+      Estado de la red hospitalaria: hospitales, clínicas y puntos de primeros auxilios.
+      Datos verificados contra fuentes oficiales.
+    </p>
+  </section>
+
+  {
+    centrosSalud.length === 0 ? (
+      <div class="vacio">
+        <h3>Aún no hay centros de salud verificados</h3>
+        <p>
+          Se está confirmando el estado de la red hospitalaria con las secretarías de salud.
+          ¿Tienes un dato verificado? Súbelo al repositorio.
+        </p>
+        <a class="btn btn-primary" href="https://github.com/rohaquinlop/enlace-sismo/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener">Agregar un centro (guía)</a>
+      </div>
+    ) : (
+      <>
+        <div class="filtros">
+          <label for="filtro-ciudad">Filtrar por ciudad:</label>
+          <select id="filtro-ciudad">
+            <option value="">Todas</option>
+            {todasLasCiudades.map((c) => <option value={c}>{c}</option>)}
+          </select>
+        </div>
+        <div class="grid" id="lista">
+          {centrosSalud.map((c) => (
+            <div class="card-item" data-ciudad={c.ciudad}>
+              <CatalogCard entrada={c} tipo="salud" />
+            </div>
+          ))}
+        </div>
+      </>
+    )
+  }
+</BaseLayout>
+
+<script>
+  const select = document.getElementById("filtro-ciudad") as HTMLSelectElement | null;
+  if (select) {
+    select.addEventListener("change", () => {
+      const ciudad = select.value;
+      document.querySelectorAll<HTMLElement>(".card-item").forEach((card) => {
+        const coincide = !ciudad || card.dataset.ciudad === ciudad;
+        card.style.display = coincide ? "" : "none";
+      });
+    });
+  }
+</script>

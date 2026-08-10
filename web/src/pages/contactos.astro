@@ -1,0 +1,46 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import StatusBadge from "../components/StatusBadge.astro";
+import contactos from "../../../data/contactos.json";
+---
+
+<BaseLayout
+  title="Contactos de emergencia — Enlace Sismo"
+  description="Números oficiales de emergencia y entidades de respuesta para el sismo en Colombia: 123, Bomberos, Cruz Roja, Defensa Civil, UNGRD y SGC."
+>
+  <section class="seccion-titulo">
+    <h1>Contactos de emergencia</h1>
+    <p>Canales oficiales de respuesta y coordinación. Todos verificados contra fuentes oficiales.</p>
+  </section>
+
+  <div class="aviso">
+    <strong>En una emergencia llama al 123.</strong> Si no tienes señal, busca un punto fijo,
+    una estación de policía o bomberos, o un refugio oficial cercano.
+  </div>
+
+  <table class="tabla">
+    <thead>
+      <tr><th>Servicio</th><th>Número</th><th>Descripción</th><th>Verificación</th></tr>
+    </thead>
+    <tbody>
+      {
+        contactos.map((c) => (
+          <tr>
+            <td data-label="Servicio"><strong>{c.nombre}</strong></td>
+            <td data-label="Número"><strong>{c.telefono}</strong></td>
+            <td data-label="Descripción">
+              {c.descripcion}
+              <br />
+              <small><a href={c.fuente} target="_blank" rel="noopener">Fuente</a> · verificado por {c.verificado_por}</small>
+            </td>
+            <td data-label="Verificación"><StatusBadge estado={c.estado} /></td>
+          </tr>
+        ))
+      }
+    </tbody>
+  </table>
+
+  <p style="margin-top: 1rem">
+    ¿Falta una línea oficial de tu ciudad? <a href="https://github.com/rohaquinlop/enlace-sismo/issues" target="_blank" rel="noopener">Repórtalo</a>.
+  </p>
+</BaseLayout>

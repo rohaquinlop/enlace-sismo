@@ -1,0 +1,21 @@
+---
+interface Props {
+  estado: string;
+}
+
+// Mapea los estados operativos y de verificación a etiquetas visibles.
+const LABELS: Record<string, { texto: string; clase: string }> = {
+  abierto: { texto: "Abierto", clase: "badge-confirmado" },
+  operativo: { texto: "Operativo", clase: "badge-confirmado" },
+  limitado: { texto: "Limitado", clase: "badge-limitado" },
+  cerrado: { texto: "Cerrado", clase: "badge-cerrado" },
+  oficial: { texto: "Oficial", clase: "badge-oficial" },
+  confirmado: { texto: "Confirmado", clase: "badge-confirmado" },
+  "sin-confirmar": { texto: "Sin confirmar", clase: "badge-sin-confirmar" },
+};
+
+const { estado } = Astro.props;
+const info = LABELS[estado] ?? { texto: estado, clase: "badge-sin-confirmar" };
+---
+
+<span class:list={["badge", info.clase]}>{info.texto}</span>

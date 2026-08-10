@@ -1,0 +1,104 @@
+/* Hallmark · pre-emit critique: P5 H5 E4 S4 R5 V5 */
+
+/*
+ * Enlace Sismo — tokens del sistema (tema Cobalt)
+ * Eje del tema: paper frío claro / display grotesk sans / acento cobalto eléctrico
+ * Único lugar donde viven valores de color, tipografía y espacio.
+ * Todo color y toda fuente en la web referencia estos tokens (design.md).
+ */
+
+:root {
+  /* ---- Color · papel e tinta (OKLCH, frío ingenieril) ---- */
+  --color-paper:     oklch(98.5% 0.004 250);
+  --color-paper-2:   oklch(96%   0.006 250);
+  --color-paper-3:   oklch(93%   0.008 250);
+  --color-rule:      oklch(90%   0.008 250);
+  --color-rule-2:    oklch(80%   0.01  250);
+  --color-neutral:   oklch(55%   0.008 250);
+  --color-muted:     oklch(45%   0.01  252);
+  --color-ink-2:     oklch(34%   0.018 257);
+  --color-ink:       oklch(24%   0.02  258);
+
+  /* ---- Color · acento (cobalto eléctrico, señal única < 5 %) ---- */
+  --color-accent:      oklch(54% 0.19 256);
+  --color-accent-ink:  oklch(99% 0.003 250);
+  --color-focus:       oklch(54% 0.19 256);
+  --color-error:       oklch(50% 0.19 25);
+  --color-ok:          oklch(46% 0.12 150);
+
+  /* ---- Color · franja graphite (única banda oscura por página) ---- */
+  --color-graphite:       oklch(22% 0.016 260);
+  --color-graphite-2:     oklch(28% 0.018 260);
+  --color-graphite-ink:   oklch(92% 0.008 250);
+  --color-graphite-muted: oklch(74% 0.012 252);
+  --color-graphite-accent: oklch(72% 0.16 256);
+
+  /* ---- Color · estados de verificación y operativos ---- */
+  --color-badge-oficial-bg:       oklch(24% 0.02 258);
+  --color-badge-oficial-ink:      oklch(96% 0.005 250);
+  --color-badge-confirmado-bg:    oklch(93% 0.05 160);
+  --color-badge-confirmado-ink:   oklch(34% 0.09 160);
+  --color-badge-limitado-bg:      oklch(93% 0.06 80);
+  --color-badge-limitado-ink:     oklch(40% 0.11 75);
+  --color-badge-cerrado-bg:       oklch(93% 0.05 25);
+  --color-badge-cerrado-ink:      oklch(40% 0.13 25);
+  --color-badge-sinconfirmar-bg:  oklch(93% 0.04 90);
+  --color-badge-sinconfirmar-ink: oklch(40% 0.08 80);
+
+  /* ---- Tipografía (sin serif en ninguna parte) ---- */
+  --font-display: "Space Grotesk", "Segoe UI", sans-serif;
+  --font-body:    "Inter", "Segoe UI", sans-serif;
+  --font-outlier: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  /* ---- Escala de texto (tercera mayor 1.25) ---- */
+  --text-xs:   0.64rem;   /* 10.24px */
+  --text-sm:   0.8rem;    /* 12.8px  */
+  --text-base: 1rem;      /* 16px    */
+  --text-md:   1.25rem;   /* 20px    */
+  --text-lg:   1.5625rem; /* 25px    */
+  --text-xl:   1.9531rem; /* 31.25px */
+  --text-2xl:  2.4414rem;
+  --text-3xl:  3.0518rem;
+  --text-display: clamp(2rem, 3.5vw + 0.75rem, 3.25rem);
+
+  /* ---- Espacio (base 4 pt) ---- */
+  --space-3xs: 0.125rem;  /*  2px */
+  --space-2xs: 0.25rem;   /*  4px */
+  --space-xs:  0.5rem;    /*  8px */
+  --space-sm:  0.75rem;   /* 12px */
+  --space-md:  1rem;      /* 16px */
+  --space-lg:  1.5rem;    /* 24px */
+  --space-xl:  2.5rem;    /* 40px */
+  --space-2xl: 4rem;      /* 64px */
+  --space-3xl: 6rem;      /* 96px */
+  --space-4xl: 9rem;      /* 144px */
+
+  /* ---- Reglas y radios (dibujados con regla) ---- */
+  --rule-hair: 1px;
+  --rule-strong: 2px;
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+
+  /* ---- Movimiento (compuesto y escaso) ---- */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in:  cubic-bezier(0.7, 0, 0.84, 0);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --dur-micro: 120ms;
+  --dur-short: 220ms;
+  --dur-long:  420ms;
+  --dur-reveal: 600ms;
+
+  /* ---- Sombras (una sola, apenas visible) ---- */
+  --shadow-lift: 0 1px 2px oklch(24% 0.02 258 / 0.06);
+
+  /* ---- Z (seis niveles, nombrados) ---- */
+  --z-base: 1;
+  --z-raised: 10;
+  --z-dropdown: 100;
+  --z-sticky: 200;
+  --z-sticky-nav: 300;
+  --z-modal: 400;
+  --z-toast: 500;
+  --z-tooltip: 600;
+}

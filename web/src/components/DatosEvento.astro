@@ -1,0 +1,20 @@
+---
+import evento from "../../../data/evento.json";
+
+const lectura = {
+  linea1: `SISMO M${evento.magnitud} · EPICENTRO ${evento.epicentro.toUpperCase()}`,
+  linea2: `PROFUNDIDAD ${evento.profundidad_km} KM · SENTIDO EN ${evento.ciudades_sentido.length} CIUDADES`,
+  linea3: `RÉPLICAS ${evento.replicas}`,
+};
+---
+
+<div class="graphite">
+  <span class="status-chip">Confirmado · SGC</span>
+  <h2>{lectura.linea1}</h2>
+  <p class="graphite-line">{lectura.linea2}</p>
+  <p class="graphite-line">{lectura.linea3}</p>
+  <p class="graphite-fuente">
+    Fuente: <a href={evento.fuente_url} target="_blank" rel="noopener">{evento.fuente}</a> ·{" "}
+    {evento.fecha.slice(0, 10)}
+  </p>
+</div>

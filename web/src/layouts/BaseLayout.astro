@@ -1,0 +1,240 @@
+---
+import "../styles/global.css";
+
+interface Props {
+  title: string;
+  description: string;
+  rail?: boolean;
+}
+
+const { title, description, rail = true } = Astro.props;
+
+const GITHUB = "https://github.com/rohaquinlop/enlace-sismo";
+
+const SECCIONES = [
+  { href: "/mapa", label: "Mapa", descripcion: "Acopios, albergues y salud sobre el territorio." },
+  { href: "/acopios", label: "Puntos de acopio", descripcion: "Dónde entregar alimentos, ropa, agua y medicamentos." },
+  { href: "/albergues", label: "Albergues", descripcion: "Refugios habilitados para damnificados." },
+  { href: "/salud", label: "Centros de salud", descripcion: "Hospitales, clínicas y primeros auxilios." },
+  { href: "/desaparecidos", label: "Desaparecidos", descripcion: "Reporta o busca a una persona." },
+  { href: "/ayuda", label: "Cómo ayudar", descripcion: "Canales oficiales de donación y voluntariado." },
+  { href: "/alertas", label: "Alertas oficiales", descripcion: "Boletines de SGC, UNGRD y alcaldías." },
+  { href: "/contactos", label: "Contactos", descripcion: "Líneas de emergencia oficiales." },
+];
+
+const CIUDADES = [
+  "Bogotá", "Cali", "Medellín", "Pereira", "Manizales", "Armenia", "Chocó", "Valle del Cauca",
+];
+---
+
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <meta
+      name="keywords"
+      content="sismo colombia, terremoto, ayuda, acopios, albergues, desaparecidos, San José del Palmar, Chocó"
+    />
+    <link rel="canonical" href={`https://enlacesismo.app${Astro.url.pathname}`} />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+    <meta name="theme-color" content="#f8f9fb" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={`https://enlacesismo.app${Astro.url.pathname}`} />
+    <meta property="og:locale" content="es_CO" />
+    <meta name="twitter:card" content="summary" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <script>
+      if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.register("/sw.js").catch(() => {});
+      }
+    </script>
+  </head>
+  <body>
+    <header class="site-nav">
+      <a class="brand" href="/">
+        <span class="brand-dot" aria-hidden="true"></span>
+        Enlace Sismo
+      </a>
+      <div class="nav-actions">
+        <button type="button" class="cmdk-trigger" id="cmdk-abrir" aria-haspopup="dialog">
+          Buscar <span class="cmdk-hint"><kbd>⌘K</kbd></span>
+        </button>
+        <a class="nav-link" href="/ayuda" id="nav-ayuda">Ayuda</a>
+        <a class="btn btn-primary" href="/desaparecidos">Reportar</a>
+      </div>
+    </header>
+
+    {
+      rail && (
+        <nav class="section-rail" aria-label="Secciones">
+          {SECCIONES.map((s) => (
+            <a href={s.href} class:list={{ active: Astro.url.pathname === s.href }}>
+              {s.label}
+            </a>
+          ))}
+        </nav>
+      )
+    }
+
+    <main>
+      <slot />
+    </main>
+
+    <footer class="site-footer">
+      <div class="foot-line">
+        <strong>ENLACE SISMO</strong>
+        <span class="foot-sep">·</span>
+        <span>datos verificados contra fuente</span>
+        <span class="foot-sep">·</span>
+        <span>SGC · UNGRD · Cruz Roja</span>
+        <span class="foot-sep">·</span>
+        <span>emergencia <strong>123</strong></span>
+        <span class="foot-sep">·</span>
+        <a href={GITHUB} target="_blank" rel="noopener">código (MIT)</a>
+        <span class="foot-sep">·</span>
+        <a href={`${GITHUB}/blob/main/CONTRIBUTING.md`} target="_blank" rel="noopener">contribuir</a>
+      </div>
+    </footer>
+
+    <!-- Paleta ⌘K -->
+    <div class="cmdk-backdrop" id="cmdk-backdrop" data-open="false" aria-hidden="true"></div>
+    <div
+      class="cmdk-palette"
+      id="cmdk-palette"
+      data-open="false"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Búsqueda"
+      hidden
+    >
+      <div class="cmdk-box">
+        <div class="cmdk-input-row">
+          <input
+            id="cmdk-input"
+            type="search"
+            placeholder="Buscar sección o ciudad…"
+            autocomplete="off"
+            aria-label="Buscar"
+          />
+          <kbd>ESC</kbd>
+        </div>
+        <div class="cmdk-lista" id="cmdk-lista"></div>
+      </div>
+    </div>
+
+    <script is:inline define:vars={{ SECCIONES, CIUDADES, GITHUB }}>
+      const abrir = document.getElementById("cmdk-abrir");
+      const backdrop = document.getElementById("cmdk-backdrop");
+      const palette = document.getElementById("cmdk-palette");
+      const input = document.getElementById("cmdk-input");
+      const lista = document.getElementById("cmdk-lista");
+
+      function abrirPaleta() {
+        palette.hidden = false;
+        backdrop.dataset.open = "true";
+        palette.dataset.open = "true";
+        input.value = "";
+        render();
+        input.focus();
+      }
+
+      function cerrarPaleta() {
+        palette.hidden = true;
+        backdrop.dataset.open = "false";
+        palette.dataset.open = "false";
+      }
+
+      function resultados(q) {
+        const t = q.trim().toLowerCase();
+        if (!t) {
+          return [
+            ...SECCIONES.map((s) => ({ ...s, meta: "sección" })),
+            ...CIUDADES.map((c) => ({ href: "/mapa", label: c, descripcion: "Ver el mapa de " + c, meta: "ciudad" })),
+          ];
+        }
+        const sec = SECCIONES.filter((s) => (s.label + " " + s.descripcion).toLowerCase().includes(t))
+          .map((s) => ({ ...s, meta: "sección" }));
+        const ciu = CIUDADES.filter((c) => c.toLowerCase().includes(t))
+          .map((c) => ({ href: "/mapa", label: c, descripcion: "Ver el mapa de " + c, meta: "ciudad" }));
+        return [...sec, ...ciu];
+      }
+
+      let seleccion = 0;
+      let items = [];
+
+      function render() {
+        items = resultados(input.value);
+        seleccion = Math.min(seleccion, Math.max(0, items.length - 1));
+        if (items.length === 0) {
+          lista.innerHTML = '<p class="cmdk-vacio">Sin resultados. Revisa la ortografía.</p>';
+          return;
+        }
+        lista.innerHTML = items
+          .map(
+            (it, i) =>
+              `<button type="button" class="cmdk-row" role="option" aria-selected="${i === seleccion}" data-i="${i}">
+                <span>${it.label}${it.descripcion ? ` — ${it.descripcion}` : ""}</span>
+                <span class="cmdk-meta">${it.meta}</span>
+              </button>`
+          )
+          .join("");
+        lista.querySelectorAll(".cmdk-row").forEach((row) => {
+          row.addEventListener("click", () => {
+            window.location.href = items[Number(row.dataset.i)].href;
+          });
+          row.addEventListener("mouseenter", () => {
+            seleccion = Number(row.dataset.i);
+            marcar();
+          });
+        });
+        marcar();
+      }
+
+      function marcar() {
+        lista.querySelectorAll(".cmdk-row").forEach((row, i) => {
+          row.setAttribute("aria-selected", String(i === seleccion));
+          if (i === seleccion) row.scrollIntoView({ block: "nearest" });
+        });
+      }
+
+      abrir.addEventListener("click", abrirPaleta);
+
+      document.addEventListener("keydown", (e) => {
+        if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+          e.preventDefault();
+          abrirPaleta();
+          return;
+        }
+        if (palette.dataset.open !== "true") return;
+        if (e.key === "Escape") {
+          cerrarPaleta();
+        } else if (e.key === "ArrowDown") {
+          e.preventDefault();
+          seleccion = Math.min(seleccion + 1, items.length - 1);
+          marcar();
+        } else if (e.key === "ArrowUp") {
+          e.preventDefault();
+          seleccion = Math.max(seleccion - 1, 0);
+          marcar();
+        } else if (e.key === "Enter" && items[seleccion]) {
+          e.preventDefault();
+          window.location.href = items[seleccion].href;
+        }
+      });
+
+      input.addEventListener("input", render);
+      backdrop.addEventListener("click", cerrarPaleta);
+    </script>
+  </body>
+</html>

@@ -1,0 +1,36 @@
+---
+import type { Zona } from "../lib/zonas";
+
+interface Props {
+  zonas: Zona[];
+}
+
+const { zonas } = Astro.props;
+
+const TIPO_LABEL: Record<string, string> = {
+  epicentro: "Epicentro",
+  ciudad: "Ciudad",
+};
+---
+
+<div class="dash-index">
+  <h3>Zonas afectadas</h3>
+  {
+    zonas.map((z) => (
+      <div class="dash-row" style="cursor: default">
+        <span class="dash-row-top">
+          <span class="dash-row-nombre">
+            <span class:list={["zona-dot", z.tipo === "epicentro" ? "zona-dot-epicentro" : "zona-dot-ciudad"]}></span>{" "}
+            {z.nombre}
+          </span>
+          <span class="dash-row-meta">{TIPO_LABEL[z.tipo]}</span>
+        </span>
+        <p>
+          {z.detalle ?? "Sismo sentido"} · 10-08-2026 ·{" "}
+          <small style="font-family: var(--font-outlier)">{z.lat.toFixed(2)}°N {z.lng.toFixed(2)}°O</small> ·{" "}
+          <small><a href={z.fuente} target="_blank" rel="noopener">SGC</a></small>
+        </p>
+      </div>
+    ))
+  }
+</div>

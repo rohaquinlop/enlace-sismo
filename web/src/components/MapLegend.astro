@@ -1,0 +1,47 @@
+---
+interface Props {
+  ciudades: string[];
+  mostrarZonas?: boolean;
+}
+
+const { ciudades, mostrarZonas = false } = Astro.props;
+
+const CATEGORIAS = [
+  { valor: "acopio", etiqueta: "Acopios", clase: "punto-acopio" },
+  { valor: "albergue", etiqueta: "Albergues", clase: "punto-albergue" },
+  { valor: "salud", etiqueta: "Centros de salud", clase: "punto-salud" },
+];
+
+const ZONAS = [
+  { valor: "zona", etiqueta: "Zonas afectadas", clase: "punto-zona" },
+  { valor: "epicentro", etiqueta: "Epicentro", clase: "punto-epicentro" },
+];
+---
+
+<div class="mapa-leyenda">
+  {CATEGORIAS.map((c) => (
+    <label>
+      <input type="checkbox" value={c.valor} checked />
+      <span class:list={["punto", c.clase]}></span> {c.etiqueta}
+    </label>
+  ))}
+  {
+    mostrarZonas &&
+      ZONAS.map((c) => (
+        <label>
+          <input type="checkbox" value={c.valor} checked />
+          <span class:list={["punto", c.clase]}></span> {c.etiqueta}
+        </label>
+      ))
+  }
+  {
+    ciudades.length > 0 && (
+      <select aria-label="Filtrar por ciudad">
+        <option value="">Todas las ciudades</option>
+        {ciudades.map((c) => (
+          <option value={c}>{c}</option>
+        ))}
+      </select>
+    )
+  }
+</div>

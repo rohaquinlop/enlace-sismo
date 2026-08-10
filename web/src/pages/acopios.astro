@@ -1,0 +1,61 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import CatalogCard from "../components/CatalogCard.astro";
+import { acopios, todasLasCiudades } from "../lib/catalogs";
+---
+
+<BaseLayout
+  title="Puntos de acopio — Enlace Sismo"
+  description="Dónde entregar alimentos, ropa, agua y medicamentos para los damnificados del sismo en Colombia. Puntos de acopio verificados por ciudad."
+>
+  <section class="seccion-titulo">
+    <h1>Puntos de acopio</h1>
+    <p>
+      Lugares donde se reciben donaciones. Cada punto está verificado contra una fuente.
+      En una emergencia, confirma por teléfono antes de desplazarte: el estado puede cambiar.
+    </p>
+  </section>
+
+  {
+    acopios.length === 0 ? (
+      <div class="vacio">
+        <h3>Aún no hay puntos de acopio verificados</h3>
+        <p>
+          Los acopios oficiales están siendo confirmados por alcaldías y UNGRD.
+          Este es un proyecto open-source: si tienes un dato verificado, súbelo y publícalo.
+        </p>
+        <a class="btn btn-primary" href="https://github.com/rohaquinlop/enlace-sismo/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener">Agregar el primer acopio (guía)</a>
+      </div>
+    ) : (
+      <>
+        <div class="filtros">
+          <label for="filtro-ciudad">Filtrar por ciudad:</label>
+          <select id="filtro-ciudad">
+            <option value="">Todas</option>
+            {todasLasCiudades.map((c) => <option value={c}>{c}</option>)}
+          </select>
+        </div>
+        <div class="grid" id="lista">
+          {acopios.map((a) => (
+            <div class="card-item" data-ciudad={a.ciudad}>
+              <CatalogCard entrada={a} tipo="acopio" />
+            </div>
+          ))}
+        </div>
+      </>
+    )
+  }
+</BaseLayout>
+
+<script>
+  const select = document.getElementById("filtro-ciudad") as HTMLSelectElement | null;
+  if (select) {
+    select.addEventListener("change", () => {
+      const ciudad = select.value;
+      document.querySelectorAll<HTMLElement>(".card-item").forEach((card) => {
+        const coincide = !ciudad || card.dataset.ciudad === ciudad;
+        card.style.display = coincide ? "" : "none";
+      });
+    });
+  }
+</script>

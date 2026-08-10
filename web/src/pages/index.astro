@@ -1,0 +1,48 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import Map from "../components/Map.astro";
+import MapLegend from "../components/MapLegend.astro";
+import DatosEvento from "../components/DatosEvento.astro";
+import IndiceSecciones from "../components/IndiceSecciones.astro";
+import StatusBadge from "../components/StatusBadge.astro";
+import { acopios, albergues, centrosSalud, todasLasCiudades } from "../lib/catalogs";
+---
+
+<BaseLayout
+  title="Enlace Sismo — Información verificada para el sismo en Colombia"
+  description="Mapa de acopios, albergues y centros de salud; personas desaparecidas y canales oficiales de ayuda para el sismo M7.4 del 10 de agosto de 2026. Cada dato tiene fuente verificable."
+  rail={false}
+>
+  <main class="wide">
+    <!-- Progresivo: sin JavaScript o sin mapa, el contenido se lee en flujo.
+         Solo cuando el mapa carga, .con-mapa lo convierte en dashboard. -->
+    <section class="dash" aria-label="Mapa de ayuda">
+      <Map acopios={acopios} albergues={albergues} centros={centrosSalud} />
+
+      <aside class="dash-panel">
+        <MapLegend ciudades={todasLasCiudades} />
+        <DatosEvento />
+        <IndiceSecciones />
+      </aside>
+
+      <details class="dash-sheet">
+        <summary>Datos del sismo · Secciones</summary>
+        <div class="dash-sheet-body">
+          <MapLegend ciudades={todasLasCiudades} />
+          <DatosEvento />
+          <IndiceSecciones />
+        </div>
+      </details>
+    </section>
+
+    <section class="verif-strip" aria-label="Niveles de verificación">
+      <StatusBadge estado="oficial" /> publicado por entidad oficial
+      <StatusBadge estado="confirmado" /> verificado por 2+ revisores
+      <StatusBadge estado="sin-confirmar" /> pendiente — cautela
+      <span style="flex: 1"></span>
+      <a href="https://github.com/rohaquinlop/enlace-sismo/issues" target="_blank" rel="noopener">
+        ¿Ves un dato incorrecto? Repórtalo
+      </a>
+    </section>
+  </main>
+</BaseLayout>

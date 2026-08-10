@@ -1,0 +1,75 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import StatusBadge from "../components/StatusBadge.astro";
+import canales from "../../../data/canales-ayuda.json";
+import contactos from "../../../data/contactos.json";
+---
+
+<BaseLayout
+  title="Cómo ayudar — Enlace Sismo"
+  description="Canales oficiales y verificados para donar, ser voluntario o ayudar a los damnificados del sismo en Colombia. Cuidado con las estafas."
+>
+  <section class="seccion-titulo">
+    <h1>Cómo ayudar</h1>
+    <p>
+      Solo publicamos canales oficiales o verificados contra fuente. Ante cualquier sospecha
+      de estafa, repórtala en GitHub o a las autoridades.
+    </p>
+  </section>
+
+  <div class="aviso danger">
+    <strong>Cuidado con las estafas:</strong> tras un desastre aparecen cuentas falsas que piden
+    dinero. Donar <em>solo</em> por los canales oficiales de esta página (Cruz Roja, UNGRD, Defensa
+    Civil). Nunca transfieras a cuentas personales difundidas por redes.
+  </div>
+
+  <h2>Canales verificados</h2>
+  <div class="grid">
+    {
+      canales.map((c) => (
+        <article class="card">
+          <div class="card-head">
+            <h3>{c.organizacion}</h3>
+            <StatusBadge estado={c.estado} />
+          </div>
+          <p>{c.descripcion}</p>
+          {c.como_aportar && <p><strong>Cómo aportar:</strong> {c.como_aportar}</p>}
+          <p>
+            {c.sitio && <a href={c.sitio} target="_blank" rel="noopener">Sitio oficial</a>}
+            {c.redes && <> · <a href={c.redes} target="_blank" rel="noopener">Redes</a></>}
+          </p>
+          {c.cuenta_bancaria && (
+            <p><strong>Cuenta bancaria oficial:</strong> {c.cuenta_bancaria}</p>
+          )}
+        </article>
+      ))
+    }
+  </div>
+
+  <h2>Líneas de emergencia</h2>
+  <table class="tabla">
+    <thead>
+      <tr><th>Servicio</th><th>Número</th><th>Descripción</th></tr>
+    </thead>
+    <tbody>
+      {
+        contactos
+          .filter((c) => c.tipo === "emergencia")
+          .map((c) => (
+            <tr>
+              <td data-label="Servicio"><strong>{c.nombre}</strong></td>
+              <td data-label="Número"><strong>{c.telefono}</strong></td>
+              <td data-label="Descripción">{c.descripcion}</td>
+            </tr>
+          ))
+      }
+    </tbody>
+  </table>
+
+  <p style="margin-top: 1rem">
+    ¿Representas una entidad oficial con un punto de acopio o canal de ayuda?
+    <a href="https://github.com/rohaquinlop/enlace-sismo/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener">
+      Publica tu información verificada (guía para contribuir)
+    </a>.
+  </p>
+</BaseLayout>

@@ -1,0 +1,57 @@
+---
+import type { Acopio, Albergue, CentroSalud } from "../lib/catalogs";
+import StatusBadge from "./StatusBadge.astro";
+
+interface Props {
+  entrada: Acopio | Albergue | CentroSalud;
+  tipo: "acopio" | "albergue" | "salud";
+}
+
+const { entrada, tipo } = Astro.props;
+
+const TIPOS: Record<string, string> = {
+  acopio: "Punto de acopio",
+  albergue: "Albergue",
+  salud: "Centro de salud",
+};
+const NECESIDADES: Record<string, string> = {
+  "alimentos-no-perecederos": "Alimentos no perecederos",
+  agua: "Agua",
+  ropa: "Ropa",
+  medicamentos: "Medicamentos",
+  "elementos-aseo": "Elementos de aseo",
+  cobijas: "Cobijas",
+  colchonetas: "Colchonetas",
+  "alimentos-bebe": "Alimentos para bebés",
+  mascotas: "Alimentos para mascotas",
+  herramientas: "Herramientas",
+  voluntarios: "Voluntarios",
+};
+---
+
+<article class="card">
+  <div class="card-head">
+    <h3>{entrada.nombre}</h3>
+    <StatusBadge estado={entrada.estado} />
+  </div>
+  <p class="card-tipo">{TIPOS[tipo]}</p>
+  <p class="card-dir">{entrada.direccion}</p>
+  <p class="card-ciudad">{entrada.ciudad}, {entrada.departamento}</p>
+  {"horario" in entrada && entrada.horario && <p>Horario: {entrada.horario}</p>}
+  {"necesidades" in entrada && entrada.necesidades && entrada.necesidades.length > 0 && (
+    <div class="chips">
+      {entrada.necesidades.map((n) => <span class="chip">{NECESIDADES[n] ?? n}</span>)}
+    </div>
+  )}
+  {"capacidad" in entrada && entrada.capacidad && (
+    <p>Capacidad: {entrada.capacidad} personas</p>
+  )}
+  {"urgencias_24h" in entrada && (
+    <p>{entrada.urgencias_24h ? "Urgencias 24 horas" : "Sin urgencias 24 horas"}</p>
+  )}
+  {"contacto" in entrada && entrada.contacto && <p>Contacto: {entrada.contacto}</p>}
+  <p class="card-fuente">
+    <StatusBadge estado={entrada.verificacion} /> Fuente:{" "}
+    <a href={entrada.fuente} target="_blank" rel="noopener">{entrada.fuente}</a>
+  </p>
+</article>

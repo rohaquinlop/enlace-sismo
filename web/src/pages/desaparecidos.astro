@@ -1,0 +1,148 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+---
+
+<BaseLayout
+  title="Personas desaparecidas — Enlace Sismo"
+  description="Busca o reporta personas desaparecidas tras el sismo M7.4 en Colombia. Registro abierto y público."
+>
+  <section class="seccion-titulo">
+    <h1>Personas desaparecidas</h1>
+    <p>
+      Reporta o busca a una persona tras el sismo. Los reportes se publican de inmediato
+      para maximizar las posibilidades de encuentro.
+    </p>
+  </section>
+
+  <div class="aviso danger">
+    <strong>Privacidad:</strong> publica solo datos necesarios (nombre, edad, lugar y fecha donde se vio por
+    última vez). No incluyas números de documento. Al reportar confirmas que tienes autorización
+    de la familia para publicar esta información.
+  </div>
+
+  <div class="grid" style="align-items: start">
+    <section class="panel">
+      <h2 style="margin-top: 0">Reportar una persona</h2>
+      <form id="form-reporte">
+        <input type="text" name="website" class="form-honeypot" tabindex="-1" autocomplete="off" aria-hidden="true" />
+        <div class="form-group">
+          <label for="nombre">Nombre completo *</label>
+          <input id="nombre" name="nombre" required maxlength="120" />
+        </div>
+        <div class="form-group">
+          <label for="edad">Edad</label>
+          <input id="edad" name="edad" type="number" min="0" max="120" />
+        </div>
+        <div class="form-group">
+          <label for="ciudad">Ciudad donde desapareció *</label>
+          <input id="ciudad" name="ciudad" required maxlength="80" placeholder="Ej: Pereira" />
+        </div>
+        <div class="form-group">
+          <label for="lugar">Último lugar donde se le vio</label>
+          <input id="lugar" name="lugar" maxlength="200" placeholder="Ej: barrio, dirección aproximada" />
+        </div>
+        <div class="form-group">
+          <label for="fecha">Fecha de la última vez</label>
+          <input id="fecha" name="fecha" type="date" />
+        </div>
+        <div class="form-group">
+          <label for="descripcion">Descripción (ropa, señales particulares)</label>
+          <textarea id="descripcion" name="descripcion" rows="3" maxlength="500"></textarea>
+        </div>
+        <div class="form-group">
+          <label for="contacto">Tu teléfono o correo (para coordinar el encuentro) *</label>
+          <input id="contacto" name="contacto" required maxlength="120" />
+        </div>
+        <button type="submit" class="btn btn-primary">Publicar reporte</button>
+        <div id="respuesta" class="respuesta"></div>
+      </form>
+    </section>
+
+    <section class="panel">
+      <h2 style="margin-top: 0">Buscar reportes</h2>
+      <div class="form-group">
+        <label for="buscar">Buscar por nombre o ciudad</label>
+        <input id="buscar" placeholder="Ej: María" />
+      </div>
+      <div id="lista-desaparecidos" class="lista-filas">
+        <p class="vacio">Cargando reportes…</p>
+      </div>
+    </section>
+  </div>
+</BaseLayout>
+
+<script>
+  import { apiGet, apiPost } from "../lib/api";
+
+  interface Desaparecido {
+    id: number;
+    nombre: string;
+    edad?: number | null;
+    ciudad: string;
+    lugar?: string;
+    fecha?: string;
+    descripcion?: string;
+    estado: string;
+    created_at: string;
+  }
+
+  const form = document.getElementById("form-reporte") as HTMLFormElement | null;
+  const respuesta = document.getElementById("respuesta") as HTMLDivElement;
+
+  form?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const datos = new FormData(form);
+    // Honeypot anti-spam: si el campo oculto tiene texto, descartar en silencio.
+    if ((datos.get("website") as string)?.length) return;
+
+    const ok = await apiPost("/api/desaparecidos", {
+      nombre: datos.get("nombre"),
+      edad: datos.get("edad") ? Number(datos.get("edad")) : null,
+      ciudad: datos.get("ciudad"),
+      lugar: datos.get("lugar") || null,
+      fecha: datos.get("fecha") || null,
+      descripcion: datos.get("descripcion") || null,
+      contacto: datos.get("contacto"),
+    });
+
+    respuesta.className = "respuesta " + (ok ? "ok" : "err");
+    respuesta.textContent = ok
+      ? "Reporte publicado. Revisa la lista para confirmar."
+      : "No se pudo publicar. Intenta de nuevo o escríbenos por GitHub.";
+    if (ok) form.reset();
+    cargar();
+  });
+
+  async function cargar() {
+    const lista = document.getElementById("lista-desaparecidos");
+    if (!lista) return;
+    const datos = await apiGet<Desaparecido[]>("/api/desaparecidos?estado=buscando");
+    if (!datos || datos.length === 0) {
+      lista.innerHTML = '<p class="vacio">Aún no hay reportes publicados.</p>';
+      return;
+    }
+    lista.innerHTML = datos
+      .map(
+        (d) => `
+        <article class="fila-busqueda" data-texto="${(d.nombre + " " + (d.ciudad ?? "")).toLowerCase()}">
+          <h3>${d.nombre} <span class="badge badge-sin-confirmar">Buscando</span></h3>
+          <p>${d.ciudad}${d.edad ? ` · ${d.edad} años` : ""}</p>
+          ${d.lugar ? `<p>Última vez: ${d.lugar}</p>` : ""}
+          ${d.descripcion ? `<p>${d.descripcion}</p>` : ""}
+        </article>`
+      )
+      .join("");
+
+    const buscar = document.getElementById("buscar") as HTMLInputElement | null;
+    if (buscar) {
+      buscar.oninput = () => {
+        const q = buscar.value.trim().toLowerCase();
+        document.querySelectorAll<HTMLElement>("#lista-desaparecidos .fila-busqueda").forEach((c) => {
+          c.style.display = !q || (c.dataset.texto ?? "").includes(q) ? "" : "none";
+        });
+      };
+    }
+  }
+
+  cargar();
+</script>
