@@ -1,0 +1,21 @@
+{
+  "name": "enlace-sismo",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Información verificada para el sismo en Colombia — acopios, albergues, ayuda y personas desaparecidas.",
+  "type": "module",
+  "workspaces": [
+    "web",
+    "worker"
+  ],
+  "scripts": {
+    "validate:data": "node scripts/validate-data.mjs",
+    "build": "npm run validate:data && npm run build --workspace web && npm run build --workspace worker",
+    "dev": "npm run dev --workspace web",
+    "dev:api": "npm run dev --workspace worker"
+  },
+  "devDependencies": {
+    "ajv": "^8.17.1",
+    "ajv-formats": "3.0.1"
+  }
+}
