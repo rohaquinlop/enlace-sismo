@@ -1,0 +1,22 @@
+name = "enlace-sismo-api"
+main = "src/index.ts"
+compatibility_date = "2025-06-01"
+
+# Crea la base D1 con: wrangler d1 create enlace-sismo
+# Luego reemplaza database_id con el valor generado.
+[[d1_databases]]
+binding = "DB"
+database_name = "enlace-sismo"
+database_id = "REPLACE_WITH_D1_DATABASE_ID"
+
+# Crea el KV con: wrangler kv namespace create ENLACE_SISMO
+# Luego reemplaza id con el valor generado.
+[[kv_namespaces]]
+binding = "KV"
+id = "REPLACE_WITH_KV_NAMESPACE_ID"
+
+[vars]
+PUBLIC_ORIGIN = "https://enlacesismo.app"
+
+# Secreto requerido para publicar alertas oficiales:
+#   wrangler secret put ADMIN_TOKEN
