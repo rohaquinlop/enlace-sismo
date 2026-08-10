@@ -1,0 +1,14 @@
+[
+  {
+    "date": "2026-08-10",
+    "scope": "app",
+    "design-system": "design.md",
+    "genre": "modern-minimal",
+    "theme": "Cobalt",
+    "theme_axes": "light-cool / grotesk-sans / cool-cobalt",
+    "macrostructure": "Workbench (map-first dashboard)",
+    "nav": "Cobalt flush bar + sección rail + paleta ⌘K",
+    "footer": "Ft2 Inline single line",
+    "brief": "Enlace Sismo — rediseño multi-página: mapa-primero, un click a los datos, registro de instrumento (no portal de noticias)"
+  }
+]
