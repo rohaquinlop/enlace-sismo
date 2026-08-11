@@ -9,10 +9,6 @@ interface Props {
 
 const { zonas } = Astro.props;
 
-const TIPO_LABEL: Record<string, string> = {
-  epicentro: "Epicentro",
-  ciudad: "Ciudad",
-};
 const ROMANOS = ["", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII"];
 const epicentro = zonas.find((z) => z.tipo === "epicentro");
 const fecha = evento.fecha.slice(0, 10);
@@ -20,28 +16,50 @@ const filas = zonas.map((z) => ({
   z,
   km: epicentro && z.id !== epicentro.id ? haversineKm(z.lat, z.lng, epicentro.lat, epicentro.lng) : 0,
 }));
+
+// Dot con el color Mercalli real de la zona; sin intensidad → neutral.
+// El epicentro conserva su marca propia.
+const claseDot = (z: Zona) =>
+  z.tipo === "epicentro" ? "zona-dot-epicentro" : z.intensidad ? `mercalli-${z.intensidad}` : "zona-dot-ciudad";
+
+// Meta compacta: numeral Mercalli (o "Sin reporte") + distancia al epicentro.
+const metaFila = (z: Zona, km: number) => {
+  const intensidad = z.intensidad ? ROMANOS[z.intensidad] : "Sin reporte";
+  return km > 0 ? `${intensidad} · a ${formatearDistancia(km)} del epicentro` : intensidad;
+};
 ---
 
 <div class="dash-index zonas-overlay">
-  <h3>Zonas afectadas</h3>
+  <div class="zonas-header">
+    <h3>Zonas afectadas</h3>
+    <div class="zonas-header-derecha">
+      <span class="zonas-count" aria-label={`${filas.length} zonas afectadas`}>{filas.length}</span>
+      <div class="mercalli-ref" aria-label="Escala de intensidad Mercalli, de I a XII">
+        {ROMANOS.slice(1).map((r, i) => (
+          <span class:list={["punto", `mercalli-${i + 1}`]} title={`Intensidad ${r}`} aria-hidden="true"></span>
+        ))}
+        <span class="punto punto-zona" title="Sin reporte de intensidad" aria-hidden="true"></span>
+      </div>
+    </div>
+  </div>
   {
     filas.map(({ z, km }) => (
-      <button type="button" class="dash-row zona-fila" data-zona-id={z.id} data-tipo={z.tipo}>
-        <span class="dash-row-top">
-          <span class="dash-row-nombre">
-            <span class:list={["zona-dot", z.tipo === "epicentro" ? "zona-dot-epicentro" : "zona-dot-ciudad"]}></span>{" "}
-            {z.nombre}
-          </span>
-          <span class="dash-row-meta">
-            {TIPO_LABEL[z.tipo]} · {z.intensidad ? `Mercalli ${ROMANOS[z.intensidad]}` : "Sin reporte"}
-          </span>
+      <button
+        type="button"
+        class="dash-row zona-fila"
+        data-zona-id={z.id}
+        data-tipo={z.tipo}
+        aria-pressed="false"
+        title={z.intensidad ? `Intensidad Mercalli ${ROMANOS[z.intensidad]}` : "Sin reporte de intensidad"}
+      >
+        <span class="zona-fila-top">
+          <span class:list={["zona-dot", claseDot(z)]} aria-hidden="true"></span>
+          <span class="zona-fila-nombre">{z.nombre}</span>
+          <span class="zona-fila-meta">{metaFila(z, km)}</span>
+          <span class="dash-row-chevron" aria-hidden="true">›</span>
         </span>
-        <p>
-          {z.detalle ?? "Sismo sentido"} · {fecha}
-          {km > 0 && <> · a {formatearDistancia(km)} del epicentro</>} ·{" "}
-          <small style="font-family: var(--font-outlier)">{z.lat.toFixed(2)}°N {z.lng.toFixed(2)}°O</small> · SGC
-        </p>
-        <p class="dist-usuario" hidden></p>
+        <span class="zona-fila-linea">{z.detalle ?? "Sismo sentido"} · {fecha} · SGC</span>
+        <span class="dist-usuario" hidden></span>
       </button>
     ))
   }
@@ -53,7 +71,11 @@ const filas = zonas.map((z) => ({
   const filas = Array.from(document.querySelectorAll<HTMLButtonElement>(".zona-fila"));
 
   function resaltar(id: string) {
-    filas.forEach((f) => f.classList.toggle("zona-activa", f.dataset.zonaId === id));
+    filas.forEach((f) => {
+      const activa = f.dataset.zonaId === id;
+      f.classList.toggle("zona-activa", activa);
+      f.setAttribute("aria-pressed", String(activa));
+    });
   }
 
   // Fila → el mapa vuela a la zona y abre su popup
@@ -75,10 +97,10 @@ const filas = zonas.map((z) => ({
   // Marca "Enlace Sismo": limpiar resaltado al reiniciar la vista del mapa
   window.addEventListener("enlace:mapa:reiniciar", () => resaltar(""));
 
-  // Filtro por las casillas de la leyenda (zonas / epicentro)
+  // Filtro por las casillas de la tira de leyenda (zonas / epicentro)
   function aplicarFiltroLista() {
     const visibles = new Set(
-      Array.from(document.querySelectorAll<HTMLInputElement>(".mapa-leyenda input[type='checkbox']:checked")).map(
+      Array.from(document.querySelectorAll<HTMLInputElement>(".leyenda-tira input[type='checkbox']:checked")).map(
         (i) => i.value
       )
     );
@@ -87,7 +109,7 @@ const filas = zonas.map((z) => ({
       f.hidden = tipo === "epicentro" ? !visibles.has("epicentro") : !visibles.has("zona");
     });
   }
-  document.querySelectorAll<HTMLInputElement>(".mapa-leyenda input[type='checkbox']").forEach((i) => {
+  document.querySelectorAll<HTMLInputElement>(".leyenda-tira input[type='checkbox']").forEach((i) => {
     i.addEventListener("change", aplicarFiltroLista);
   });
   aplicarFiltroLista();
@@ -103,7 +125,7 @@ const filas = zonas.map((z) => ({
         );
         orden.forEach((f, i) => {
           const km = porKm.get(f.dataset.zonaId ?? "");
-          const p = f.querySelector<HTMLParagraphElement>(".dist-usuario");
+          const p = f.querySelector<HTMLElement>(".dist-usuario");
           if (p && km != null) {
             p.hidden = false;
             p.textContent = `A ${formatearDistancia(km)} de ti`;

@@ -128,6 +128,10 @@ const eventoJson = JSON.stringify({ fecha: evento.fecha.slice(0, 10) });
 
     const ROMANOS = ["", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII"];
 
+    // Escapa texto de datos antes de inyectarlo en el popup (nunca markup).
+    const escapar = (s: string) =>
+      s.replace(/[&<>"']/g, (c) => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
+
     const puntos: Punto[] = JSON.parse(el.dataset.puntos ?? "[]");
     const zonas: Zona[] = JSON.parse(el.dataset.zonas ?? "[]");
     const { fecha } = JSON.parse(el.dataset.evento ?? "{}") as { fecha?: string };
@@ -229,7 +233,14 @@ const eventoJson = JSON.stringify({ fecha: evento.fecha.slice(0, 10) });
       popupActivo = new maplibre.Popup({ offset: 16 })
         .setLngLat([z.lng, z.lat])
         .setHTML(
-          `<strong>${z.nombre}</strong><br/>${intensidad}${distancia ? `<br/>${distancia}` : ""}<br/>${z.detalle ?? "Sismo sentido"} · ${fecha ?? ""}<br/><small>Fuente: <a href="${z.fuente}" target="_blank" rel="noopener">SGC</a> · <a href="https://www.google.com/maps/dir/?api=1&destination=${z.lat},${z.lng}" target="_blank" rel="noopener">Cómo llegar</a></small>`
+          `<div class="popup popup-zona">` +
+            `<strong class="popup-titulo">${escapar(z.nombre)}</strong>` +
+            `<p class="popup-meta">${escapar(intensidad)}${distancia ? ` · ${escapar(distancia)}` : ""}</p>` +
+            `<p class="popup-linea">${escapar(z.detalle ?? "Sismo sentido")} · ${escapar(fecha ?? "")}</p>` +
+            `<p class="popup-coords">${z.lat.toFixed(2)}°N ${z.lng.toFixed(2)}°O</p>` +
+            `<p class="popup-fuente">Fuente: <a href="${escapar(z.fuente)}" target="_blank" rel="noopener">SGC</a> · ` +
+            `<a href="https://www.google.com/maps/dir/?api=1&destination=${z.lat},${z.lng}" target="_blank" rel="noopener">Cómo llegar</a></p>` +
+            `</div>`
         )
         .addTo(map);
       window.dispatchEvent(new CustomEvent("enlace:mapa:zona-activa", { detail: { id: z.id } }));
@@ -240,15 +251,25 @@ const eventoJson = JSON.stringify({ fecha: evento.fecha.slice(0, 10) });
       abrirPopupZona(z);
     }
 
-    function aplicarFiltros() {
+    // Última ciudad elegida: volar a la ciudad solo cuando cambia el filtro
+    let ciudadFiltro = "";
+
+    function aplicarFiltros(volar = true) {
       const visibles = new Set(
-        Array.from(document.querySelectorAll(".mapa-leyenda input[type='checkbox']:checked")).map(
+        Array.from(document.querySelectorAll(".leyenda-tira input[type='checkbox']:checked")).map(
           (i) => (i as HTMLInputElement).value
         )
       );
-      const ciudad = Array.from(document.querySelectorAll<HTMLSelectElement>(".mapa-leyenda select"))
+      const ciudad = Array.from(document.querySelectorAll<HTMLSelectElement>(".leyenda-tira select"))
         .map((s) => s.value)
         .find((v) => v !== "") ?? "";
+      if (ciudad !== ciudadFiltro) {
+        ciudadFiltro = ciudad;
+        if (ciudad && volar) {
+          const z = zonas.find((x) => x.nombre.toLowerCase() === ciudad.toLowerCase());
+          if (z) map.flyTo({ center: [z.lng, z.lat], zoom: 8, essential: true });
+        }
+      }
       const puntosFiltrados = puntos.filter(
         (p) => visibles.has(p.tipo) && (!ciudad || p.ciudad === ciudad)
       );
@@ -550,11 +571,17 @@ const eventoJson = JSON.stringify({ fecha: evento.fecha.slice(0, 10) });
         if (!f) return;
         const p = f.properties as unknown as Punto;
         const coords = (f.geometry as { type: "Point"; coordinates: [number, number] }).coordinates;
-      popupActivo?.remove();
+        popupActivo?.remove();
         popupActivo = new maplibre.Popup({ offset: 16 })
           .setLngLat(coords)
           .setHTML(
-            `<strong>${p.nombre}</strong><br/>${p.ciudad} · ${ESTADOS[p.estado] ?? p.estado}<br/>${p.direccion}<br/><small>Fuente: <a href="${p.fuente}" target="_blank" rel="noopener">ver fuente</a> · <a href="https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}" target="_blank" rel="noopener">Cómo llegar</a></small>`
+            `<div class="popup popup-punto">` +
+              `<strong class="popup-titulo">${escapar(p.nombre)}</strong>` +
+              `<p class="popup-meta"><span class="popup-badge popup-badge-${p.tipo}">${escapar(ESTADOS[p.estado] ?? p.estado)}</span> ${escapar(p.ciudad)}</p>` +
+              `<p class="popup-linea">${escapar(p.direccion)}</p>` +
+              `<p class="popup-fuente">Fuente: <a href="${escapar(p.fuente)}" target="_blank" rel="noopener">ver fuente</a> · ` +
+              `<a href="https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}" target="_blank" rel="noopener">Cómo llegar</a></p>` +
+              `</div>`
           )
           .addTo(map);
       });
@@ -590,12 +617,26 @@ const eventoJson = JSON.stringify({ fecha: evento.fecha.slice(0, 10) });
       }
     });
 
-    // Fila de la lista → vuelo + popup
+    // Fila de la lista → vuelo + popup; la zona activa filtra los puntos
+    // de su ciudad (sin volver a volar: la fila ya lo hizo).
     window.addEventListener(
       "enlace:mapa:volar-zona",
       ((e: CustomEvent<{ id: string }>) => {
         const z = zonas.find((x) => x.id === e.detail.id);
-        if (z) volarAZona(z);
+        if (!z) return;
+        volarAZona(z);
+        const select = document.querySelector<HTMLSelectElement>(".leyenda-tira select");
+        if (!select) return;
+        if (z.tipo === "epicentro") {
+          // El epicentro es el ancla del territorio: vuelve a mostrar todos los puntos
+          select.value = "";
+          aplicarFiltros(false);
+          return;
+        }
+        if (Array.from(select.options).some((o) => o.value === z.nombre)) {
+          select.value = z.nombre;
+          aplicarFiltros(false);
+        }
       }) as EventListener
     );
 
@@ -627,11 +668,16 @@ const eventoJson = JSON.stringify({ fecha: evento.fecha.slice(0, 10) });
       if (!cargado) fallido = true;
     }, 8000);
 
-    document.querySelectorAll<HTMLInputElement>(".mapa-leyenda input[type='checkbox']").forEach((input) => {
+    document.querySelectorAll<HTMLInputElement>(".leyenda-tira input[type='checkbox']").forEach((input) => {
       input.addEventListener("change", aplicarFiltros);
     });
-    document.querySelectorAll<HTMLSelectElement>(".mapa-leyenda select").forEach((select) => {
-      select.addEventListener("change", aplicarFiltros);
+    document.querySelectorAll<HTMLSelectElement>(".leyenda-tira select").forEach((select) => {
+      select.addEventListener("change", () => {
+        aplicarFiltros();
+        // Conexión filtro ↔ zonas: resaltar la fila de la ciudad elegida
+        const z = zonas.find((x) => x.nombre === select.value);
+        window.dispatchEvent(new CustomEvent("enlace:mapa:zona-activa", { detail: { id: z?.id ?? "" } }));
+      });
     });
   }
 </script>

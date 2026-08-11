@@ -5,9 +5,18 @@ import MapLegend from "../components/MapLegend.astro";
 import DatosEvento from "../components/DatosEvento.astro";
 import ZonasLista from "../components/ZonasLista.astro";
 import IndiceSecciones from "../components/IndiceSecciones.astro";
-import StatusBadge from "../components/StatusBadge.astro";
 import { acopios, albergues, centrosSalud, todasLasCiudades } from "../lib/catalogs";
 import { zonas } from "../lib/zonas";
+
+// Ciudades del filtro = unión de las que tienen puntos de datos y las zonas
+// afectadas: clic en una zona sin puntos registrados filtra a "0 puntos"
+// (información honesta) en vez de quedarse en "todas".
+const ciudadesFiltro = Array.from(
+  new Set([
+    ...todasLasCiudades,
+    ...zonas.filter((z) => z.tipo === "ciudad").map((z) => z.nombre),
+  ])
+).sort((a, b) => a.localeCompare(b, "es"));
 ---
 
 <BaseLayout
@@ -25,33 +34,70 @@ import { zonas } from "../lib/zonas";
       <DatosEvento />
 
       <div class="mapa-overlays">
-        <ZonasLista zonas={zonas} />
+        <aside class="rail" aria-label="Panel de información">
+          <div class="rail-tabs" role="tablist" aria-label="Contenido del panel">
+            <button type="button" class="rail-tab" role="tab" id="tab-zonas" aria-controls="panel-zonas" aria-selected="true">
+              Zonas
+            </button>
+            <button type="button" class="rail-tab" role="tab" id="tab-secciones" aria-controls="panel-secciones" aria-selected="false" tabindex="-1">
+              Secciones
+            </button>
+          </div>
+          <div class="rail-panel" role="tabpanel" id="panel-zonas" aria-labelledby="tab-zonas">
+            <ZonasLista zonas={zonas} />
+          </div>
+          <div class="rail-panel" role="tabpanel" id="panel-secciones" aria-labelledby="tab-secciones">
+            <IndiceSecciones />
+          </div>
+        </aside>
 
-        <div class="mapa-base">
-          <details class="secciones-box">
-            <summary>Secciones</summary>
-            <div class="box-body">
-              <IndiceSecciones />
-            </div>
-          </details>
-          <details class="mapa-leyenda-box">
-            <summary>Leyenda</summary>
-            <div class="box-body">
-              <MapLegend ciudades={todasLasCiudades} mostrarZonas />
-            </div>
-          </details>
-        </div>
+        <MapLegend ciudades={ciudadesFiltro} mostrarZonas />
       </div>
     </section>
-
-    <section class="verif-strip" aria-label="Niveles de verificación">
-      <StatusBadge estado="oficial" /> publicado por entidad oficial
-      <StatusBadge estado="confirmado" /> verificado por 2+ revisores
-      <StatusBadge estado="sin-confirmar" /> pendiente — cautela
-      <span style="flex: 1"></span>
-      <a href="https://github.com/rohaquinlop/enlace-sismo/issues" target="_blank" rel="noopener">
-        ¿Ves un dato incorrecto? Repórtalo
-      </a>
-    </section>
   </main>
+
+<script>
+  // Tabs del rail (mejora progresiva): sin JS, ambos paneles quedan visibles
+  // y el tablist es inerte. Con JS, solo el panel activo se muestra.
+  const tabs = Array.from(document.querySelectorAll<HTMLButtonElement>(".rail-tab"));
+  const paneles = tabs.map((t) => document.getElementById(t.getAttribute("aria-controls") ?? ""));
+  const tabZonas = tabs.find((t) => t.id === "tab-zonas");
+
+  function activar(tab: HTMLButtonElement) {
+    tabs.forEach((t, i) => {
+      const activo = t === tab;
+      t.setAttribute("aria-selected", String(activo));
+      t.tabIndex = activo ? 0 : -1;
+      const panel = paneles[i];
+      if (panel) panel.hidden = !activo;
+    });
+  }
+
+  tabs.forEach((t) => t.addEventListener("click", () => activar(t)));
+
+  const tablist = document.querySelector(".rail-tabs");
+  tablist?.addEventListener("keydown", (e) => {
+    const actual = tabs.indexOf(document.activeElement as HTMLButtonElement);
+    if (actual === -1) return;
+    let siguiente = actual;
+    if (e.key === "ArrowRight") siguiente = (actual + 1) % tabs.length;
+    else if (e.key === "ArrowLeft") siguiente = (actual - 1 + tabs.length) % tabs.length;
+    else if (e.key === "Home") siguiente = 0;
+    else if (e.key === "End") siguiente = tabs.length - 1;
+    else return;
+    e.preventDefault();
+    tabs[siguiente].focus();
+    activar(tabs[siguiente]);
+  });
+
+  // Sync con el mapa: popup de zona o geolocalización → pestaña Zonas.
+  // Un id vacío solo limpia el resaltado; no cambia de pestaña.
+  window.addEventListener("enlace:mapa:zona-activa", (e) => {
+    if ((e as CustomEvent<{ id: string }>).detail?.id) tabZonas && activar(tabZonas);
+  });
+  window.addEventListener("enlace:mapa:posicion", () => tabZonas && activar(tabZonas));
+
+  // Estado inicial con JS: solo Zonas visible
+  if (tabZonas) activar(tabZonas);
+</script>
 </BaseLayout>
