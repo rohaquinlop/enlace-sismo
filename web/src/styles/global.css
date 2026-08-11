@@ -179,9 +179,11 @@ a:hover {
   display: none;
 }
 
-/* Desktop con ratón: los enlaces envuelven en líneas (mismo arreglo que la
-   tira de leyenda — un scroll sin scrollbar visible es inalcanzable). */
-@media (hover: hover) and (pointer: fine) {
+/* Desktop con ratón (≥ 60rem): los enlaces envuelven en líneas — un scroll
+   sin scrollbar visible es inalcanzable con el ratón. El min-width excluye
+   simuladores/iPads con trackpad, que reportan hover: hover en viewports
+   móviles. El deslizamiento táctil se conserva bajo 60rem. */
+@media (hover: hover) and (pointer: fine) and (min-width: 60rem) {
   .section-rail {
     flex-wrap: wrap;
     overflow-x: visible;
@@ -510,11 +512,12 @@ h2 {
   display: none;
 }
 
-/* Desktop con ratón: los chips envuelven en líneas — un scroll sin scrollbar
-   visible es inalcanzable con el ratón. El deslizamiento táctil de móvil
-   se conserva (hover: none). Los chips van en su propia fila; los controles
-   (ciudad · conteo · acción) en la fila siguiente. */
-@media (hover: hover) and (pointer: fine) {
+/* Desktop con ratón (≥ 60rem): los chips envuelven en líneas — un scroll sin
+   scrollbar visible es inalcanzable con el ratón. Los chips van en su propia
+   fila; los controles (ciudad · conteo · acción) en la fila siguiente.
+   El min-width excluye simuladores y iPads con trackpad, que reportan
+   hover: hover en viewports móviles y romperían la tira. */
+@media (hover: hover) and (pointer: fine) and (min-width: 60rem) {
   .tira-chips {
     flex-wrap: wrap;
     overflow-x: visible;
@@ -2074,9 +2077,11 @@ h2 {
   }
 }
 
-/* Nav compacto en móvil: sin enlace Ayuda, ⌘K sin tecla */
-@media (max-width: 40rem) {
-  /* Móvil con mapa: barra compacta arriba; tira + rail en hoja inferior */
+/* Dashboard sin espacio para el rail lateral (< 60rem): barra compacta
+   arriba; tira + rail en hoja inferior. Cubre celulares, iPhone landscape
+   y tablet portrait — antes solo llegaba a 40rem y esos viewports recibían
+   el layout de escritorio con la tira aplastada en la esquina. */
+@media (max-width: 60rem) {
   .dash.con-mapa .mapa-overlays {
     position: absolute;
     top: auto;
@@ -2148,7 +2153,10 @@ h2 {
     box-shadow: none;
     overflow: hidden;
   }
+}
 
+/* Nav compacto en móvil: sin enlace Ayuda, ⌘K sin tecla */
+@media (max-width: 40rem) {
   .brand {
     font-size: var(--text-base);
   }
