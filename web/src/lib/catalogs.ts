@@ -96,3 +96,29 @@ export const jornadasSangre: JornadaSangre[] = donacionSangreData.jornadas;
 export const todasLasCiudades: string[] = Array.from(
   new Set([...acopios, ...albergues, ...centrosSalud, ...jornadasSangre].map((e) => e.ciudad))
 ).sort();
+
+export interface CiudadGrupo<T> {
+  ciudad: string;
+  items: T[];
+  lat: number;
+  lng: number;
+}
+
+export function agruparPorCiudad<T extends { ciudad: string; lat: number; lng: number }>(
+  items: T[]
+): CiudadGrupo<T>[] {
+  const grupos = new Map<string, T[]>();
+  for (const item of items) {
+    const key = item.ciudad;
+    if (!grupos.has(key)) grupos.set(key, []);
+    grupos.get(key)!.push(item);
+  }
+  return Array.from(grupos.entries())
+    .map(([ciudad, items]) => ({
+      ciudad,
+      items,
+      lat: items.reduce((s, i) => s + i.lat, 0) / items.length,
+      lng: items.reduce((s, i) => s + i.lng, 0) / items.length,
+    }))
+    .sort((a, b) => a.ciudad.localeCompare(b.ciudad));
+}
