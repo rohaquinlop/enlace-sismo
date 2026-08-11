@@ -62,8 +62,9 @@ const etiquetaPuntos = totalPuntos === 1 ? "1 punto" : `${totalPuntos} puntos`;
     )
   }
   <!-- Actualizado por el script del mapa al filtrar; en el fallback sin mapa
-       muestra el total del build -->
-  <span class="tira-conteo" id="puntos-conteo">{etiquetaPuntos}</span>
+       muestra el total del build. aria-live: el cambio de conteo se anuncia
+       al filtrar capas o ciudad. -->
+  <span class="tira-conteo" id="puntos-conteo" aria-live="polite">{etiquetaPuntos}</span>
   {
     mostrarZonas && (
       <a class="tira-chip-ayuda" href="/ayuda">

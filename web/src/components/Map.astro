@@ -103,11 +103,13 @@ const eventoJson = JSON.stringify({ fecha: evento.fecha.slice(0, 10) });
   // El rail se posiciona bajo la barra de evento. Se mide en runtime para no
   // depender de cálculos frágiles (zoom de fuente, contenido dinámico como
   // la línea de distancia al geolocalizar). Fallback CSS: --barra-h.
+  let medirBarra: (() => void) | null = null;
   const barra = document.querySelector<HTMLElement>(".barra-evento");
   if (contenedor && barra && "ResizeObserver" in window) {
     const medir = () => {
       contenedor.style.setProperty("--barra-h-real", `${barra.getBoundingClientRect().height}px`);
     };
+    medirBarra = medir;
     medir();
     new ResizeObserver(medir).observe(barra);
     window.addEventListener("resize", medir);
@@ -120,6 +122,9 @@ const eventoJson = JSON.stringify({ fecha: evento.fecha.slice(0, 10) });
 
   function activarMapa() {
     if (!fallido && contenedor) contenedor.classList.add("con-mapa");
+    // La barra pasa de tarjeta (flujo) a barra superior: re-medir en el mismo
+    // frame para que el rail no quede desalineado ni un instante
+    medirBarra?.();
   }
 
   const tieneWebGL = (() => {

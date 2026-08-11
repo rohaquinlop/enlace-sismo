@@ -453,9 +453,15 @@ h2 {
   padding-top: var(--space-xs);
 }
 
-/* Métricas del instrumento: una línea mono, separadas por punto medio */
+/* Métricas del instrumento: una línea mono, separadas por punto medio.
+   La línea de distancia (#dist-epicentro) está hidden por defecto: el
+   [hidden] del UA pierde contra el display de autor, hay que reafirmarlo. */
 .barra-fila-2 .graphite-line {
   display: inline;
+}
+
+.barra-fila-2 .graphite-line[hidden] {
+  display: none;
 }
 
 .barra-fila-2 .graphite-line + .graphite-line::before {
@@ -631,7 +637,7 @@ h2 {
   flex: none;
   padding: 0 var(--space-md);
   border: none;
-  border-radius: var(--radius-xs);
+  border-radius: var(--radius-sm);
   background: var(--color-accent);
   color: var(--color-accent-ink);
   font-family: var(--font-body);
@@ -709,7 +715,7 @@ h2 {
   flex: none;
   padding: 0 var(--space-md);
   border: var(--rule-hair) solid var(--color-rule-2);
-  border-radius: var(--radius-xs);
+  border-radius: var(--radius-sm);
   background: var(--color-paper);
   color: var(--color-ink-2);
   font-family: var(--font-body);
@@ -867,7 +873,7 @@ h2 {
   box-shadow: 0 0 0 2px var(--color-geo);
 }
 
-.zona-fila.zona-cercana .dash-row-meta,
+.zona-fila.zona-cercana .zona-fila-meta,
 .zona-fila.zona-cercana .dist-usuario {
   color: var(--color-geo);
 }
@@ -1005,6 +1011,10 @@ h2 {
 .dash.con-mapa .mapa-overlays {
   position: absolute;
   inset: 0;
+  /* Full-bleed como el mapa: sin el max-width 68rem del flujo, que en
+     desktop grande desanclaba rail y tira del borde */
+  max-width: none;
+  margin: 0;
   pointer-events: none;
   z-index: var(--z-raised);
 }
@@ -1159,13 +1169,6 @@ h2 {
   margin: 0;
 }
 
-.barra-evento .graphite-fuente {
-  font-family: var(--font-outlier);
-  font-size: var(--text-xs);
-  color: var(--color-graphite-muted);
-  margin: 0;
-}
-
 .barra-evento a {
   color: var(--color-graphite-accent);
 }
@@ -1256,6 +1259,45 @@ h2 {
   max-width: 45%;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* Filas de zona (ZonasLista): mismas reglas de layout que dash-row, con su
+   propia nomenclatura (.zona-fila-*) — portadas aquí para que la lista del
+   rail no dependa de clases de IndiceSecciones */
+.zona-fila .zona-fila-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-sm);
+}
+
+.zona-fila .zona-fila-nombre {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: var(--text-base);
+  letter-spacing: -0.01em;
+  font-style: normal;
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+
+.zona-fila .zona-fila-meta {
+  font-family: var(--font-outlier);
+  font-size: var(--text-xs);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+  white-space: nowrap;
+  max-width: 45%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.zona-fila .zona-fila-linea {
+  display: block;
+  margin-top: var(--space-2xs);
+  font-size: var(--text-sm);
+  color: var(--color-muted);
 }
 
 .dash-row p {
@@ -2078,9 +2120,8 @@ h2 {
     display: none;
   }
 
-  .dash.con-mapa .barra-evento .graphite-line:not(#dist-epicentro) {
-    display: none;
-  }
+  /* En móvil la distancia al epicentro tras "Cerca de mí" se lee en las
+     filas de zona (.dist-usuario), no en la barra (fila-2 oculta aquí) */
 
   .dash.con-mapa .barra-evento h2 {
     font-size: var(--text-sm);
