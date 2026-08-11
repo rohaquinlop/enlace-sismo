@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://enlacesismo.app/schemas/verificado.schema.json",
+  "$id": "https://enlacesismo.com/schemas/verificado.schema.json",
   "title": "Campos obligatorios de verificación",
   "description": "Todo dato publicado debe tener fuente verificable, quién lo verificó y cuándo. Sin estos campos, CI bloquea el merge.",
   "type": "object",

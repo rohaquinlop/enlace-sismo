@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://enlacesismo.app/schemas/albergue.schema.json",
+  "$id": "https://enlacesismo.com/schemas/albergue.schema.json",
   "title": "Albergue / refugio",
-  "allOf": [{ "$ref": "https://enlacesismo.app/schemas/verificado.schema.json" }],
+  "allOf": [{ "$ref": "https://enlacesismo.com/schemas/verificado.schema.json" }],
   "properties": {
     "id": { "type": "string", "pattern": "^[a-z0-9-]{3,40}$" },
     "nombre": { "type": "string", "minLength": 3 },

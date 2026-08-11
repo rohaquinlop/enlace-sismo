@@ -18,8 +18,8 @@ app.use(
   "/api/*",
   cors({
     origin: (origin) => {
-      const allowed = ["https://enlacesismo.app", "http://localhost:4321", "http://localhost:8787"];
-      return allowed.includes(origin) ? origin : "https://enlacesismo.app";
+      const allowed = ["https://enlacesismo.com", "http://localhost:4321", "http://localhost:8787"];
+      return allowed.includes(origin) ? origin : "https://enlacesismo.com";
     },
     allowMethods: ["GET", "POST"],
   })

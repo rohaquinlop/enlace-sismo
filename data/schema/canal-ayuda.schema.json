@@ -1,9 +1,9 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://enlacesismo.app/schemas/canal-ayuda.schema.json",
+  "$id": "https://enlacesismo.com/schemas/canal-ayuda.schema.json",
   "title": "Canal de ayuda verificado",
   "description": "Canales oficiales de donación, voluntariado o información. REGLA DE SEGURIDAD: cuentas bancarias o enlaces de pago SOLO se aceptan con estado 'oficial' y 2 aprobaciones de mantenedores en el PR.",
-  "allOf": [{ "$ref": "https://enlacesismo.app/schemas/verificado.schema.json" }],
+  "allOf": [{ "$ref": "https://enlacesismo.com/schemas/verificado.schema.json" }],
   "properties": {
     "id": { "type": "string", "pattern": "^[a-z0-9-]{3,40}$" },
     "organizacion": { "type": "string", "minLength": 3 },

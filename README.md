@@ -3,7 +3,7 @@
 > Información verificada para el sismo en Colombia.
 > Acopios, albergues, donación de sangre, centros de salud, personas desaparecidas y canales oficiales de ayuda.
 
-**Sitio en vivo: [https://enlacesismo.app](https://enlacesismo.app)**
+**Sitio: [https://enlacesismo.com](https://enlacesismo.com)** — en despliegue.
 
 Plataforma open-source para centralizar información vital tras el sismo de magnitud 7.4
 del 10 de agosto de 2026 (epicentro: San José del Palmar, Chocó). Proyecto humanitario:
