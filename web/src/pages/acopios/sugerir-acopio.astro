@@ -1,0 +1,455 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+---
+
+<BaseLayout
+  title="Sugerir punto de acopio — Enlace Sismo"
+  description="Sugiere un punto de acopio para incluir en la plataforma. Los datos serán verificados antes de publicarse."
+>
+  <section class="seccion-titulo">
+    <h1>Sugerir un punto de acopio</h1>
+    <p>
+      Los datos enviados serán revisados por un mantenedor antes de publicarse.
+      Todos los acopios publicados aparecen como "sin confirmar" hasta ser verificados contra una fuente oficial.
+    </p>
+  </section>
+
+  <div class="aviso">
+    <strong>Importante</strong>
+    Si tienes una fuente oficial (comunicado de la alcaldía, UNGRD, Cruz Roja, etc.), inclúyela.
+    Los acopios sin fuente verificable se publicarán como "sin confirmar" hasta ser validados.
+  </div>
+
+  <form id="form-acopio" class="panel form-acopio" novalidate>
+    <h2>Datos del punto de acopio</h2>
+
+    <div class="form-group">
+      <label for="nombre">Nombre del acopio *</label>
+      <input type="text" id="nombre" name="nombre" required minlength="3" placeholder="Acopio Plaza Central" />
+      <span class="helper" id="helper-nombre"></span>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label for="ciudad">Ciudad *</label>
+        <input type="text" id="ciudad" name="ciudad" required minlength="2" placeholder="Bogotá" />
+        <span class="helper" id="helper-ciudad"></span>
+      </div>
+
+      <div class="form-group">
+        <label for="departamento">Departamento *</label>
+        <input type="text" id="departamento" name="departamento" required minlength="2" placeholder="Cundinamarca" />
+        <span class="helper" id="helper-departamento"></span>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="direccion">Dirección *</label>
+      <input type="text" id="direccion" name="direccion" required minlength="5" placeholder="Calle 100 #15-20" />
+      <span class="helper" id="helper-direccion"></span>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label for="lat">Latitud</label>
+        <input type="number" id="lat" name="lat" step="any" min="-90" max="90" placeholder="4.6875" />
+        <span class="helper" id="helper-lat"></span>
+        <span class="geo-hint" id="geo-hint"></span>
+      </div>
+
+      <div class="form-group">
+        <label for="lng">Longitud</label>
+        <input type="number" id="lng" name="lng" step="any" min="-180" max="180" placeholder="-74.0458" />
+        <span class="helper" id="helper-lng"></span>
+      </div>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label for="tipo">Tipo de acopio</label>
+        <select id="tipo" name="tipo">
+          <option value="no-oficial">No oficial</option>
+          <option value="oficial-comunal">Oficial comunal</option>
+          <option value="oficial-gobierno">Oficial gobierno</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="estado">Estado operativo</label>
+        <select id="estado" name="estado">
+          <option value="sin-confirmar" selected>Sin confirmar</option>
+          <option value="abierto">Abierto</option>
+          <option value="cerrado">Cerrado</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="horario">Horario (opcional)</label>
+      <input type="text" id="horario" name="horario" placeholder="Lunes a sábado 8am - 6pm" />
+    </div>
+
+    <div class="form-group">
+      <label>Necesidades (opcional)</label>
+      <div class="dual-picklist" id="necesidades-picklist">
+        <div class="picklist-col">
+          <span class="picklist-label">Disponibles</span>
+          <ul class="picklist-list" id="necesidades-disponibles">
+            <li data-value="alimentos-no-perecederos">Alimentos no perecederos</li>
+            <li data-value="agua">Agua</li>
+            <li data-value="ropa">Ropa</li>
+            <li data-value="medicamentos">Medicamentos</li>
+            <li data-value="elementos-aseo">Elementos de aseo</li>
+            <li data-value="cobijas">Cobijas</li>
+            <li data-value="colchonetas">Colchonetas</li>
+            <li data-value="alimentos-bebe">Alimentos para bebés</li>
+            <li data-value="mascotas">Mascotas</li>
+            <li data-value="herramientas">Herramientas</li>
+            <li data-value="voluntarios">Voluntarios</li>
+          </ul>
+        </div>
+        <div class="picklist-actions">
+          <button type="button" class="picklist-btn" id="picklist-add" aria-label="Agregar seleccionados">&#8594;</button>
+          <button type="button" class="picklist-btn" id="picklist-remove" aria-label="Quitar seleccionados">&#8592;</button>
+        </div>
+        <div class="picklist-col">
+          <span class="picklist-label">Elegidas</span>
+          <ul class="picklist-list" id="necesidades-elegidas"></ul>
+        </div>
+      </div>
+      <input type="hidden" id="necesidades" name="necesidades" />
+    </div>
+
+    <div class="form-group">
+      <label for="fecha_limite">Fecha límite de recolección</label>
+      <input type="date" id="fecha_limite" name="fecha_limite" />
+    </div>
+
+    <div class="form-group">
+      <label for="detalles">Detalles (opcional)</label>
+      <textarea id="detalles" name="detalles" rows="3" placeholder="Tipo de medicamentos, horarios especiales, restricciones..."></textarea>
+      <span class="form-hint">Información adicional sobre el punto de acopio: qué tipo de medicamentos se reciben, si hay restricciones de horario, instrucciones especiales, etc.</span>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label for="contacto">Contacto (opcional)</label>
+        <input type="text" id="contacto" name="contacto" placeholder="Teléfono, email o ambos" />
+      </div>
+
+      <div class="form-group">
+        <label for="fuente">Fuente oficial (opcional)</label>
+        <input type="url" id="fuente" name="fuente" placeholder="https://www.alcaldia.gov.co/comunicado" />
+        <span class="helper" id="helper-fuente"></span>
+      </div>
+    </div>
+
+    <h2>Evidencia y medios</h2>
+
+    <div class="form-group">
+      <label for="evidencia_links">Links de evidencia (opcional)</label>
+      <input type="text" id="evidencia_links" name="evidencia_links" placeholder="URLs separadas por comas" />
+      <span class="form-hint">URLs que verifican la autenticidad (tweets oficiales, comunicados, etc.)</span>
+    </div>
+
+    <div class="form-group">
+      <label for="imagen">Imagen del punto de acopio (opcional)</label>
+      <input type="file" id="imagen" name="imagen" accept="image/jpeg,image/png,image/webp" />
+      <span class="form-hint">JPG, PNG o WebP. Máximo 5MB.</span>
+      <span class="helper" id="helper-imagen"></span>
+      <div id="imagen-preview" class="imagen-preview"></div>
+    </div>
+
+    <!-- Honeypot -->
+    <div class="form-honeypot" aria-hidden="true">
+      <label for="website">Website</label>
+      <input type="text" id="website" name="website" tabindex="-1" autocomplete="off" />
+    </div>
+
+    <div class="form-acciones">
+      <button type="submit" class="btn btn-primary" id="btn-enviar">Enviar sugerencia</button>
+    </div>
+  </form>
+
+  <div class="modal-resultado" id="modal-resultado" data-tipo="">
+    <div class="modal-resultado-card">
+      <div class="modal-resultado-icono" id="modal-icono"></div>
+      <div class="modal-resultado-titulo" id="modal-titulo"></div>
+      <div class="modal-resultado-mensaje" id="modal-mensaje"></div>
+      <button class="btn btn-primary" id="modal-cerrar">Cerrar</button>
+    </div>
+  </div>
+</BaseLayout>
+
+<script>
+  import { apiPost, apiUrl } from "../../lib/api";
+
+  interface UploadResponse {
+    ok: boolean;
+    url?: string;
+    error?: string;
+  }
+
+  interface SugerenciaResponse {
+    ok: boolean;
+    issue_url?: string;
+    error?: string;
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    const form = document.getElementById("form-acopio") as HTMLFormElement | null;
+    const btnEnviar = document.getElementById("btn-enviar") as HTMLButtonElement | null;
+    const modal = document.getElementById("modal-resultado") as HTMLDivElement | null;
+    const modalIcono = document.getElementById("modal-icono") as HTMLDivElement | null;
+    const modalTitulo = document.getElementById("modal-titulo") as HTMLDivElement | null;
+    const modalMensaje = document.getElementById("modal-mensaje") as HTMLDivElement | null;
+    const modalCerrar = document.getElementById("modal-cerrar") as HTMLButtonElement | null;
+    const geoHint = document.getElementById("geo-hint") as HTMLSpanElement | null;
+    const imagenInput = document.getElementById("imagen") as HTMLInputElement | null;
+    const imagenPreview = document.getElementById("imagen-preview") as HTMLDivElement | null;
+
+    // ---------- Geolocalización ----------
+    function detectarUbicacion() {
+      if (!navigator.geolocation || !geoHint) return;
+      geoHint.textContent = "Detectando ubicación...";
+      geoHint.classList.add("cargando");
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const latEl = document.getElementById("lat") as HTMLInputElement | null;
+          const lngEl = document.getElementById("lng") as HTMLInputElement | null;
+          if (latEl && !latEl.value) latEl.value = pos.coords.latitude.toFixed(6);
+          if (lngEl && !lngEl.value) lngEl.value = pos.coords.longitude.toFixed(6);
+          if (geoHint) {
+            geoHint.textContent = "Ubicación detectada. Podés editar si es necesario.";
+            geoHint.classList.remove("cargando");
+          }
+        },
+        () => {
+          if (geoHint) {
+            geoHint.textContent = "No se pudo detectar la ubicación. Completá manualmente.";
+            geoHint.classList.remove("cargando");
+          }
+        },
+        { enableHighAccuracy: true, timeout: 10000 }
+      );
+    }
+    detectarUbicacion();
+
+    // ---------- Preview de imagen ----------
+    imagenInput?.addEventListener("change", () => {
+      if (!imagenPreview) return;
+      imagenPreview.innerHTML = "";
+      const file = imagenInput.files?.[0];
+      if (!file) return;
+      const img = document.createElement("img");
+      img.src = URL.createObjectURL(file);
+      img.alt = "Vista previa";
+      imagenPreview.appendChild(img);
+    });
+
+    // ---------- Modal ----------
+    function mostrarModal(tipo: "ok" | "error", titulo: string, mensaje: string) {
+      if (!modal || !modalIcono || !modalTitulo || !modalMensaje) return;
+      modal.dataset.tipo = tipo;
+      modalIcono.textContent = tipo === "ok" ? "\u2713" : "\u2717";
+      modalTitulo.textContent = titulo;
+      modalMensaje.textContent = mensaje;
+      modal.dataset.open = "true";
+    }
+    function cerrarModal() {
+      if (modal) modal.dataset.open = "false";
+      window.location.href = "/acopios";
+    }
+    modalCerrar?.addEventListener("click", cerrarModal);
+    modal?.addEventListener("click", (e) => { if (e.target === modal) cerrarModal(); });
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && modal?.dataset.open === "true") cerrarModal();
+    });
+
+    // ---------- Validación ----------
+    const REQUIRED: Record<string, { min?: number; label: string }> = {
+      nombre: { min: 3, label: "nombre" },
+      ciudad: { min: 2, label: "ciudad" },
+      departamento: { min: 2, label: "departamento" },
+      direccion: { min: 5, label: "dirección" },
+    };
+
+    function clearErrors() {
+      if (!form) return;
+      form.querySelectorAll<HTMLElement>("[aria-invalid]").forEach((el) => el.removeAttribute("aria-invalid"));
+      form.querySelectorAll<HTMLElement>(".helper.error").forEach((el) => el.classList.remove("error"));
+    }
+    function showFieldError(field: string, msg: string) {
+      const input = document.getElementById(field) as HTMLInputElement | HTMLSelectElement | null;
+      const helper = document.getElementById(`helper-${field}`);
+      if (input) input.setAttribute("aria-invalid", "true");
+      if (helper) { helper.textContent = msg; helper.classList.add("error"); }
+    }
+    function validate(): boolean {
+      let ok = true;
+      for (const [id, rule] of Object.entries(REQUIRED)) {
+        const el = document.getElementById(id) as HTMLInputElement | HTMLSelectElement | null;
+        if (!el) continue;
+        const val = el.value.trim();
+        if (!val) { showFieldError(id, `${rule.label} es obligatorio`); ok = false; }
+        else if (rule.min && val.length < rule.min) { showFieldError(id, `${rule.label} requiere al menos ${rule.min} caracteres`); ok = false; }
+      }
+      const latEl = document.getElementById("lat") as HTMLInputElement | null;
+      const lngEl = document.getElementById("lng") as HTMLInputElement | null;
+      if (latEl?.value) { const v = Number(latEl.value); if (isNaN(v) || v < -90 || v > 90) { showFieldError("lat", "latitud debe estar entre -90 y 90"); ok = false; } }
+      if (lngEl?.value) { const v = Number(lngEl.value); if (isNaN(v) || v < -180 || v > 180) { showFieldError("lng", "longitud debe estar entre -180 y 180"); ok = false; } }
+      const fuenteEl = document.getElementById("fuente") as HTMLInputElement | null;
+      if (fuenteEl?.value && !/^https?:\/\//.test(fuenteEl.value)) { showFieldError("fuente", "debe ser una URL válida (https://...)"); ok = false; }
+      return ok;
+    }
+
+    // ---------- Upload de imagen ----------
+    async function uploadImagen(): Promise<string | undefined> {
+      const file = imagenInput?.files?.[0];
+      if (!file) return undefined;
+
+      const helperImg = document.getElementById("helper-imagen");
+      if (file.size > 5 * 1024 * 1024) {
+        if (helperImg) { helperImg.textContent = "La imagen no puede superar 5MB"; helperImg.classList.add("error"); }
+        return undefined;
+      }
+
+      try {
+        const buffer = await file.arrayBuffer();
+        const res = await fetch(apiUrl("/api/upload"), {
+          method: "POST",
+          headers: {
+            "Content-Type": file.type,
+            "X-File-Name": file.name,
+          },
+          body: buffer,
+        });
+
+        const text = await res.text();
+
+        if (!res.ok) {
+          if (helperImg) { helperImg.textContent = `Error ${res.status}`; helperImg.classList.add("error"); }
+          return undefined;
+        }
+
+        const data = JSON.parse(text) as UploadResponse;
+        if (data.ok && data.url) return data.url;
+        if (helperImg) { helperImg.textContent = data.error ?? "Error al subir imagen"; helperImg.classList.add("error"); }
+        return undefined;
+      } catch (err) {
+        console.error("Upload exception:", err);
+        if (helperImg) { helperImg.textContent = "Error al subir imagen"; helperImg.classList.add("error"); }
+        return undefined;
+      }
+    }
+
+    // ---------- Dual Picklist (necesidades) ----------
+    const disponibles = document.getElementById("necesidades-disponibles") as HTMLUListElement | null;
+    const elegidas = document.getElementById("necesidades-elegidas") as HTMLUListElement | null;
+    const btnAdd = document.getElementById("picklist-add") as HTMLButtonElement | null;
+    const btnRemove = document.getElementById("picklist-remove") as HTMLButtonElement | null;
+    const hiddenNecesidades = document.getElementById("necesidades") as HTMLInputElement | null;
+
+    function setupPicklistClick(list: HTMLUListElement) {
+      list.addEventListener("click", (e) => {
+        const li = (e.target as HTMLElement).closest("li");
+        if (!li) return;
+        const wasSelected = li.classList.contains("selected");
+        list.querySelectorAll("li.selected").forEach((el) => el.classList.remove("selected"));
+        if (!wasSelected) li.classList.add("selected");
+      });
+    }
+
+    function syncHidden() {
+      if (!elegidas || !hiddenNecesidades) return;
+      const values = Array.from(elegidas.querySelectorAll("li")).map((li) => li.dataset.value ?? "");
+      hiddenNecesidades.value = values.join(",");
+    }
+
+    if (disponibles && elegidas) {
+      setupPicklistClick(disponibles);
+      setupPicklistClick(elegidas);
+
+      btnAdd?.addEventListener("click", () => {
+        const selected = disponibles.querySelector("li.selected");
+        if (!selected) return;
+        selected.classList.remove("selected");
+        elegidas.appendChild(selected);
+        syncHidden();
+      });
+
+      btnRemove?.addEventListener("click", () => {
+        const selected = elegidas.querySelector("li.selected");
+        if (!selected) return;
+        selected.classList.remove("selected");
+        disponibles.appendChild(selected);
+        syncHidden();
+      });
+    }
+
+    // ---------- Submit ----------
+    if (form) {
+      form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        clearErrors();
+        if (!validate()) return;
+
+        if (btnEnviar) { btnEnviar.disabled = true; btnEnviar.setAttribute("aria-busy", "true"); btnEnviar.textContent = "Enviando..."; }
+
+        const imagenUrl = await uploadImagen();
+
+        const getVal = (id: string) => {
+          const el = document.getElementById(id) as HTMLInputElement | null;
+          return el?.value.trim() ?? "";
+        };
+
+        const necesidadesRaw = getVal("necesidades");
+        const necesidades = necesidadesRaw
+          ? necesidadesRaw.split(",").filter(Boolean)
+          : [];
+
+        const evidenciaRaw = getVal("evidencia_links");
+        const evidenciaLinks = evidenciaRaw
+          ? evidenciaRaw.split(",").map((s) => s.trim()).filter(Boolean)
+          : [];
+
+        const body = {
+          nombre: getVal("nombre"),
+          ciudad: getVal("ciudad"),
+          departamento: getVal("departamento"),
+          direccion: getVal("direccion"),
+          lat: Number(getVal("lat")) || undefined,
+          lng: Number(getVal("lng")) || undefined,
+          tipo: (document.getElementById("tipo") as HTMLSelectElement | null)?.value || "no-oficial",
+          horario: getVal("horario") || undefined,
+          necesidades: necesidades.length > 0 ? necesidades : undefined,
+          detalles: getVal("detalles") || undefined,
+          estado: (document.getElementById("estado") as HTMLSelectElement | null)?.value || "sin-confirmar",
+          contacto: getVal("contacto") || undefined,
+          fecha_limite: getVal("fecha_limite") || undefined,
+          evidencia_links: evidenciaLinks.length > 0 ? evidenciaLinks : undefined,
+          imagen_url: imagenUrl || undefined,
+          fuente: getVal("fuente") || undefined,
+          website: getVal("website"),
+        };
+
+        const data = await apiPost<SugerenciaResponse>("/api/sugerencias/acopio", body);
+
+        if (btnEnviar) { btnEnviar.disabled = false; btnEnviar.removeAttribute("aria-busy"); btnEnviar.textContent = "Enviar sugerencia"; }
+
+        if (data?.ok) {
+          mostrarModal("ok", "Sugerencia enviada", "Un mantenedor revisará los datos y los publicará tras verificar la fuente.");
+          form.reset();
+          if (imagenPreview) imagenPreview.innerHTML = "";
+          detectarUbicacion();
+          if (disponibles && elegidas) {
+            Array.from(elegidas.children).forEach((li) => disponibles.appendChild(li));
+            syncHidden();
+          }
+        } else {
+          mostrarModal("error", "No se pudo enviar", data?.error ?? "Intentá nuevamente más tarde.");
+        }
+      });
+    }
+  });
+</script>

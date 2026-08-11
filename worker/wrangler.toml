@@ -15,6 +15,12 @@ database_id = "REPLACE_WITH_D1_DATABASE_ID"
 binding = "KV"
 id = "REPLACE_WITH_KV_NAMESPACE_ID"
 
+# Crea el bucket R2 con: wrangler r2 bucket create enlace-sismo-imagenes
+# Luego el binding ya está configurado abajo.
+[[r2_buckets]]
+binding = "IMAGENES"
+bucket_name = "enlace-sismo-imagenes"
+
 [vars]
 PUBLIC_ORIGIN = "https://enlacesismo.com"
 
