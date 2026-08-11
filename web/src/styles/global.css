@@ -84,7 +84,6 @@ a:hover {
   padding: var(--space-sm) 0;
   border-bottom: var(--rule-hair) solid var(--color-rule);
   background: color-mix(in oklab, var(--color-paper) 88%, transparent);
-  backdrop-filter: blur(8px);
 }
 
 .brand {
@@ -120,77 +119,21 @@ a:hover {
   margin-left: auto;
 }
 
-/* Píldora ⌘K */
-.cmdk-trigger {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-xs);
-  font-size: var(--text-sm);
-  color: var(--color-muted);
-  border: var(--rule-hair) solid var(--color-rule-2);
-  border-radius: var(--radius-sm);
-  background: var(--color-paper);
-  padding: 0.4rem var(--space-sm);
-  min-height: 44px;
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-.cmdk-trigger .cmdk-hint {
-  display: none;
-}
-
-.cmdk-trigger:hover {
-  border-color: var(--color-accent);
-  text-decoration: none;
-}
-
-.cmdk-trigger kbd {
-  font-family: var(--font-outlier);
-  font-size: var(--text-xs);
-  color: var(--color-muted);
-  border: var(--rule-hair) solid var(--color-rule-2);
-  border-radius: var(--radius-xs);
-  padding: 0.05rem 0.3rem;
-}
-
-.nav-link {
-  font-size: var(--text-sm);
-  font-weight: 500;
-  color: var(--color-ink-2);
-  padding: var(--space-xs) var(--space-sm);
-  white-space: nowrap;
-  min-height: 44px;
-  display: inline-flex;
-  align-items: center;
-}
-
-/* Rail de secciones (páginas internas) */
-.section-rail {
+.nav-secciones {
   display: flex;
+  align-items: center;
   gap: var(--space-2xs);
   overflow-x: auto;
   scrollbar-width: none;
-  padding: var(--space-xs) 0;
-  border-bottom: var(--rule-hair) solid var(--color-rule);
+  flex: 1;
+  min-width: 0;
 }
 
-.section-rail::-webkit-scrollbar {
+.nav-secciones::-webkit-scrollbar {
   display: none;
 }
 
-/* Desktop con ratón (≥ 60rem): los enlaces envuelven en líneas — un scroll
-   sin scrollbar visible es inalcanzable con el ratón. El min-width excluye
-   simuladores/iPads con trackpad, que reportan hover: hover en viewports
-   móviles. El deslizamiento táctil se conserva bajo 60rem. */
-@media (hover: hover) and (pointer: fine) and (min-width: 60rem) {
-  .section-rail {
-    flex-wrap: wrap;
-    overflow-x: visible;
-  }
-}
-
-.section-rail a {
+.nav-secciones a {
   font-family: var(--font-outlier);
   font-size: var(--text-xs);
   letter-spacing: 0.04em;
@@ -205,127 +148,150 @@ a:hover {
   align-items: center;
 }
 
-.section-rail a:hover {
+.nav-secciones a:hover {
   border-color: var(--color-rule-2);
   text-decoration: none;
   color: var(--color-ink);
 }
 
-.section-rail a.active {
+.nav-secciones a.active {
   color: var(--color-accent);
   border-color: var(--color-accent);
 }
 
-/* ============================================================
-   Paleta ⌘K
-   ============================================================ */
-
-.cmdk-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: var(--z-modal);
-  background: oklch(24% 0.02 258 / 0.4);
-  display: none;
+@media (hover: hover) and (pointer: fine) and (min-width: 60rem) {
+  .nav-secciones {
+    flex-wrap: wrap;
+    overflow-x: visible;
+  }
 }
 
-.cmdk-backdrop[data-open="true"] {
+/* Hamburguesa — solo visible en móvil */
+.nav-hamburguesa {
+  display: none;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  width: 44px;
+  height: 44px;
+  padding: 10px;
+  border: none;
+  background: none;
+  cursor: pointer;
+}
+
+.hamburguesa-linea {
   display: block;
+  width: 100%;
+  height: 2px;
+  background: var(--color-ink);
+  border-radius: 1px;
 }
 
-.cmdk-palette {
+@media (max-width: 60rem) {
+  .nav-hamburguesa {
+    display: flex;
+  }
+
+  .nav-secciones {
+    display: none;
+  }
+}
+
+/* Sidebar móvil */
+.nav-sidebar {
   position: fixed;
-  inset: 0;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: min(85vw, 20rem);
   z-index: var(--z-modal);
-  display: none;
-  place-items: start center;
-  padding: 15vh var(--space-md) var(--space-md);
-}
-
-.cmdk-palette[data-open="true"] {
-  display: grid;
-}
-
-.cmdk-box {
-  width: min(100%, 36rem);
   background: var(--color-paper);
-  border: var(--rule-hair) solid var(--color-rule-2);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-lift);
-  overflow: hidden;
+  border-right: var(--rule-hair) solid var(--color-rule-2);
+  transform: translateX(-100%);
+  transition: transform var(--dur-micro) var(--ease-out);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
 }
 
-.cmdk-input-row {
+.nav-sidebar[aria-hidden="false"] {
+  transform: translateX(0);
+}
+
+.nav-sidebar-header {
   display: flex;
   align-items: center;
-  gap: var(--space-sm);
-  padding: var(--space-sm) var(--space-md);
+  justify-content: space-between;
+  padding: var(--space-md);
   border-bottom: var(--rule-hair) solid var(--color-rule);
 }
 
-.cmdk-input-row input {
-  flex: 1;
-  min-width: 0;
-  border: none;
-  outline: none;
-  background: transparent;
-  font-family: var(--font-body);
-  font-size: var(--text-base);
-  color: var(--color-ink);
-  min-height: 44px;
+.nav-sidebar-titulo {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: var(--text-md);
 }
 
-.cmdk-input-row input::placeholder {
-  color: var(--color-muted);
-}
-
-.cmdk-input-row kbd {
-  font-family: var(--font-outlier);
-  font-size: var(--text-xs);
-  color: var(--color-muted);
-}
-
-.cmdk-lista {
-  max-height: 18rem;
-  overflow-y: auto;
-  padding: var(--space-xs);
-}
-
-.cmdk-row {
+.nav-sidebar-cerrar {
+  width: 44px;
+  height: 44px;
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--space-sm);
-  width: 100%;
-  text-align: left;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  color: var(--color-muted);
   background: none;
   border: none;
-  border-radius: var(--radius-xs);
-  padding: var(--space-sm) var(--space-sm);
   cursor: pointer;
-  font-family: var(--font-body);
-  font-size: var(--text-sm);
+}
+
+.nav-sidebar-cerrar:hover {
   color: var(--color-ink);
-  min-height: 44px;
 }
 
-.cmdk-row .cmdk-meta {
+.nav-sidebar-links {
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-sm);
+}
+
+.nav-sidebar-links a {
   font-family: var(--font-outlier);
-  font-size: var(--text-xs);
-  color: var(--color-muted);
-  white-space: nowrap;
+  font-size: var(--text-sm);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--color-ink-2);
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-xs);
+  min-height: 44px;
+  display: flex;
+  align-items: center;
 }
 
-.cmdk-row:hover,
-.cmdk-row[aria-selected="true"] {
+.nav-sidebar-links a:hover {
   background: var(--color-paper-2);
   text-decoration: none;
 }
 
-.cmdk-vacio {
-  padding: var(--space-md);
-  font-size: var(--text-sm);
-  color: var(--color-muted);
-  text-align: center;
+.nav-sidebar-links a.active {
+  color: var(--color-accent);
+  background: var(--color-paper-2);
+}
+
+.nav-sidebar-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: calc(var(--z-modal) - 1);
+  background: oklch(24% 0.02 258 / 0.4);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--dur-micro) var(--ease-out);
+}
+
+.nav-sidebar-backdrop[data-open="true"] {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 /* ============================================================
@@ -2454,13 +2420,6 @@ ul.picklist-list li:hover:not(.selected) {
    Responsive — mobile first
    ============================================================ */
 
-@media (min-width: 40rem) {
-  /* ~640 px */
-  .cmdk-trigger .cmdk-hint {
-    display: inline;
-  }
-}
-
 /* Dashboard sin espacio para el rail lateral (< 60rem): barra compacta
    arriba; tira + rail en hoja inferior. Cubre celulares, iPhone landscape
    y tablet portrait — antes solo llegaba a 40rem y esos viewports recibían
@@ -2550,10 +2509,6 @@ ul.picklist-list li:hover:not(.selected) {
 @media (max-width: 40rem) {
   .brand {
     font-size: var(--text-base);
-  }
-
-  .nav-link#nav-ayuda {
-    display: none;
   }
 
   .btn.btn-primary {

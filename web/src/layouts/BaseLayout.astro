@@ -4,10 +4,9 @@ import "../styles/global.css";
 interface Props {
   title: string;
   description: string;
-  rail?: boolean;
 }
 
-const { title, description, rail = true } = Astro.props;
+const { title, description } = Astro.props;
 
 const GITHUB = "https://github.com/rohaquinlop/enlace-sismo";
 
@@ -82,11 +81,19 @@ const CIUDADES = [
         <span class="brand-dot" aria-hidden="true"></span>
         Enlace Sismo
       </a>
+      <nav class="nav-secciones" aria-label="Secciones">
+        {SECCIONES.map((s) => (
+          <a href={s.href} class:list={{ active: Astro.url.pathname === new URL(s.href, Astro.url).pathname }}>
+            {s.label}
+          </a>
+        ))}
+      </nav>
       <div class="nav-actions">
-        <button type="button" class="cmdk-trigger" id="cmdk-abrir" aria-haspopup="dialog">
-          Buscar <span class="cmdk-hint"><kbd>⌘K</kbd></span>
+        <button class="nav-hamburguesa" id="nav-hamburguesa" aria-label="Abrir menú" aria-expanded="false">
+          <span class="hamburguesa-linea"></span>
+          <span class="hamburguesa-linea"></span>
+          <span class="hamburguesa-linea"></span>
         </button>
-        <a class="nav-link" href="/ayuda" id="nav-ayuda">Ayuda</a>
         <a class="btn btn-primary" href="https://colombiatebusca.com" target="_blank" rel="noopener noreferrer">
           <span class="btn-cta-full">Buscar o reportar desaparecidos</span>
           <span class="btn-cta-movil" aria-hidden="true">Desaparecidos</span>
@@ -94,17 +101,20 @@ const CIUDADES = [
       </div>
     </header>
 
-    {
-      rail && (
-        <nav class="section-rail" aria-label="Secciones">
-          {SECCIONES.map((s) => (
-            <a href={s.href} class:list={{ active: Astro.url.pathname === new URL(s.href, Astro.url).pathname }}>
-              {s.label}
-            </a>
-          ))}
-        </nav>
-      )
-    }
+    <aside class="nav-sidebar" id="nav-sidebar" aria-hidden="true">
+      <div class="nav-sidebar-header">
+        <span class="nav-sidebar-titulo">Secciones</span>
+        <button class="nav-sidebar-cerrar" id="nav-sidebar-cerrar" aria-label="Cerrar menú">&times;</button>
+      </div>
+      <nav class="nav-sidebar-links">
+        {SECCIONES.map((s) => (
+          <a href={s.href} class:list={{ active: Astro.url.pathname === new URL(s.href, Astro.url).pathname }}>
+            {s.label}
+          </a>
+        ))}
+      </nav>
+    </aside>
+    <div class="nav-sidebar-backdrop" id="nav-sidebar-backdrop"></div>
 
     <main>
       <slot />
@@ -126,32 +136,6 @@ const CIUDADES = [
       </div>
     </footer>
 
-    <!-- Paleta ⌘K -->
-    <div class="cmdk-backdrop" id="cmdk-backdrop" data-open="false" aria-hidden="true"></div>
-    <div
-      class="cmdk-palette"
-      id="cmdk-palette"
-      data-open="false"
-      role="dialog"
-      aria-modal="true"
-      aria-label="Búsqueda"
-      hidden
-    >
-      <div class="cmdk-box">
-        <div class="cmdk-input-row">
-          <input
-            id="cmdk-input"
-            type="search"
-            placeholder="Buscar sección o ciudad…"
-            autocomplete="off"
-            aria-label="Buscar"
-          />
-          <kbd>ESC</kbd>
-        </div>
-        <div class="cmdk-lista" id="cmdk-lista"></div>
-      </div>
-    </div>
-
     <script is:inline define:vars={{ SECCIONES, CIUDADES, GITHUB }}>
       // Marca "Enlace Sismo": en la portada vuelve al mapa y limpia el deep-link
       // sin recargar la página; en otras páginas navega a la portada (comportamiento normal).
@@ -166,107 +150,31 @@ const CIUDADES = [
         (mapa ?? document.body).scrollIntoView({ behavior: "smooth", block: "start" });
       });
 
-      const abrir = document.getElementById("cmdk-abrir");
-      const backdrop = document.getElementById("cmdk-backdrop");
-      const palette = document.getElementById("cmdk-palette");
-      const input = document.getElementById("cmdk-input");
-      const lista = document.getElementById("cmdk-lista");
+      // Sidebar móvil
+      const btnHamburguesa = document.getElementById("nav-hamburguesa");
+      const sidebar = document.getElementById("nav-sidebar");
+      const backdrop = document.getElementById("nav-sidebar-backdrop");
+      const btnCerrar = document.getElementById("nav-sidebar-cerrar");
 
-      function abrirPaleta() {
-        palette.hidden = false;
-        backdrop.dataset.open = "true";
-        palette.dataset.open = "true";
-        input.value = "";
-        render();
-        input.focus();
+      function abrirSidebar() {
+        sidebar?.setAttribute("aria-hidden", "false");
+        backdrop?.setAttribute("data-open", "true");
+        btnHamburguesa?.setAttribute("aria-expanded", "true");
+        document.body.style.overflow = "hidden";
+      }
+      function cerrarSidebar() {
+        sidebar?.setAttribute("aria-hidden", "true");
+        backdrop?.setAttribute("data-open", "false");
+        btnHamburguesa?.setAttribute("aria-expanded", "false");
+        document.body.style.overflow = "";
       }
 
-      function cerrarPaleta() {
-        palette.hidden = true;
-        backdrop.dataset.open = "false";
-        palette.dataset.open = "false";
-      }
-
-      function resultados(q) {
-        const t = q.trim().toLowerCase();
-        if (!t) {
-          return [
-            ...SECCIONES.map((s) => ({ ...s, meta: "sección" })),
-            ...CIUDADES.map((c) => ({ ...c, descripcion: "Ver el mapa de " + c.label, meta: "ciudad" })),
-          ];
-        }
-        const sec = SECCIONES.filter((s) => (s.label + " " + s.descripcion).toLowerCase().includes(t))
-          .map((s) => ({ ...s, meta: "sección" }));
-        const ciu = CIUDADES.filter((c) => c.label.toLowerCase().includes(t))
-          .map((c) => ({ ...c, descripcion: "Ver el mapa de " + c.label, meta: "ciudad" }));
-        return [...sec, ...ciu];
-      }
-
-      let seleccion = 0;
-      let items = [];
-
-      function render() {
-        items = resultados(input.value);
-        seleccion = Math.min(seleccion, Math.max(0, items.length - 1));
-        if (items.length === 0) {
-          lista.innerHTML = '<p class="cmdk-vacio">Sin resultados. Revisa la ortografía.</p>';
-          return;
-        }
-        lista.innerHTML = items
-          .map(
-            (it, i) =>
-              `<button type="button" class="cmdk-row" role="option" aria-selected="${i === seleccion}" data-i="${i}">
-                <span>${it.label}${it.descripcion ? ` — ${it.descripcion}` : ""}</span>
-                <span class="cmdk-meta">${it.meta}</span>
-              </button>`
-          )
-          .join("");
-        lista.querySelectorAll(".cmdk-row").forEach((row) => {
-          row.addEventListener("click", () => {
-            window.location.href = items[Number(row.dataset.i)].href;
-          });
-          row.addEventListener("mouseenter", () => {
-            seleccion = Number(row.dataset.i);
-            marcar();
-          });
-        });
-        marcar();
-      }
-
-      function marcar() {
-        lista.querySelectorAll(".cmdk-row").forEach((row, i) => {
-          row.setAttribute("aria-selected", String(i === seleccion));
-          if (i === seleccion) row.scrollIntoView({ block: "nearest" });
-        });
-      }
-
-      abrir.addEventListener("click", abrirPaleta);
-
+      btnHamburguesa?.addEventListener("click", abrirSidebar);
+      btnCerrar?.addEventListener("click", cerrarSidebar);
+      backdrop?.addEventListener("click", cerrarSidebar);
       document.addEventListener("keydown", (e) => {
-        if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
-          e.preventDefault();
-          abrirPaleta();
-          return;
-        }
-        if (palette.dataset.open !== "true") return;
-        if (e.key === "Escape") {
-          cerrarPaleta();
-        } else if (e.key === "ArrowDown") {
-          e.preventDefault();
-          seleccion = Math.min(seleccion + 1, items.length - 1);
-          marcar();
-        } else if (e.key === "ArrowUp") {
-          e.preventDefault();
-          seleccion = Math.max(seleccion - 1, 0);
-          marcar();
-        } else if (e.key === "Enter" && items[seleccion]) {
-          e.preventDefault();
-          window.location.href = items[seleccion].href;
-        }
+        if (e.key === "Escape") cerrarSidebar();
       });
-
-      input.addEventListener("input", render);
-      backdrop.addEventListener("click", cerrarPaleta);
     </script>
   </body>
 </html>
