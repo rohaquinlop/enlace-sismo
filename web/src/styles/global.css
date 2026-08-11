@@ -497,13 +497,13 @@ h2 {
   box-shadow: var(--shadow-lift);
 }
 
-.tira-chips {
+/* Contenedor de filtros (capas + ciudad + conteo): scrollea en una línea en
+   móvil/táctil, envuelve en desktop con ratón. Las acciones (Cómo ayudar,
+   Cerca de mí) viven fuera y quedan siempre visibles. */
+.tira-scroll {
   display: flex;
   align-items: center;
   gap: var(--space-2xs);
-  /* Línea completa siempre: con flex: 1 (basis 0) los controles de la tira
-     (select + conteo + acciones) llenan la línea y los chips quedan con
-     ancho ~0 — invisibles. Basis 100% garantiza su fila propia. */
   flex: 1 1 100%;
   min-width: 0;
   overflow-x: auto;
@@ -511,20 +511,34 @@ h2 {
   scrollbar-width: none;
 }
 
+.tira-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.tira-chips {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2xs);
+  flex: none;
+  min-width: 0;
+}
+
 .tira-chips::-webkit-scrollbar {
   display: none;
 }
 
-/* Desktop con ratón (≥ 60rem): los chips envuelven en líneas — un scroll sin
-   scrollbar visible es inalcanzable con el ratón. Los chips van en su propia
-   fila; los controles (ciudad · conteo · acción) en la fila siguiente.
-   El min-width excluye simuladores y iPads con trackpad, que reportan
-   hover: hover en viewports móviles y romperían la tira. */
+/* Desktop con ratón (≥ 60rem): los filtros envuelven en líneas — un scroll sin
+   scrollbar visible es inalcanzable con el ratón. El min-width excluye
+   simuladores y iPads con trackpad, que reportan hover: hover en viewports
+   móviles y romperían la tira. */
 @media (hover: hover) and (pointer: fine) and (min-width: 60rem) {
-  .tira-chips {
+  .tira-scroll {
     flex-wrap: wrap;
     overflow-x: visible;
-    flex: 1 1 100%;
+  }
+
+  .tira-chips {
+    flex-wrap: wrap;
   }
 
   .tira-sep {
@@ -2091,7 +2105,7 @@ h2 {
     left: var(--space-sm);
     right: var(--space-sm);
     bottom: var(--space-sm);
-    max-height: 45dvh;
+    max-height: 50dvh;
     overflow: hidden;
     display: flex;
     flex-direction: column;
@@ -2158,6 +2172,13 @@ h2 {
   }
 }
 
+/* Landscape móvil: la hoja cede altura al mapa */
+@media (max-width: 60rem) and (orientation: landscape) {
+  .dash.con-mapa .mapa-overlays {
+    max-height: 40dvh;
+  }
+}
+
 /* Nav compacto en móvil: sin enlace Ayuda, ⌘K sin tecla */
 @media (max-width: 40rem) {
   .brand {
@@ -2179,6 +2200,12 @@ h2 {
 
   .btn-cta-movil {
     display: inline;
+  }
+
+  /* Franja de verificación compacta: sin label (los badges se explican solos
+     y el grupo lleva aria-label); en 320 px label + 3 badges no caben */
+  .rail-verif .verif-label {
+    display: none;
   }
 }
 

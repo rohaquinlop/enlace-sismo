@@ -26,45 +26,49 @@ const etiquetaPuntos = totalPuntos === 1 ? "1 punto" : `${totalPuntos} puntos`;
 
 <!-- Barra de herramientas del mapa, siempre visible. Una sola instancia en el
      DOM: desktop la posiciona en la base del mapa y móvil sobre la hoja
-     inferior (mismo componente, CSS distinto). Grupos separados por regla:
-     capas | ciudad + conteo | acción. -->
+     inferior (mismo componente, CSS distinto).
+     .tira-scroll agrupa filtros (capas + ciudad + conteo): scrollea en una
+     línea en móvil, envuelve en desktop. Las acciones (Cómo ayudar, Cerca de
+     mí) quedan fijas fuera del scroll. -->
 <div class="leyenda-tira" aria-label="Filtros del mapa">
-  <div class="tira-chips" role="group" aria-label="Capas visibles en el mapa">
-    {CATEGORIAS.map((c) => (
-      <label class="tira-chip">
-        <input type="checkbox" value={c.valor} checked />
-        <span class:list={["tira-dot", c.clase]} aria-hidden="true"></span>
-        <span class="tira-label">{c.etiqueta}</span>
-      </label>
-    ))}
+  <div class="tira-scroll">
+    <div class="tira-chips" role="group" aria-label="Capas visibles en el mapa">
+      {CATEGORIAS.map((c) => (
+        <label class="tira-chip">
+          <input type="checkbox" value={c.valor} checked />
+          <span class:list={["tira-dot", c.clase]} aria-hidden="true"></span>
+          <span class="tira-label">{c.etiqueta}</span>
+        </label>
+      ))}
+      {
+        mostrarZonas &&
+          ZONAS.map((c) => (
+            <label class="tira-chip">
+              <input type="checkbox" value={c.valor} checked />
+              <span class:list={["tira-dot", c.clase]} aria-hidden="true"></span>
+              <span class="tira-label">{c.etiqueta}</span>
+            </label>
+          ))
+      }
+    </div>
+    <span class="tira-sep" aria-hidden="true"></span>
     {
-      mostrarZonas &&
-        ZONAS.map((c) => (
-          <label class="tira-chip">
-            <input type="checkbox" value={c.valor} checked />
-            <span class:list={["tira-dot", c.clase]} aria-hidden="true"></span>
-            <span class="tira-label">{c.etiqueta}</span>
-          </label>
-        ))
+      ciudades.length > 0 && (
+        <span class="tira-chip tira-chip-select" title="Filtrar puntos por ciudad">
+          <select aria-label="Filtrar por ciudad">
+            <option value="">Ciudad: Todas</option>
+            {ciudades.map((c) => (
+              <option value={c}>{c}</option>
+            ))}
+          </select>
+        </span>
+      )
     }
+    <!-- Actualizado por el script del mapa al filtrar; en el fallback sin mapa
+         muestra el total del build. aria-live: el cambio de conteo se anuncia
+         al filtrar capas o ciudad. -->
+    <span class="tira-conteo" id="puntos-conteo" aria-live="polite">{etiquetaPuntos}</span>
   </div>
-  <span class="tira-sep" aria-hidden="true"></span>
-  {
-    ciudades.length > 0 && (
-      <span class="tira-chip tira-chip-select" title="Filtrar puntos por ciudad">
-        <select aria-label="Filtrar por ciudad">
-          <option value="">Ciudad: Todas</option>
-          {ciudades.map((c) => (
-            <option value={c}>{c}</option>
-          ))}
-        </select>
-      </span>
-    )
-  }
-  <!-- Actualizado por el script del mapa al filtrar; en el fallback sin mapa
-       muestra el total del build. aria-live: el cambio de conteo se anuncia
-       al filtrar capas o ciudad. -->
-  <span class="tira-conteo" id="puntos-conteo" aria-live="polite">{etiquetaPuntos}</span>
   {
     mostrarZonas && (
       <a class="tira-chip-ayuda" href="/ayuda">
