@@ -36,7 +36,7 @@ const TIPO_ACOPIO: Record<string, string> = {
 const verificacionClase = entrada.verificacion === "oficial" ? "card-oficial" : entrada.verificacion === "sin-confirmar" ? "card-sin-confirmar" : "";
 ---
 
-<article class={`card ${verificacionClase}`}>
+<article class={`card ${verificacionClase}`} id={entrada.id}>
   <div class="card-head">
     <h3>{entrada.nombre}</h3>
     <StatusBadge estado={entrada.estado} />
