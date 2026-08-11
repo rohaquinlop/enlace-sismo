@@ -120,4 +120,128 @@ app.post("/salud", async (c) => {
   }
 });
 
+// ---------- Albergues ----------
+
+interface SugerenciaAlbergueBody {
+  nombre: string;
+  ciudad: string;
+  departamento: string;
+  direccion: string;
+  lat?: number;
+  lng?: number;
+  capacidad?: number;
+  ocupacion?: number;
+  admite_mascotas?: boolean;
+  servicios?: string[];
+  estado: "abierto" | "cerrado" | "sin-confirmar";
+  contacto?: string;
+  fuente: string;
+  website?: string;
+}
+
+app.post("/albergues", async (c) => {
+  const body = await c.req.json().catch(() => null);
+  if (!body) return c.json({ error: "JSON inválido" }, 400);
+
+  // Honeypot: si el bot llenó "website", devolver 200 silencioso.
+  if (body.website) return c.json({ ok: true });
+
+  // Rate limit: 5 por IP por hora.
+  if (!(await rateLimit(c, "rl:albergues", 5))) {
+    return c.json({ error: "Demasiadas sugerencias. Intenta en una hora." }, 429);
+  }
+
+  const { nombre, ciudad, departamento, direccion, lat, lng, capacidad, ocupacion, admite_mascotas, servicios, estado, contacto, fuente } =
+    body as SugerenciaAlbergueBody;
+
+  // Validación de campos obligatorios.
+  if (!nombre || String(nombre).length < 3) return c.json({ error: "nombre es obligatorio (mínimo 3 caracteres)" }, 400);
+  if (!ciudad || String(ciudad).length < 2) return c.json({ error: "ciudad es obligatoria (mínimo 2 caracteres)" }, 400);
+  if (!departamento || String(departamento).length < 2) return c.json({ error: "departamento es obligatorio (mínimo 2 caracteres)" }, 400);
+  if (!direccion || String(direccion).length < 5) return c.json({ error: "dirección es obligatoria (mínimo 5 caracteres)" }, 400);
+  if (lat != null && (typeof lat !== "number" || lat < -90 || lat > 90)) return c.json({ error: "lat debe estar entre -90 y 90" }, 400);
+  if (lng != null && (typeof lng !== "number" || lng < -180 || lng > 180)) return c.json({ error: "lng debe estar entre -180 y 180" }, 400);
+  if (capacidad != null && (typeof capacidad !== "number" || capacidad < 1 || !Number.isInteger(capacidad))) return c.json({ error: "capacidad debe ser un entero mayor a 0" }, 400);
+  if (ocupacion != null && (typeof ocupacion !== "number" || ocupacion < 0 || !Number.isInteger(ocupacion))) return c.json({ error: "ocupación debe ser un entero mayor o igual a 0" }, 400);
+  if (servicios != null && !Array.isArray(servicios)) return c.json({ error: "servicios debe ser un arreglo" }, 400);
+
+  const ESTADOS = ["abierto", "cerrado", "sin-confirmar"];
+  if (estado && !ESTADOS.includes(estado)) return c.json({ error: "estado inválido" }, 400);
+  if (!fuente || !/^https?:\/\//.test(fuente)) return c.json({ error: "fuente debe ser una URL válida" }, 400);
+
+  // Sanitización con caps.
+  const sNombre = String(nombre).slice(0, 200);
+  const sCiudad = String(ciudad).slice(0, 80);
+  const sDepto = String(departamento).slice(0, 80);
+  const sDir = String(direccion).slice(0, 300);
+  const sContacto = contacto ? String(contacto).slice(0, 200) : undefined;
+  const sFuente = String(fuente).slice(0, 500);
+  const sEstado = estado && ESTADOS.includes(estado) ? estado : "sin-confirmar";
+  const sServicios = servicios ? servicios.map((s) => String(s).slice(0, 100)).slice(0, 20) : [];
+  const ip = c.req.header("cf-connecting-ip") ?? "local-dev";
+  const ahora = new Date().toISOString();
+
+  // Construir issue body con markdown formateado.
+  const issueBody = [
+    `## Sugerencia de albergue`,
+    ``,
+    `> **${sNombre}** — ${sCiudad}, ${sDepto}`,
+    ``,
+    `### Datos del albergue`,
+    ``,
+    `| Campo | Valor |`,
+    `|-------|-------|`,
+    `| **Nombre** | ${sNombre} |`,
+    `| **Ciudad** | ${sCiudad} |`,
+    `| **Departamento** | ${sDepto} |`,
+    `| **Dirección** | ${sDir} |`,
+    `| **Latitud** | ${lat ?? "no proporcionada"} |`,
+    `| **Longitud** | ${lng ?? "no proporcionada"} |`,
+    `| **Capacidad** | ${capacidad ?? "no proporcionada"} |`,
+    `| **Ocupación** | ${ocupacion ?? "no proporcionada"} |`,
+    `| **Admite mascotas** | ${admite_mascotas == null ? "no indicado" : admite_mascotas ? "Sí" : "No"} |`,
+    `| **Servicios** | ${sServicios.length ? sServicios.join(", ") : "no indicados"} |`,
+    `| **Estado** | ${sEstado} |`,
+    `| **Contacto** | ${sContacto || "no proporcionado"} |`,
+    `| **Fuente** | [${sFuente}](${sFuente}) |`,
+    ``,
+    `---`,
+    `*Enviado por: ${ip} — ${ahora}*`,
+    ``,
+    `> Este albergue será publicado como **sin confirmar** hasta que un mantenedor verifique la fuente.`,
+  ].join("\n");
+
+  const issueTitle = `[albergue] ${sNombre} — ${sCiudad}`;
+
+  try {
+    const ghRes = await fetch("https://api.github.com/repos/rohaquinlop/enlace-sismo/issues", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${c.env.GITHUB_TOKEN}`,
+        Accept: "application/vnd.github+json",
+        "Content-Type": "application/json",
+        "User-Agent": "enlace-sismo/1.0",
+        "X-GitHub-Api-Version": "2022-11-28",
+      },
+      body: JSON.stringify({
+        title: issueTitle,
+        body: issueBody,
+        labels: ["sugerencia-albergue", "sin-verificar"],
+      }),
+    });
+
+    if (!ghRes.ok) {
+      const ghErr = await ghRes.text().catch(() => "sin detalle");
+      console.error("GitHub API error:", ghRes.status, ghErr);
+      return c.json({ error: "No se pudo crear el reporte. Intenta más tarde." }, 502);
+    }
+
+    const ghData = (await ghRes.json()) as { html_url: string };
+    return c.json({ ok: true, issue_url: ghData.html_url }, 201);
+  } catch (err) {
+    console.error("Error al crear issue:", err);
+    return c.json({ error: "No se pudo crear el reporte. Intenta más tarde." }, 502);
+  }
+});
+
 export default app;
