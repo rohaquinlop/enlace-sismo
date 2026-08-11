@@ -10,7 +10,7 @@ const { jornada } = Astro.props;
 
 const MESES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
 const fmt = (iso: string) => {
-  const [y, m, d] = iso.split("-").map(Number);
+  const [, m, d] = iso.split("-").map(Number);
   return `${d} ${MESES[m - 1]}`;
 };
 

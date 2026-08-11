@@ -15,4 +15,6 @@ export interface Zona {
   verificacion: "oficial" | "confirmado" | "sin-confirmar";
 }
 
-export const zonas: Zona[] = zonasData;
+// Los datos se validan contra data/schema/zonas.schema.json en CI; el import de
+// JSON infiere `string` donde el schema exige enums. Cast en la frontera.
+export const zonas: Zona[] = zonasData as Zona[];

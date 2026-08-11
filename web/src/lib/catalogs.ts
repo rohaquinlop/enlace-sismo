@@ -78,10 +78,27 @@ export interface JornadaSangre extends Verificado {
   contacto?: string;
 }
 
-export const acopios: Acopio[] = acopiosData.acopios;
-export const albergues: Albergue[] = alberguesData.albergues;
-export const centrosSalud: CentroSalud[] = centrosSaludData.centros;
-export const jornadasSangre: JornadaSangre[] = donacionSangreData.jornadas;
+/** Canal de ayuda verificado (data/canales-ayuda.json; schema canal-ayuda.schema.json). */
+export interface CanalAyuda extends Verificado {
+  id: string;
+  organizacion: string;
+  tipo: "donacion-oficial" | "coordinacion-oficial" | "voluntariado" | "informacion-oficial";
+  descripcion?: string;
+  como_aportar?: string;
+  sitio?: string;
+  redes?: string;
+  /** SOLO si la entidad oficial la publicó (regla de seguridad: estado 'oficial' + 2 aprobaciones). */
+  cuenta_bancaria?: string;
+  estado: "oficial" | "confirmado" | "sin-confirmar";
+}
+
+// Los datos se validan contra data/schema/* en CI (npm run validate:data); la
+// inferencia de resolveJsonModule produce `string` donde los schemas exigen
+// enums. El cast en la frontera tipa el JSON con los contratos del proyecto.
+export const acopios: Acopio[] = acopiosData.acopios as Acopio[];
+export const albergues: Albergue[] = alberguesData.albergues as Albergue[];
+export const centrosSalud: CentroSalud[] = centrosSaludData.centros as CentroSalud[];
+export const jornadasSangre: JornadaSangre[] = donacionSangreData.jornadas as JornadaSangre[];
 
 export const todasLasCiudades: string[] = Array.from(
   new Set([...acopios, ...albergues, ...centrosSalud, ...jornadasSangre].map((e) => e.ciudad))
