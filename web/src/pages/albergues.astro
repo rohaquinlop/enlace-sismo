@@ -24,16 +24,19 @@ import { albergues, todasLasCiudades } from "../lib/catalogs";
           Los albergues oficiales están siendo confirmados por alcaldías y UNGRD.
           ¿Tienes un dato verificado? Súbelo al repositorio.
         </p>
-        <a class="btn btn-primary" href="https://github.com/rohaquinlop/enlace-sismo/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener">Agregar un albergue (guía)</a>
+        <a class="btn btn-primary" href="/albergues/sugerir-albergue">Sugerir un albergue</a>
       </div>
     ) : (
       <>
         <div class="filtros">
-          <label for="filtro-ciudad">Filtrar por ciudad:</label>
-          <select id="filtro-ciudad">
-            <option value="">Todas</option>
-            {todasLasCiudades.map((c) => <option value={c}>{c}</option>)}
-          </select>
+          <div class="filtros-controls">
+            <label for="filtro-ciudad">Filtrar por ciudad:</label>
+            <select id="filtro-ciudad">
+              <option value="">Todas</option>
+              {todasLasCiudades.map((c) => <option value={c}>{c}</option>)}
+            </select>
+          </div>
+          <a class="btn btn-primary" href="/albergues/sugerir-albergue">Sugerir un albergue</a>
         </div>
         <div class="grid" id="lista">
           {albergues.map((a) => (
