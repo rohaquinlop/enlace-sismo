@@ -20,27 +20,30 @@
 ```
 enlace-sismo/
 ├── data/                    # Datos verificados (fuente obligatoria)
-│   ├── acopios.json         # Puntos de acopio (vía PRs)
-│   ├── albergues.json       # Refugios (vía PRs)
-│   ├── centros-salud.json   # Red hospitalaria (vía PRs)
+│   ├── acopios.json         # Puntos de acopio (vía PRs; aún vacío)
+│   ├── albergues.json       # Refugios (vía PRs; aún vacío)
+│   ├── centros-salud.json   # Red hospitalaria: 7 hospitales verificados (OSM + portales), estado sin-confirmar
 │   ├── contactos.json       # Líneas oficiales de emergencia
 │   ├── canales-ayuda.json   # Canales de donación/voluntariado
-│   ├── zonas-afectadas.json # Epicentro SGC + ciudades (contexto del evento)
+│   ├── zonas-afectadas.json # Epicentro SGC + ciudades; `intensidad` Mercalli opcional SOLO con fuente
 │   ├── evento.json          # Boletín oficial SGC (evento en curso)
 │   └── schema/              # JSON Schemas (draft 2020-12) por catálogo
 ├── scripts/
 │   └── validate-data.mjs    # Validación con Ajv + reglas de seguridad
 ├── web/                     # Frontend Astro
-│   ├── src/pages/           # index (dashboard), mapa, acopios, albergues,
+│   ├── src/pages/           # index (dashboard mapa-primero), acopios, albergues,
 │   │                        # salud, desaparecidos, ayuda, alertas, contactos
+│   │                        # (NOTA: /mapa fue eliminado → 301 a /#mapa)
 │   ├── src/components/      # Map, MapLegend, DatosEvento, IndiceSecciones,
 │   │                        # ZonasLista, CatalogCard, StatusBadge
-│   ├── src/lib/             # catalogs.ts, zonas.ts, api.ts
+│   ├── src/lib/             # catalogs.ts, zonas.ts, geo.ts (haversine),
+│   │                        # color.ts (oklch→hex para MapLibre), api.ts
 │   ├── src/styles/global.css
-│   └── public/sw.js         # PWA offline (cache v2)
+│   └── public/              # sw.js (PWA offline, cache v3), _redirects
 ├── worker/                  # API Hono
 │   ├── src/index.ts         # alertas, desaparecidos, reportes + rate limits
 │   └── migrations/001_init.sql
+├── .sdd/changes/            # Cambios spec-driven (propose → apply → archive)
 ├── tokens.css               # Sistema de diseño Cobalt (fuente única de tokens)
 ├── design.md                # Sistema de diseño bloqueado (Hallmark)
 ├── .github/workflows/
@@ -85,6 +88,7 @@ cd worker && npx wrangler d1 migrations apply enlace-sismo --local|--remote
 - **Commits:** Conventional Commits (`feat(web): ...`, `fix(worker): ...`) — ver `git log`
 - **Español** en todo el contenido de usuario, copy de UI, docs y mensajes
 - **Tokens de diseño:** todo color/fuente vía `var(--token)` de `tokens.css` — nunca valores sueltos (oklch/hex) en el CSS de la web
+- **MapLibre no acepta `oklch()`:** el mapa convierte tokens con `web/src/lib/color.ts` (oklch→hex en runtime); `tokens.css` sigue siendo la única fuente de color
 - **Sin emojis como iconos** en la UI (anti-pattern del sistema); etiquetas tipográficas o SVG propio
 - Headings romanos (sin itálica), fuente del sistema Cobalt: Space Grotesk + Inter + JetBrains Mono
 
@@ -92,14 +96,21 @@ cd worker && npx wrangler d1 migrations apply enlace-sismo --local|--remote
 
 - `data/schema/verificado.schema.json` — campos obligatorios de toda entrada (`fuente`, `verificado_por`, `fecha_verificacion`, `verificacion`)
 - `scripts/validate-data.mjs` — validador; incluye regla de seguridad: cuentas bancarias solo con `estado: oficial`
-- `web/src/components/Map.astro` — mapa MapLibre progresivo: sin WebGL o con CDN bloqueado, el contenido base (lista) queda visible; nunca pantalla en blanco
-- `web/src/pages/index.astro` — dashboard mapa-primero (`.dash` base = contenido en flujo; `.con-mapa` = superposición)
+- `web/src/components/Map.astro` — mapa MapLibre progresivo: capas por intensidad Mercalli, anillo del epicentro (rAF + IntersectionObserver), "Cerca de mí", sincronización lista↔mapa por `CustomEvent` (`enlace:mapa:volar-zona|zona-activa|posicion|reiniciar`), deep-link `/?ciudad=<id>#mapa`; sin WebGL o con CDN bloqueado, el contenido base (lista) queda visible; nunca pantalla en blanco
+- `web/src/lib/geo.ts` — haversine + formateo de distancia (build y cliente)
+- `web/src/lib/color.ts` — conversión oklch→hex (MapLibre no soporta oklch)
+- `web/src/pages/index.astro` — dashboard mapa-primero (`.dash` base = contenido en flujo; `.con-mapa` = superposición); ancla `id="mapa"`
+- `web/public/_redirects` — `/mapa` → `/#mapa` (301, Cloudflare Pages)
+- `web/public/sw.js` — PWA offline; el `APP_SHELL` NO debe listar páginas borradas (rompe el install)
 - `worker/src/index.ts` — API; `ADMIN_TOKEN` (secreto) para publicar alertas oficiales
 - `CONTRIBUTING.md` — protocolo completo de verificación por PRs
 
 ## Conventions
 
 - **Los datos entran por PRs** al repo: `data/*.json` → CI valida → mantenedor revisa contra la fuente → merge → deploy automático
+- **Cambios grandes vía `.sdd/changes/`** (spec-driven): `/sdd:propose` → `/sdd:apply` → `/sdd:archive`
+- **Zonas sin `intensidad`** en `zonas-afectadas.json` se dibujan neutrales etiquetadas "Sin reporte" — nunca estimar intensidad sin fuente
+- **Enlaces "Cómo llegar"** (Google Maps `dir/?api=1&destination=lat,lng`) en popups y tarjetas: no eliminar
 - **Cuentas bancarias / enlaces de pago:** solo con `"verificacion": "oficial"` (publicados por la entidad) y 2 aprobaciones de mantenedores
 - **Desaparecidos:** prohibido publicar números de documento; menores requieren autorización de familiar
 - **Estados operativos:** `abierto | cerrado | sin-confirmar` (acopios/albergues), `operativo | limitado | cerrado | sin-confirmar` (salud)
