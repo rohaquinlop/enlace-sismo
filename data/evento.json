@@ -12,8 +12,9 @@
   ],
   "contexto": "Evento sísmico de mayor magnitud registrado en Colombia en el siglo XXI.",
   "fuente": "Servicio Geológico Colombiano (SGC)",
-  "fuente_url": "https://www2.sgc.gov.co/Noticias/Paginas/SGC-actualiza-la-informacion-sobre-el-sismo-ocurrido-en-San-Jose-del-Palmar-Choco.aspx",
+  "fuente_url": "https://www.sgc.gov.co/detalleevento/SGC2026pqqmro/resumen",
+  "fuente_secundaria": "https://www2.sgc.gov.co/Noticias/Paginas/SGC-actualiza-la-informacion-sobre-el-sismo-ocurrido-en-San-Jose-del-Palmar-Choco.aspx",
   "verificado_por": "equipo-enlacesismo (seed inicial)",
-  "fecha_verificacion": "2026-08-10",
+  "fecha_verificacion": "2026-08-11",
   "estado": "oficial"
 }

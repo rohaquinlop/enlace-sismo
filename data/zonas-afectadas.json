@@ -6,9 +6,10 @@
     "lat": 5.04,
     "lng": -76.34,
     "detalle": "Epicentro del sismo M7.4 — a ~20 km del casco urbano",
-    "fuente": "https://www2.sgc.gov.co/Noticias/Paginas/SGC-actualiza-la-informacion-sobre-el-sismo-ocurrido-en-San-Jose-del-Palmar-Choco.aspx",
+    "fuente": "https://www.sgc.gov.co/detalleevento/SGC2026pqqmro/resumen",
+    "fuente_secundaria": "https://www2.sgc.gov.co/Noticias/Paginas/SGC-actualiza-la-informacion-sobre-el-sismo-ocurrido-en-San-Jose-del-Palmar-Choco.aspx",
     "verificado_por": "equipo-enlacesismo (seed inicial)",
-    "fecha_verificacion": "2026-08-10",
+    "fecha_verificacion": "2026-08-11",
     "verificacion": "oficial"
   },
   {
