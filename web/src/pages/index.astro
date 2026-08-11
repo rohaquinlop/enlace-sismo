@@ -71,7 +71,10 @@ const enlaceMaps = (lat: number, lng: number) =>
       <DatosEvento />
 
       <div class="mapa-overlays">
-        <aside class="rail" aria-label="Panel de información">
+        <button type="button" class="rail-toggle" id="rail-toggle" aria-expanded="true" aria-controls="rail-panel-aside" aria-label="Ocultar panel">
+          <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <aside class="rail" id="rail-panel-aside" aria-label="Panel de información">
           <div class="rail-tabs" role="tablist" aria-label="Contenido del panel">
             <button type="button" class="rail-tab" role="tab" id="tab-zonas" aria-controls="panel-zonas" aria-selected="true">
               Zonas
@@ -189,6 +192,18 @@ const enlaceMaps = (lat: number, lng: number) =>
   // y el tablist es inerte. Con JS, solo el panel activo se muestra.
   const tabs = Array.from(document.querySelectorAll<HTMLButtonElement>(".rail-tab"));
   const paneles = tabs.map((t) => document.getElementById(t.getAttribute("aria-controls") ?? ""));
+
+  // Toggle del rail en móvil: colapsa/expande el aside + la tira de leyenda
+  const railToggle = document.getElementById("rail-toggle") as HTMLButtonElement | null;
+  const railAside = document.getElementById("rail-panel-aside") as HTMLElement | null;
+  const leyendaTira = railToggle?.parentElement?.querySelector<HTMLElement>(".leyenda-tira") ?? null;
+  railToggle?.addEventListener("click", () => {
+    const expanded = railToggle.getAttribute("aria-expanded") === "true";
+    railToggle.setAttribute("aria-expanded", String(!expanded));
+    railToggle.setAttribute("aria-label", expanded ? "Mostrar panel" : "Ocultar panel");
+    if (railAside) railAside.hidden = expanded;
+    if (leyendaTira) leyendaTira.hidden = expanded;
+  });
   const tabZonas = tabs.find((t) => t.id === "tab-zonas");
 
   function activar(tab: HTMLButtonElement) {
