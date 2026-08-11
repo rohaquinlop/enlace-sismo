@@ -77,7 +77,7 @@ const eventoJson = JSON.stringify({ fecha: evento.fecha.slice(0, 10) });
   import { oklchAHex } from "../lib/color";
   import { haversineKm, formatearDistancia } from "../lib/geo";
   import { puntoActivo, type PuntoVivo } from "../lib/puntos-rescate";
-  import { agruparCiudades, type CiudadReportada } from "../lib/ciudades";
+  import { agruparCiudades, nombreCiudadNormalizado, type CiudadReportada } from "../lib/ciudades";
   import { etiquetaTipo, etiquetaNecesidad, ESTADOS_PUNTO, PRECISION_CORTA, type PrecisionPin } from "../lib/necesidades";
   import type { PuntoVerificado } from "../lib/puntos-rescate";
 
@@ -477,8 +477,8 @@ const eventoJson = JSON.stringify({ fecha: evento.fecha.slice(0, 10) });
       }
       if (visibles.has("epicentro")) arrancarOnda();
       else detenerOnda();
-      // Puntos de rescate: la capa sigue SOLO al chip (el filtro de ciudad no
-      // aplica: los reportes en vivo no tienen ciudad).
+      // Puntos de rescate: la capa sigue SOLO al chip; el filtro de ciudad
+      // se aplica abajo (cada reporte lleva su ciudad).
       const rescatesVisibles = visibles.has("rescates");
       for (const idLayer of ["rescates-circulo", "rescates-texto"]) {
         if (map.getLayer(idLayer)) {
@@ -534,11 +534,11 @@ const eventoJson = JSON.stringify({ fecha: evento.fecha.slice(0, 10) });
         // Ciudades reportadas: se regeneran en runtime (dedupe contra el
         // catálogo de puntos y zonas SGC).
         const catalogadas = new Set([
-          ...puntos.map((p) => p.ciudad),
-          ...zonas.filter((z) => z.tipo === "ciudad").map((z) => z.nombre),
+          ...puntos.map((p) => nombreCiudadNormalizado(p.ciudad)),
+          ...zonas.filter((z) => z.tipo === "ciudad").map((z) => nombreCiudadNormalizado(z.nombre)),
         ]);
         ciudadesReportadasMap = agruparCiudades(vivos as PuntoVivo[])
-          .filter((c) => !catalogadas.has(c.nombre))
+          .filter((c) => !catalogadas.has(nombreCiudadNormalizado(c.nombre)))
           .map(aCiudadMap);
         const srcC = map.getSource("ciudades-reportadas");
         if (srcC && "setData" in srcC) {
@@ -941,7 +941,7 @@ const eventoJson = JSON.stringify({ fecha: evento.fecha.slice(0, 10) });
           .setHTML(
             `<div class="popup popup-punto">` +
               `<strong class="popup-titulo">${escapar(p.nombre)}</strong>` +
-              `<p class="popup-meta"><span class="popup-badge popup-badge-rescate">${escapar(ESTADOS_PUNTO[p.estado] ?? p.estado)}</span> ${p.confirmaciones} confirmación(es)</p>` +
+              `<p class="popup-meta"><span class="popup-badge popup-badge-rescate">${escapar(ESTADOS_PUNTO[p.estado] ?? p.estado)}</span> ${p.fuente ? "Verificado por fuente" : `${p.confirmaciones} confirmación(es)`}</p>` +
               `${p.descripcion ? `<p class="popup-linea">${escapar(p.descripcion)}</p>` : ""}` +
               `${needs}${otras}${contacto}${flags}${precision}` +
               `<p class="popup-fuente">${p.fuente ? `Fuente: <a href="${escapar(p.fuente)}" target="_blank" rel="noopener">ver fuente</a> · ` : "Reporte ciudadano · "}` +

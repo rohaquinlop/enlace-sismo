@@ -205,7 +205,10 @@ const metaFila = (z: Zona, km: number) => {
           f.classList.toggle("zona-cercana", i === 0);
         });
         const contenedor = document.querySelector(".zonas-overlay");
-        orden.forEach((f) => contenedor?.appendChild(f));      } catch (err) {
+        // Insertar antes de la sección de ciudades reportadas: al reordenar,
+        // las zonas no deben saltar debajo de ella.
+        const seccionCiudades = document.getElementById("zonas-ciudadanas");
+        orden.forEach((f) => contenedor?.insertBefore(f, seccionCiudades ?? null));      } catch (err) {
         console.error("enlace-sismo: error al ordenar zonas", err);
       }
     }) as EventListener

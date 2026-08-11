@@ -53,7 +53,7 @@ import { NECESIDADES, TIPOS_PUNTO } from "../lib/necesidades";
       <button type="button" class="btn" id="btn-ubicacion">Usar mi ubicación</button>
     </div>
     <div class="mapa-picker" id="mapa-picker" aria-label="Mapa para elegir la ubicación del punto"></div>
-    <p class="geo-hint" id="geo-hint"></p>
+    <p class="geo-hint" id="geo-hint" aria-live="polite"></p>
 
     <div class="form-group">
       <label for="busqueda">Buscar dirección</label>
@@ -150,7 +150,7 @@ import { NECESIDADES, TIPOS_PUNTO } from "../lib/necesidades";
     </div>
   </form>
 
-  <div class="modal-resultado" id="modal-resultado" data-tipo="">
+  <div class="modal-resultado" id="modal-resultado" data-tipo="" role="dialog" aria-modal="true" aria-labelledby="modal-titulo">
     <div class="modal-resultado-card">
       <div class="modal-resultado-icono" id="modal-icono"></div>
       <div class="modal-resultado-titulo" id="modal-titulo"></div>
@@ -260,13 +260,17 @@ import { NECESIDADES, TIPOS_PUNTO } from "../lib/necesidades";
     buscarDedupe(lat, lng);
   }
 
-  // Coordenadas escritas a mano = colocación deliberada (premisa).
-  latEl?.addEventListener("input", () => {
-    if (latEl.value && lngEl?.value) fijarPin(Number(latEl.value), Number(lngEl.value), false, "premisa");
-  });
-  lngEl?.addEventListener("input", () => {
-    if (latEl?.value && lngEl.value) fijarPin(Number(latEl.value), Number(lngEl.value), false, "premisa");
-  });
+  // Coordenadas escritas a mano = colocación deliberada (premisa). Debounce:
+  // cada tecla dispararía un reverse geocode (rate limit 30/h del API).
+  let timerCoords = 0;
+  const fijarDesdeCoords = () => {
+    window.clearTimeout(timerCoords);
+    timerCoords = window.setTimeout(() => {
+      if (latEl?.value && lngEl?.value) fijarPin(Number(latEl.value), Number(lngEl.value), false, "premisa");
+    }, 400);
+  };
+  latEl?.addEventListener("input", fijarDesdeCoords);
+  lngEl?.addEventListener("input", fijarDesdeCoords);
 
   // ---------- Dirección legible + precisión + barrio (reverse geocode) ----------
   async function buscarDireccion(lat: number, lng: number, precision: PrecisionPin) {
@@ -487,12 +491,18 @@ import { NECESIDADES, TIPOS_PUNTO } from "../lib/necesidades";
     return salida;
   }
 
-  // Resalta la parte escrita en el resultado (coincidencia simple sin tildes).
+  // Resalta la parte escrita en el resultado. El índice se busca en el texto
+  // CRUDO y cada parte se escapa por separado: nunca se parte una entidad.
   function resaltar(texto: string, q: string): string {
-    const t = escapar(texto);
-    const i = t.toLowerCase().indexOf(q.toLowerCase());
-    if (i === -1) return t;
-    return t.slice(0, i) + "<mark>" + t.slice(i, i + q.length) + "</mark>" + t.slice(i + q.length);
+    const i = texto.toLowerCase().indexOf(q.toLowerCase());
+    if (i === -1) return escapar(texto);
+    return (
+      escapar(texto.slice(0, i)) +
+      "<mark>" +
+      escapar(texto.slice(i, i + q.length)) +
+      "</mark>" +
+      escapar(texto.slice(i + q.length))
+    );
   }
 
   function abrirBusqueda() {
@@ -703,14 +713,21 @@ import { NECESIDADES, TIPOS_PUNTO } from "../lib/necesidades";
   });
 
   // ---------- Modal ----------
+  // Iconos SVG propios (design.md: sin emojis como iconos; los glifos ✓/✗
+  // pueden renderizar como emoji en móvil). El color lo da el CSS del modal.
+  const ICONO_OK = `<svg viewBox="0 0 16 16" width="22" height="22" aria-hidden="true" fill="none"><path d="M2.5 8.5 6 12l7.5-8" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+  const ICONO_ERROR = `<svg viewBox="0 0 16 16" width="22" height="22" aria-hidden="true" fill="none"><path d="m3.5 3.5 9 9m0-9-9 9" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>`;
+
   function mostrarModal(tipo: "ok" | "error", titulo: string, mensaje: string, accionesHtml = "") {
     if (!modal || !modalIcono || !modalTitulo || !modalMensaje || !modalAcciones) return;
     modal.dataset.tipo = tipo;
-    modalIcono.textContent = tipo === "ok" ? "\u2713" : "\u2717";
+    modalIcono.innerHTML = tipo === "ok" ? ICONO_OK : ICONO_ERROR;
     modalTitulo.textContent = titulo;
     modalMensaje.textContent = mensaje;
     modalAcciones.innerHTML = accionesHtml;
     modal.dataset.open = "true";
+    // Diálogo modal: el foco entra al control de cierre.
+    requestAnimationFrame(() => modalCerrar?.focus());
   }
 
   function cerrarModal() {

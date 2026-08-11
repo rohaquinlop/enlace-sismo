@@ -12,6 +12,14 @@ export interface CiudadReportada {
   lng: number;
 }
 
+/** Compara nombres de ciudad sin sensibilidad a acentos/caja ("Bogotá" = "bogota"). */
+export const nombreCiudadNormalizado = (s: string): string =>
+  s
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+
 /** Agrupa los puntos activos por ciudad (solo los que tienen `ciudad`). */
 export function agruparCiudades(vivos: PuntoVivo[], ahora = Date.now()): CiudadReportada[] {
   const grupos = new Map<string, PuntoVivo[]>();
@@ -31,9 +39,16 @@ export function agruparCiudades(vivos: PuntoVivo[], ahora = Date.now()): CiudadR
     .sort((a, b) => b.puntos.length - a.puntos.length || a.nombre.localeCompare(b.nombre, "es"));
 }
 
-/** Unión sin duplicados de ciudades catalogadas y reportadas, orden es-CO. */
+/** Unión sin duplicados de ciudades catalogadas y reportadas, orden es-CO.
+ *  El dedupe ignora acentos y caja: "Bogotá" y "bogota" son la misma ciudad. */
 export function fusionarCiudadesSelect(catalogadas: string[], reportadas: string[]): string[] {
-  return Array.from(new Set([...catalogadas, ...reportadas])).sort((a, b) =>
-    a.localeCompare(b, "es")
-  );
+  const vistos = new Set<string>();
+  const salida: string[] = [];
+  for (const nombre of [...catalogadas, ...reportadas]) {
+    const clave = nombreCiudadNormalizado(nombre);
+    if (!clave || vistos.has(clave)) continue;
+    vistos.add(clave);
+    salida.push(nombre);
+  }
+  return salida.sort((a, b) => a.localeCompare(b, "es"));
 }

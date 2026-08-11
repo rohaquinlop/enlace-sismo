@@ -11,7 +11,7 @@ import { acopios, albergues, centrosSalud, jornadasSangre, todasLasCiudades } fr
 import { zonas } from "../lib/zonas";
 import puntosRescateData from "../../../data/puntos-rescate.json";
 import { puntoActivo, agregarNecesidades, type PuntoVivo } from "../lib/puntos-rescate";
-import { agruparCiudades, fusionarCiudadesSelect, type CiudadReportada } from "../lib/ciudades";
+import { agruparCiudades, fusionarCiudadesSelect, nombreCiudadNormalizado, type CiudadReportada } from "../lib/ciudades";
 import { etiquetaTipo, etiquetaNecesidad, ESTADOS_PUNTO, etiquetaPrecision } from "../lib/necesidades";
 
 // Ciudades del filtro = unión de las que tienen puntos de datos, las zonas
@@ -24,6 +24,9 @@ const catalogadas = Array.from(
     ...zonas.filter((z) => z.tipo === "ciudad").map((z) => z.nombre),
   ])
 );
+// Dedupe insensible a acentos/caja: "Bogotá" del catálogo y "bogota" del
+// reporte son la misma ciudad.
+const catalogadasNorm = new Set(catalogadas.map(nombreCiudadNormalizado));
 
 // Registro en vivo de puntos de rescate: el archivo lo commitea el worker;
 // el build lo lee para la lista SSG (fallback sin JS/API).
@@ -44,7 +47,7 @@ const agregado = agregarNecesidades(activos);
 // deduplicadas contra el catálogo (una ciudad oficial no se lista como
 // reportada). El select las incorpora; un PR verificado las promueve a zona SGC.
 const ciudadesReportadas: CiudadReportada[] = agruparCiudades(vivos).filter(
-  (c) => !catalogadas.includes(c.nombre)
+  (c) => !catalogadasNorm.has(nombreCiudadNormalizado(c.nombre))
 );
 const ciudadesFiltro = fusionarCiudadesSelect(
   catalogadas,
@@ -266,6 +269,9 @@ const enlaceMaps = (lat: number, lng: number) =>
           if (res.ok && data?.ok) {
             btn.textContent = "Confirmado";
             await refrescarRescates();
+            // El re-render por innerHTML destruyó el botón: restaurar el foco
+            // en el mismo punto si sigue activo.
+            document.querySelector<HTMLElement>(`#rescate-lista [data-confirmar="${id}"]`)?.focus();
           } else {
             btn.textContent = data?.error ?? "No se pudo confirmar";
           }
@@ -368,6 +374,13 @@ const enlaceMaps = (lat: number, lng: number) =>
           if (actual && opciones.includes(actual)) select.value = actual;
         }
       }
+      // Las filas ciudadanas re-renderizadas ignoran el estado del chip "Zonas".
+      const chipZonas = Array.from(
+        document.querySelectorAll<HTMLInputElement>(".leyenda-tira input[type='checkbox']:checked")
+      ).some((i) => i.value === "zona");
+      document.querySelectorAll<HTMLButtonElement>(".zona-fila-ciudadana").forEach((f) => {
+        f.hidden = !chipZonas;
+      });
     } catch {
       // API o archivo caído: la lista SSG sigue visible.
     }
