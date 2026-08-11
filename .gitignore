@@ -5,3 +5,7 @@ dist/
 .DS_Store
 *.local
 bun.lock
+
+# Capturas sin verificar (nunca publicar)
+capturas/*
+!capturas/README.md
