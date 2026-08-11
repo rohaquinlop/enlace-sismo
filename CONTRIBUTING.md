@@ -49,10 +49,65 @@ worker/        API (Hono, Cloudflare Workers, D1)
 .github/       CI, despliegue automático y procesamiento de sugerencias
 ```
 
+## Puntos de rescate (registro en vivo)
+
+La plataforma permite al público reportar puntos donde se necesita ayuda (derrumbe,
+deslizamiento, rescate en curso) con **ubicación exacta** y **necesidades**, desde `/reportar`.
+
+**Cómo funciona:** el formulario envía a `POST /api/puntos`; el worker valida, geocodifica
+(Nominatim con caché KV) y commitea la entrada a `web/public/datos/reportes-puntos.json` con
+un token de bot (`GITHUB_BOT_TOKEN`, PAT con scope `contents:write`). El push a main dispara
+el deploy Pages (~1-3 min) y el punto aparece en el mapa y en la pestaña Rescates del
+dashboard. No hay D1 nuevo: el archivo ES el registro, y cualquier contribuidor puede verlo,
+corregirlo o archivarlo por PR.
+
+**Estados y ciclo de vida:**
+
+- Un reporte nace `sin-confirmar`. Cualquiera puede **confirmarlo desde el lugar** (la API
+  verifica cercanía ≤1 km con la geolocalización del navegador; 1 confirmación por IP por
+  punto). Un punto sin reconfirmación en **72 h** deja de mostrarse (la degradación se calcula
+  en el cliente; el archivo conserva todo).
+- **Peso orientativo de las confirmaciones:** la API verifica la distancia entre la posición
+  DECLARADA por el cliente y el punto — no es una verificación criptográfica; cualquiera
+  puede declarar estar a ≤1 km. El conteo es un indicio, no una certificación: el estado
+  `confirmado` real lo fija un mantenedor tras verificar contra fuente.
+- **3 reportes de falso** (`flags` en la entrada) ocultan el punto del mapa; sigue visible en
+  el archivo para auditoría. Un admin puede marcarlo `falso`, `resuelto` o `promovido`.
+- **Promoción a catálogo verificado:** cuando un punto se confirma contra fuente oficial,
+  cópialo a `data/puntos-rescate.json` con `fuente`, `verificado_por`, `fecha_verificacion`
+  y `reporte_id` (regla de oro; CI lo exige), abre el PR y, al fusionar, marca la entrada
+  original `promovido` (deja de mostrarse en vivo). El punto verificado sobrevive a una API
+  caída porque se renderiza desde el build.
+
+**Secreto requerido:** `GITHUB_BOT_TOKEN` (PAT con scope `contents:write` sobre el repo) como
+secreto del worker:
+
+```bash
+cd worker && npx wrangler secret put GITHUB_BOT_TOKEN
+```
+
+Nota: si `main` tiene branch protection, el token necesita bypass para pushear.
+
+### Ciudades con reportes ciudadanos
+
+Cada reporte guarda la `ciudad` derivada del geocoder (normalizada: "Cali ciudad" → "Cali").
+Las ciudades sin presencia en `zonas-afectadas.json` aparecen al instante en el select de
+ciudad, en el mapa como marcador neutral ("Sin reporte de intensidad") y en la sección
+"Ciudades con reportes ciudadanos" del panel Zonas — **sin tocar el catálogo SGC**.
+
+Cuando una ciudad reportada se confirma contra fuente oficial (SGC, UNGRD, alcaldía):
+
+1. Añádela a `data/zonas-afectadas.json` con `fuente`, `verificado_por` y
+   `fecha_verificacion` (regla de oro) y `detalle: "Sismo sentido"`.
+2. `intensidad` Mercalli SOLO si la fuente la reporta (spec `zonas-intensidad.md`);
+   sin ella, la ciudad se dibuja neutral como las demás sin reporte.
+3. Abre el PR; al fusionar, el dashboard deduplica por nombre normalizado y la ciudad
+   deja de listarse como "reportada" para pasar a zona SGC.
+
 ## Sugerencias de centros de salud
 
 La plataforma permite al público sugerir centros de salud mediante un formulario web.
-El flujo es: formulario → API → GitHub Issue → GitHub Action → PR → CI → revisión de mantenedor.
+El flujo es: formulario → API → GitHub Issue → revisión del mantenedor → PR al catálogo → CI → merge.
 
 **Secreto requerido**: el Worker necesita un `GITHUB_TOKEN` (PAT con scope `issues:write`)
 configurado como secreto de Cloudflare Worker para crear issues desde la API.
@@ -61,9 +116,10 @@ configurado como secreto de Cloudflare Worker para crear issues desde la API.
 cd worker && npx wrangler secret put GITHUB_TOKEN
 ```
 
-Las sugerencias se procesan automáticamente: el Action crea un PR con los datos validados
-contra el esquema. Todo entra como `verificacion: "sin-confirmar"` — un mantenedor debe
-verificar contra la fuente antes de hacer merge.
+El formulario crea un issue etiquetado `sugerencia-salud` · `sin-verificar`. No hay
+procesamiento automático posterior: un mantenedor revisa el issue contra la fuente, añade
+la entrada a `data/centros-salud.json` (todo entra como `verificacion: "sin-confirmar"`) y
+abre el PR, que el CI valida antes del merge.
 
 ## Desarrollo local
 

@@ -1,0 +1,984 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import { NECESIDADES, TIPOS_PUNTO } from "../lib/necesidades";
+---
+
+<BaseLayout
+  title="Reportar punto de rescate — Enlace Sismo"
+  description="Reporta un punto donde se necesita ayuda: derrumbe, deslizamiento o rescate en curso, con ubicación exacta y necesidades. Se publica como sin confirmar."
+>
+  <section class="seccion-titulo">
+    <h1>Reportar un punto de rescate</h1>
+    <p>
+      Si un edificio colapsó, hay gente atrapada o se necesita ayuda en un lugar concreto,
+      repórtalo con la ubicación exacta. El punto se publica al instante como
+      <strong>"sin confirmar"</strong> y quienes están cerca pueden confirmarlo o sumar necesidades.
+    </p>
+  </section>
+
+  <div class="aviso">
+    <strong>Antes de enviar</strong>
+    Verifica que la ubicación sea la correcta: un pin equivocado desvía ayuda.
+    No publiques datos de terceros sin su consentimiento. Los reportes falsos se retiran
+    con 3 reportes de la comunidad o por un mantenedor.
+  </div>
+
+  <noscript>
+    <div class="aviso danger">
+      <strong>Este formulario necesita JavaScript para enviarse.</strong>
+      Mientras tanto, reporta por los canales oficiales: Defensa Civil (144), Bomberos (119),
+      Cruz Roja (132) o la línea de emergencia <strong>123</strong>.
+    </div>
+  </noscript>
+
+  <form id="form-punto" class="panel form-punto" novalidate>
+    <h2>Qué pasó</h2>
+    <div class="form-group">
+      <label for="tipo">Tipo de evento *</label>
+      <select id="tipo" name="tipo" required>
+        <option value="">Seleccionar…</option>
+        {TIPOS_PUNTO.map((t) => (
+          <option value={t.id}>{t.label}</option>
+        ))}
+      </select>
+      <span class="helper" id="helper-tipo"></span>
+    </div>
+
+    <h2>Ubicación exacta *</h2>
+    <p class="helper">
+      Usa tu ubicación, haz clic en el mapa o busca la dirección. La precisión del punto es
+      vital para coordinar la llegada de ayuda.
+    </p>
+    <div class="form-acciones form-acciones-izq">
+      <button type="button" class="btn" id="btn-ubicacion">Usar mi ubicación</button>
+    </div>
+    <div class="mapa-picker" id="mapa-picker" aria-label="Mapa para elegir la ubicación del punto"></div>
+    <p class="geo-hint" id="geo-hint" aria-live="polite"></p>
+
+    <div class="form-group">
+      <label for="busqueda">Buscar dirección</label>
+      <input
+        type="text"
+        id="busqueda"
+        placeholder="Barrio, calle, referencia…"
+        autocomplete="off"
+        role="combobox"
+        aria-expanded="false"
+        aria-controls="resultados-busqueda"
+        aria-autocomplete="list"
+        aria-activedescendant=""
+      />
+      <ul class="resultados-busqueda" id="resultados-busqueda" role="listbox" aria-label="Resultados de la búsqueda" hidden></ul>
+      <span class="busqueda-msj" id="busqueda-estado" role="status" aria-live="polite"></span>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label for="lat">Latitud *</label>
+        <input type="number" id="lat" name="lat" step="any" min="-90" max="90" placeholder="4.8133" required />
+        <span class="helper" id="helper-lat"></span>
+      </div>
+      <div class="form-group">
+        <label for="lng">Longitud *</label>
+        <input type="number" id="lng" name="lng" step="any" min="-180" max="180" placeholder="-75.6961" required />
+        <span class="helper" id="helper-lng"></span>
+      </div>
+    </div>
+    <!-- Nivel de precisión del pin (premisa/via/barrio): lo fija el script
+         según el origen del punto (GPS/clic/arrastre/manual = premisa;
+         resultado de búsqueda = su precisión). El servidor lo valida. -->
+    <input type="hidden" id="coordenadas_nivel" name="coordenadas_nivel" value="via" />
+
+    <!-- Deduplicación: punto cercano existente (≤150 m) -->
+    <div class="dedupe-panel" id="dedupe-panel" hidden>
+      <strong>Este lugar ya está reportado</strong>
+      <p id="dedupe-info"></p>
+      <div class="form-acciones">
+        <button type="button" class="btn btn-primary" id="btn-confirmar-existente">Confirmar este punto</button>
+        <button type="button" class="btn" id="btn-reportar-igual">Reportar de todas formas</button>
+      </div>
+    </div>
+
+    <h2>El punto</h2>
+    <div class="form-group">
+      <label for="descripcion">Descripción *</label>
+      <span class="helper">
+        Si no pudiste marcar el punto en el mapa, escribe aquí la dirección exacta
+        (por ejemplo: carrera 67 #3c 15, Cali).
+      </span>
+      <textarea id="descripcion" name="descripcion" rows="3" minlength="3" required placeholder="Edificio de 4 pisos colapsado, se oyen voces entre los escombros…"></textarea>
+      <span class="helper" id="helper-descripcion"></span>
+    </div>
+
+    <fieldset class="form-group necesidades">
+      <legend>¿Qué se necesita aquí?</legend>
+      <div class="necesidades-grid">
+        {NECESIDADES.map((n) => (
+          <label class="necesidad-chip">
+            <input type="checkbox" value={n.id} />
+            <span>{n.label}</span>
+          </label>
+        ))}
+      </div>
+    </fieldset>
+
+    <div class="form-group">
+      <label for="otras_necesidades">Otras necesidades</label>
+      <input type="text" id="otras_necesidades" name="otras_necesidades" placeholder="P. ej. cuerdas de 30 m, comida para perros de rescate…" maxlength="300" />
+    </div>
+
+    <div class="form-group">
+      <label for="contacto">Contacto (opcional)</label>
+      <input type="text" id="contacto" name="contacto" placeholder="Teléfono o WhatsApp para coordinar la llegada" maxlength="200" />
+    </div>
+
+    <!-- Honeypot: oculto para humanos, visible para bots -->
+    <div class="form-honeypot" aria-hidden="true">
+      <label for="website">Website</label>
+      <input type="text" id="website" name="website" tabindex="-1" autocomplete="off" />
+    </div>
+
+    <!-- Estado del servidor de reportes: la búsqueda tiene fallback directo,
+         el envío no — este aviso evita un callejón sin salida confuso. -->
+    <p class="aviso danger" id="aviso-servidor" hidden>
+      <strong>El servidor de reportes no responde ahora.</strong>
+      El reporte no podrá enviarse hasta que se recupere.
+    </p>
+
+    <div class="form-acciones">
+      <button type="submit" class="btn btn-primary" id="btn-enviar">Publicar reporte</button>
+    </div>
+  </form>
+
+  <div class="modal-resultado" id="modal-resultado" data-tipo="" role="dialog" aria-modal="true" aria-labelledby="modal-titulo">
+    <div class="modal-resultado-card">
+      <div class="modal-resultado-icono" id="modal-icono"></div>
+      <div class="modal-resultado-titulo" id="modal-titulo"></div>
+      <div class="modal-resultado-mensaje" id="modal-mensaje"></div>
+      <div class="modal-acciones" id="modal-acciones"></div>
+      <button class="btn btn-primary" id="modal-cerrar">Cerrar</button>
+    </div>
+  </div>
+</BaseLayout>
+
+<script>
+  import maplibre from "maplibre-gl";
+  import "maplibre-gl/dist/maplibre-gl.css";
+  import { apiUrl } from "../lib/api";
+  import { haversineKm } from "../lib/geo";
+  import { puntoActivo, type PuntoVivo } from "../lib/puntos-rescate";
+  import { etiquetaTipo, etiquetaNecesidad, ESTADOS_PUNTO, PRECISION_CORTA, type PrecisionPin } from "../lib/necesidades";
+
+  const RADIO_DEDUPE_KM = 0.15; // 150 m
+
+  // ---------- Referencias del DOM ----------
+  const form = document.getElementById("form-punto") as HTMLFormElement | null;
+  const btnEnviar = document.getElementById("btn-enviar") as HTMLButtonElement | null;
+  const btnUbicacion = document.getElementById("btn-ubicacion") as HTMLButtonElement | null;
+  const elMapa = document.getElementById("mapa-picker") as HTMLDivElement | null;
+  const geoHint = document.getElementById("geo-hint") as HTMLParagraphElement | null;
+  const latEl = document.getElementById("lat") as HTMLInputElement | null;
+  const lngEl = document.getElementById("lng") as HTMLInputElement | null;
+  const busqueda = document.getElementById("busqueda") as HTMLInputElement | null;
+  const resultados = document.getElementById("resultados-busqueda") as HTMLUListElement | null;
+  const dedupePanel = document.getElementById("dedupe-panel") as HTMLDivElement | null;
+  const dedupeInfo = document.getElementById("dedupe-info") as HTMLParagraphElement | null;
+  const btnConfirmar = document.getElementById("btn-confirmar-existente") as HTMLButtonElement | null;
+  const btnReportarIgual = document.getElementById("btn-reportar-igual") as HTMLButtonElement | null;
+  const modal = document.getElementById("modal-resultado") as HTMLDivElement | null;
+  const modalIcono = document.getElementById("modal-icono") as HTMLDivElement | null;
+  const modalTitulo = document.getElementById("modal-titulo") as HTMLDivElement | null;
+  const modalMensaje = document.getElementById("modal-mensaje") as HTMLDivElement | null;
+  const modalAcciones = document.getElementById("modal-acciones") as HTMLDivElement | null;
+  const modalCerrar = document.getElementById("modal-cerrar") as HTMLButtonElement | null;
+  const avisoServidor = document.getElementById("aviso-servidor") as HTMLParagraphElement | null;
+
+  let mapa: maplibre.Map | null = null;
+  let marcador: maplibre.Marker | null = null;
+  let dedupeCandidato: PuntoVivo | null = null;
+  let vivos: PuntoVivo[] = [];
+
+  // ---------- Mapa picker (mejora progresiva: sin WebGL quedan los inputs) ----------
+  const tieneWebGL = (() => {
+    try {
+      const c = document.createElement("canvas");
+      return !!(c.getContext("webgl2") || c.getContext("webgl"));
+    } catch {
+      return false;
+    }
+  })();
+
+  if (elMapa && tieneWebGL) {
+    mapa = new maplibre.Map({
+      container: elMapa,
+      style: "https://tiles.openfreemap.org/styles/liberty",
+      center: [-75.6, 4.4],
+      zoom: 5.5,
+    });
+    mapa.addControl(new maplibre.NavigationControl({ showCompass: false }), "top-right");
+    mapa.on("click", (e) => fijarPin(e.lngLat.lat, e.lngLat.lng));
+    mapa.on("load", () => {
+      requestAnimationFrame(() => requestAnimationFrame(() => mapa?.resize()));
+    });
+    mapa.on("error", () => {
+      // Sin tiles: el formulario sigue funcionando con inputs y búsqueda.
+    });
+  } else if (geoHint) {
+    geoHint.textContent = "El mapa no está disponible en este navegador: escribe las coordenadas o busca la dirección.";
+  }
+
+  // Precisión del pin (vocabulario del proyecto: premisa/via/barrio).
+  // premisa = edificio/POI exacto o punto colocado a mano (GPS, clic, arrastre,
+  // coordenadas manuales) · via = resultado de calle · barrio = resultado de barrio.
+  let precisionActual: PrecisionPin = "via";
+  const nivelEl = document.getElementById("coordenadas_nivel") as HTMLInputElement | null;
+
+  function fijarPin(lat: number, lng: number, volar = true, precision: PrecisionPin = "premisa") {
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+    precisionActual = precision;
+    if (nivelEl) nivelEl.value = precision;
+    // No pisar los inputs mientras el usuario los está escribiendo a mano.
+    if (document.activeElement !== latEl && document.activeElement !== lngEl) {
+      if (latEl) latEl.value = lat.toFixed(6);
+      if (lngEl) lngEl.value = lng.toFixed(6);
+    }
+    if (mapa) {
+      if (marcador) {
+        marcador.setLngLat([lng, lat]);
+      } else {
+        marcador = new maplibre.Marker({ draggable: true })
+          .setLngLat([lng, lat])
+          .addTo(mapa);
+        marcador.on("dragend", () => {
+          const p = marcador?.getLngLat();
+          if (p) fijarPin(p.lat, p.lng, false, "premisa");
+        });
+      }
+      if (volar) mapa.flyTo({ center: [lng, lat], zoom: 15, essential: true });
+    }
+    buscarDireccion(lat, lng, precision);
+    buscarDedupe(lat, lng);
+  }
+
+  // Coordenadas escritas a mano = colocación deliberada (premisa). Debounce:
+  // cada tecla dispararía un reverse geocode (rate limit 30/h del API).
+  let timerCoords = 0;
+  const fijarDesdeCoords = () => {
+    window.clearTimeout(timerCoords);
+    timerCoords = window.setTimeout(() => {
+      if (latEl?.value && lngEl?.value) fijarPin(Number(latEl.value), Number(lngEl.value), false, "premisa");
+    }, 400);
+  };
+  latEl?.addEventListener("input", fijarDesdeCoords);
+  lngEl?.addEventListener("input", fijarDesdeCoords);
+
+  // ---------- Dirección legible + precisión + barrio (reverse geocode) ----------
+  async function buscarDireccion(lat: number, lng: number, precision: PrecisionPin) {
+    if (!geoHint) return;
+    geoHint.textContent = "Buscando dirección…";
+    let resultado: {
+      direccion?: string | null;
+      barrio?: string;
+    } | null = null;
+    try {
+      const res = await fetch(apiUrl(`/api/geocodificar?lat=${lat}&lng=${lng}`));
+      resultado = res.ok ? ((await res.json()) as { direccion?: string | null; barrio?: string }) : null;
+    } catch {
+      resultado = null;
+    }
+    if (!resultado || resultado.direccion === undefined) {
+      // Fallback directo (Nominatim con CORS) si el API no responde.
+      try {
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=18&addressdetails=1&accept-language=es&lat=${lat}&lon=${lng}`,
+          { headers: { Accept: "application/json" } }
+        );
+        const data = res.ok
+          ? ((await res.json()) as {
+              display_name?: string;
+              address?: { neighbourhood?: string; suburb?: string };
+            })
+          : null;
+        resultado = data
+          ? {
+              direccion: data.display_name ? String(data.display_name).slice(0, 300) : null,
+              barrio: data.address?.neighbourhood ?? data.address?.suburb,
+            }
+          : null;
+      } catch {
+        resultado = null;
+      }
+    }
+    const dir = resultado?.direccion ?? null;
+    const barrio = resultado?.barrio;
+    const base = dir ? `Ubicación: ${dir}` : "Ubicación fijada";
+    const conBarrio = barrio ? `${base} · Barrio ${barrio}` : base;
+    let msg = `${conBarrio} · Precisión: ${PRECISION_CORTA[precision]}`;
+    if (precision !== "premisa") {
+      msg += ". Arrastra el pin para ajustar la ubicación exacta.";
+    }
+    geoHint.textContent = msg;
+  }
+
+  // ---------- Usar mi ubicación ----------
+  function geolocalizar() {
+    if (!("geolocation" in navigator)) {
+      if (geoHint) geoHint.textContent = "Tu navegador no soporta geolocalización. Usa el mapa o la búsqueda.";
+      return;
+    }
+    if (btnUbicacion) btnUbicacion.setAttribute("aria-busy", "true");
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        if (btnUbicacion) btnUbicacion.removeAttribute("aria-busy");
+        fijarPin(pos.coords.latitude, pos.coords.longitude, true, "premisa");
+      },
+      (err) => {
+        if (btnUbicacion) btnUbicacion.removeAttribute("aria-busy");
+        const msgs: Record<number, string> = {
+          [GeolocationPositionError.PERMISSION_DENIED]: "Permiso denegado: usa el mapa o la búsqueda de dirección.",
+          [GeolocationPositionError.POSITION_UNAVAILABLE]: "No pudimos obtener tu ubicación. Usa el mapa.",
+          [GeolocationPositionError.TIMEOUT]: "Tardamos demasiado en obtener tu ubicación. Usa el mapa.",
+        };
+        if (geoHint) geoHint.textContent = msgs[err.code] ?? "Error al obtener tu ubicación.";
+      },
+      { enableHighAccuracy: true, timeout: 12000 }
+    );
+  }
+
+  btnUbicacion?.addEventListener("click", geolocalizar);
+
+  // ---------- Búsqueda de dirección estilo Google Maps (combobox) ----------
+  type ResultadoBusqueda = {
+    label: string;
+    detalle?: string;
+    lat: number;
+    lng: number;
+    precision: PrecisionPin;
+  };
+  type ResultadoNominatim = {
+    name?: string;
+    display_name?: string;
+    lat: string;
+    lon: string;
+    type?: string;
+    class?: string;
+    addresstype?: string;
+  };
+  const TIPOS_BARRIO = new Set([
+    "suburb", "neighbourhood", "quarter", "city", "town", "village",
+    "municipality", "county", "state", "region",
+  ]);
+  const TIPOS_VIA = new Set([
+    "road", "pedestrian", "footway", "cycleway", "service",
+    "living_street", "unclassified", "primary", "secondary", "tertiary",
+    "residential", "trunk", "motorway", "steps", "path",
+  ]);
+  function precisionDeTipo(tipo?: string): PrecisionPin {
+    if (!tipo) return "via";
+    if (TIPOS_BARRIO.has(tipo)) return "barrio";
+    if (TIPOS_VIA.has(tipo)) return "via";
+    return "premisa";
+  }
+  let resultadosBusqueda: ResultadoBusqueda[] = [];
+  let seleccionBusqueda = -1;
+  let busquedaAbierta = false;
+  let timerBusqueda = 0;
+  let busquedaToken = 0;
+  const estadoBusqueda = document.getElementById("busqueda-estado") as HTMLSpanElement | null;
+
+  function mensajeBusqueda(texto: string) {
+    if (estadoBusqueda) estadoBusqueda.textContent = texto;
+  }
+
+  const escapar = (s: string) =>
+    s.replace(/[&<>"']/g, (c) =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!
+    );
+
+  // Normaliza la respuesta cruda de Nominatim (worker o fallback directo).
+  function normalizarResultados(lista: ResultadoNominatim[]): ResultadoBusqueda[] {
+    return lista
+      .filter((d) => d.display_name && d.lat && d.lon)
+      .map((d) => {
+        const partes = String(d.display_name)
+          .split(",")
+          .map((s) => s.trim());
+        const label = (d.name ?? partes[0] ?? String(d.display_name)).slice(0, 120);
+        const detalle = partes.slice(1).slice(0, 4).join(", ").slice(0, 160);
+        const precision: PrecisionPin =
+          d.addresstype
+            ? TIPOS_BARRIO.has(d.addresstype) || d.addresstype === "residential"
+              ? "barrio"
+              : TIPOS_VIA.has(d.addresstype)
+                ? "via"
+                : "premisa"
+            : d.class === "highway"
+              ? "via"
+              : d.class === "place"
+                ? "barrio"
+                : precisionDeTipo(d.type);
+        return {
+          label,
+          detalle: detalle || undefined,
+          lat: Number(d.lat),
+          lng: Number(d.lon),
+          precision,
+        };
+      });
+  }
+
+  // 1) API propio (caché KV + rate limit). 2) Fallback directo a Nominatim
+  // desde el navegador (CORS; el Referer identifica la petición, como pide la
+  // política de uso). Así la búsqueda funciona incluso sin el worker.
+  async function buscarEnApi(q: string): Promise<ResultadoBusqueda[] | null> {
+    try {
+      const res = await fetch(apiUrl(`/api/geocodificar?q=${encodeURIComponent(q)}`));
+      if (!res.ok) return null;
+      const data = (await res.json()) as { resultados?: ResultadoBusqueda[] };
+      return data.resultados ?? [];
+    } catch {
+      return null;
+    }
+  }
+
+  // Multi-etapa como el worker: street+housenumber+city → street+city →
+  // q libre → q sin "#". Cada resultado lleva su nivel de precisión.
+  async function buscarDirecto(q: string): Promise<ResultadoBusqueda[] | null> {
+    const partes = q.split(",").map((s) => s.trim()).filter(Boolean);
+    let street: string | null = null;
+    let city: string | null = null;
+    let housenumber: string | null = null;
+    if (partes.length >= 2) {
+      city = partes[partes.length - 1];
+      street = partes.slice(0, -1).join(", ");
+      const m = street.match(/#\s*([0-9][\w-]*(?:\s*[-–]\s*[\w]+)*)/i);
+      if (m) {
+        housenumber = m[1].replace(/\s+/g, " ");
+        street = street.replace(m[0], "").trim();
+      }
+      if (street.length < 3 || city.length < 2 || !/(#|\d)/.test(street + (housenumber ?? ""))) {
+        street = null;
+        city = null;
+      }
+    }
+    const parametros: string[] = [];
+    if (street && city) {
+      const base = `street=${encodeURIComponent(street)}&city=${encodeURIComponent(city)}`;
+      if (housenumber) parametros.push(`${base}&housenumber=${encodeURIComponent(housenumber)}`);
+      parametros.push(base);
+    }
+    parametros.push(`q=${encodeURIComponent(q)}`);
+    if (!street) parametros.push(`q=${encodeURIComponent(q.replace(/#/g, " "))}`);
+
+    const vistos = new Set<string>();
+    const salida: ResultadoBusqueda[] = [];
+    for (const params of parametros) {
+      try {
+        const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=8&addressdetails=1&countrycodes=co&accept-language=es&${params}`;
+        const res = await fetch(url, { headers: { Accept: "application/json" } });
+        if (!res.ok) continue;
+        for (const r of normalizarResultados((await res.json()) as ResultadoNominatim[])) {
+          const clave = `${r.lat.toFixed(5)},${r.lng.toFixed(5)}|${r.label}`;
+          if (vistos.has(clave)) continue;
+          vistos.add(clave);
+          salida.push(r);
+        }
+        if (salida.length > 0) break;
+      } catch {
+        // sigue con la siguiente etapa
+      }
+    }
+    return salida;
+  }
+
+  // Resalta la parte escrita en el resultado. El índice se busca en el texto
+  // CRUDO y cada parte se escapa por separado: nunca se parte una entidad.
+  function resaltar(texto: string, q: string): string {
+    const i = texto.toLowerCase().indexOf(q.toLowerCase());
+    if (i === -1) return escapar(texto);
+    return (
+      escapar(texto.slice(0, i)) +
+      "<mark>" +
+      escapar(texto.slice(i, i + q.length)) +
+      "</mark>" +
+      escapar(texto.slice(i + q.length))
+    );
+  }
+
+  function abrirBusqueda() {
+    if (!resultados || resultadosBusqueda.length === 0) return;
+    busquedaAbierta = true;
+    resultados.hidden = false;
+    busqueda?.setAttribute("aria-expanded", "true");
+  }
+
+  function cerrarBusqueda() {
+    busquedaAbierta = false;
+    if (resultados) resultados.hidden = true;
+    busqueda?.setAttribute("aria-expanded", "false");
+    busqueda?.removeAttribute("aria-activedescendant");
+    seleccionBusqueda = -1;
+  }
+
+  function renderResultados() {
+    if (!resultados) return;
+    resultados.innerHTML = "";
+    const q = busqueda?.value.trim() ?? "";
+    resultadosBusqueda.forEach((r, i) => {
+      const li = document.createElement("li");
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.id = `res-busqueda-${i}`;
+      btn.setAttribute("role", "option");
+      btn.setAttribute("aria-selected", String(i === seleccionBusqueda));
+      if (i === seleccionBusqueda) btn.classList.add("activo");
+      const detalle = r.detalle ? `<span class="res-detalle">${escapar(r.detalle)}</span>` : "";
+      const tag = `<span class="res-precision">${escapar(PRECISION_CORTA[r.precision])}</span>`;
+      btn.innerHTML = `<span class="res-label">${resaltar(r.label, q)}</span>` +
+        `<span class="res-linea">${detalle}${tag}</span>`;
+      btn.addEventListener("click", () => elegirResultado(i));
+      li.appendChild(btn);
+      resultados.appendChild(li);
+    });
+    if (seleccionBusqueda >= 0) {
+      busqueda?.setAttribute("aria-activedescendant", `res-busqueda-${seleccionBusqueda}`);
+      resultados.querySelector<HTMLElement>(".activo")?.scrollIntoView({ block: "nearest" });
+    }
+    resultados.scrollTop = 0;
+  }
+
+  function elegirResultado(i: number) {
+    const r = resultadosBusqueda[i];
+    if (!r) return;
+    fijarPin(r.lat, r.lng, true, r.precision);
+    if (busqueda) busqueda.value = r.label;
+    if (estadoBusqueda) estadoBusqueda.textContent = "";
+    cerrarBusqueda();
+  }
+
+  function moverSeleccion(delta: number) {
+    if (resultadosBusqueda.length === 0) return;
+    if (!busquedaAbierta) abrirBusqueda();
+    seleccionBusqueda =
+      (seleccionBusqueda + delta + resultadosBusqueda.length) % resultadosBusqueda.length;
+    renderResultados();
+  }
+
+  async function buscarAhora() {
+    const q = busqueda?.value.trim() ?? "";
+    if (q.length < 3) {
+      cerrarBusqueda();
+      return;
+    }
+    const token = ++busquedaToken;
+    mensajeBusqueda("Buscando…");
+    let lista = await buscarEnApi(q);
+    if (lista === null) lista = await buscarDirecto(q);
+    if (token !== busquedaToken) return; // respuesta vieja: otra búsqueda en curso
+    if (lista === null) {
+      mensajeBusqueda("La búsqueda no está disponible ahora. Usa el mapa o escribe las coordenadas.");
+      cerrarBusqueda();
+      return;
+    }
+    resultadosBusqueda = lista;
+    seleccionBusqueda = resultadosBusqueda.length > 0 ? 0 : -1;
+    mensajeBusqueda(
+      resultadosBusqueda.length > 0
+        ? `${resultadosBusqueda.length} resultado(s)`
+        : `Sin resultados para “${q}”`
+    );
+    if (resultadosBusqueda.length === 0) {
+      cerrarBusqueda();
+      return;
+    }
+    renderResultados();
+    abrirBusqueda();
+  }
+
+  busqueda?.addEventListener("input", () => {
+    window.clearTimeout(timerBusqueda);
+    const q = busqueda.value.trim();
+    if (q.length < 3) {
+      cerrarBusqueda();
+      return;
+    }
+    timerBusqueda = window.setTimeout(buscarAhora, 250);
+  });
+
+  busqueda?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      // Nunca enviar el formulario desde la búsqueda.
+      e.preventDefault();
+      if (busquedaAbierta && resultadosBusqueda.length > 0) {
+        elegirResultado(seleccionBusqueda >= 0 ? seleccionBusqueda : 0);
+      } else {
+        void buscarAhora();
+      }
+      return;
+    }
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      moverSeleccion(1);
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      moverSeleccion(-1);
+    } else if (e.key === "Escape") {
+      cerrarBusqueda();
+    } else if (e.key === "Home" && resultadosBusqueda.length > 0) {
+      e.preventDefault();
+      seleccionBusqueda = 0;
+      renderResultados();
+    } else if (e.key === "End" && resultadosBusqueda.length > 0) {
+      e.preventDefault();
+      seleccionBusqueda = resultadosBusqueda.length - 1;
+      renderResultados();
+    }
+  });
+
+  // Cierra con retardo para permitir el clic en una opción.
+  busqueda?.addEventListener("blur", () => {
+    window.setTimeout(() => {
+      if (busquedaAbierta) cerrarBusqueda();
+    }, 150);
+  });
+
+  // ---------- Dedupe: punto ya reportado a ≤150 m ----------
+  async function cargarVivos() {
+    try {
+      const res = await fetch("/datos/reportes-puntos.json");
+      if (!res.ok) return;
+      const data = (await res.json()) as PuntoVivo[];
+      if (Array.isArray(data)) vivos = data;
+    } catch {
+      vivos = [];
+    }
+  }
+  void cargarVivos();
+
+  function buscarDedupe(lat: number, lng: number) {
+    if (!dedupePanel || !dedupeInfo) return;
+    const cerca = vivos.find((p) => puntoActivo(p) && haversineKm(lat, lng, p.lat, p.lng) <= RADIO_DEDUPE_KM);
+    if (!cerca) {
+      dedupeCandidato = null;
+      dedupePanel.hidden = true;
+      return;
+    }
+    dedupeCandidato = cerca;
+    const needs = cerca.necesidades.length
+      ? `Necesita: ${cerca.necesidades.map(etiquetaNecesidad).join(", ")}.`
+      : "Sin necesidades listadas.";
+    dedupeInfo.textContent =
+      `${etiquetaTipo(cerca.tipo)}${cerca.direccion ? ` — ${cerca.direccion}` : ""}. ` +
+      `${needs} ${cerca.confirmaciones.length} confirmación(es), ${ESTADOS_PUNTO[cerca.estado] ?? cerca.estado}.`;
+    dedupePanel.hidden = false;
+  }
+
+  btnReportarIgual?.addEventListener("click", () => {
+    dedupeCandidato = null;
+    if (dedupePanel) dedupePanel.hidden = true;
+  });
+
+  // Confirmar el punto existente con la geolocalización del dispositivo
+  btnConfirmar?.addEventListener("click", () => {
+    const candidato = dedupeCandidato;
+    if (!candidato) return;
+    if (!("geolocation" in navigator)) {
+      mostrarModal("error", "No se pudo confirmar", "Tu navegador no soporta geolocalización. Reporta de todas formas o pide a alguien en el lugar que confirme.");
+      return;
+    }
+    if (btnConfirmar) btnConfirmar.setAttribute("aria-busy", "true");
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        if (btnConfirmar) btnConfirmar.removeAttribute("aria-busy");
+        const res = await fetch(apiUrl(`/api/puntos/${candidato.id}/confirmar`), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+        });
+        const data = (await res.json().catch(() => null)) as { ok?: boolean; error?: string } | null;
+        if (res.ok && data?.ok) {
+          if (dedupePanel) dedupePanel.hidden = true;
+          mostrarModal("ok", "Punto confirmado", "Gracias por verificar desde el lugar. La confirmación renueva el punto en el mapa.");
+        } else {
+          mostrarModal("error", "No se pudo confirmar", data?.error ?? "Intentá nuevamente más tarde.");
+        }
+      },
+      (err) => {
+        if (btnConfirmar) btnConfirmar.removeAttribute("aria-busy");
+        mostrarModal("error", "No se pudo confirmar", "Sin tu ubicación no podemos verificar la cercanía. Reporta de todas formas o pide a alguien en el lugar que confirme.");
+        void err;
+      },
+      { enableHighAccuracy: true, timeout: 12000 }
+    );
+  });
+
+  // ---------- Modal ----------
+  // Iconos SVG propios (design.md: sin emojis como iconos; los glifos ✓/✗
+  // pueden renderizar como emoji en móvil). El color lo da el CSS del modal.
+  const ICONO_OK = `<svg viewBox="0 0 16 16" width="22" height="22" aria-hidden="true" fill="none"><path d="M2.5 8.5 6 12l7.5-8" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+  const ICONO_ERROR = `<svg viewBox="0 0 16 16" width="22" height="22" aria-hidden="true" fill="none"><path d="m3.5 3.5 9 9m0-9-9 9" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>`;
+
+  function mostrarModal(tipo: "ok" | "error", titulo: string, mensaje: string, accionesHtml = "") {
+    if (!modal || !modalIcono || !modalTitulo || !modalMensaje || !modalAcciones) return;
+    modal.dataset.tipo = tipo;
+    modalIcono.innerHTML = tipo === "ok" ? ICONO_OK : ICONO_ERROR;
+    modalTitulo.textContent = titulo;
+    modalMensaje.textContent = mensaje;
+    modalAcciones.innerHTML = accionesHtml;
+    modal.dataset.open = "true";
+    // Diálogo modal: el foco entra al control de cierre.
+    requestAnimationFrame(() => modalCerrar?.focus());
+  }
+
+  function cerrarModal() {
+    if (!modal) return;
+    modal.dataset.open = "false";
+    if (modal.dataset.enviado === "true") {
+      window.location.href = "/#mapa";
+    }
+  }
+
+  modalCerrar?.addEventListener("click", cerrarModal);
+  modal?.addEventListener("click", (e) => {
+    if (e.target === modal) cerrarModal();
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && modal?.dataset.open === "true") cerrarModal();
+  });
+
+  // ---------- Estado del servidor (health check temprano) ----------
+  async function revisarServidor() {
+    if (!avisoServidor) return;
+    try {
+      const res = await fetch(apiUrl("/api/health"));
+      if (res.ok) return;
+    } catch {
+      // cae al aviso
+    }
+    avisoServidor.hidden = false;
+  }
+  void revisarServidor();
+
+  // ---------- Validación y envío ----------
+  function limpiarErrores() {
+    if (!form) return;
+    form.querySelectorAll<HTMLElement>("[aria-invalid]").forEach((el) => el.removeAttribute("aria-invalid"));
+    form.querySelectorAll<HTMLElement>(".helper.error").forEach((el) => el.classList.remove("error"));
+  }
+
+  function errorCampo(id: string, msg: string) {
+    const input = document.getElementById(id) as HTMLInputElement | HTMLSelectElement | null;
+    const helper = document.getElementById(`helper-${id}`);
+    if (input) input.setAttribute("aria-invalid", "true");
+    if (helper) {
+      helper.textContent = msg;
+      helper.classList.add("error");
+    }
+  }
+
+  function validar(): boolean {
+    let ok = true;
+    const tipo = (document.getElementById("tipo") as HTMLSelectElement | null)?.value ?? "";
+    if (!tipo) {
+      errorCampo("tipo", "Selecciona el tipo de evento");
+      ok = false;
+    }
+    const lat = Number(latEl?.value);
+    const lng = Number(lngEl?.value);
+    if (!latEl?.value || Number.isNaN(lat) || lat < -90 || lat > 90) {
+      errorCampo("lat", "Fija la ubicación: latitud debe estar entre -90 y 90");
+      ok = false;
+    }
+    if (!lngEl?.value || Number.isNaN(lng) || lng < -180 || lng > 180) {
+      errorCampo("lng", "Fija la ubicación: longitud debe estar entre -180 y 180");
+      ok = false;
+    }
+    const descripcion = (document.getElementById("descripcion") as HTMLTextAreaElement | null)?.value.trim() ?? "";
+    if (descripcion.length < 3) {
+      errorCampo("descripcion", "Describe qué pasó (mínimo 3 caracteres)");
+      ok = false;
+    }
+    return ok;
+  }
+
+  if (form) {
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      limpiarErrores();
+      if (!validar()) return;
+
+      if (btnEnviar) {
+        btnEnviar.disabled = true;
+        btnEnviar.setAttribute("aria-busy", "true");
+        btnEnviar.textContent = "Publicando…";
+      }
+
+      const necesidades = Array.from(
+        form.querySelectorAll<HTMLInputElement>(".necesidades-grid input[type='checkbox']:checked")
+      ).map((c) => c.value);
+
+      const getVal = (id: string) =>
+        (document.getElementById(id) as HTMLInputElement | null)?.value.trim() ?? "";
+
+      const body = {
+        tipo: (document.getElementById("tipo") as HTMLSelectElement | null)?.value ?? "",
+        lat: Number(latEl?.value),
+        lng: Number(lngEl?.value),
+        coordenadas_nivel: nivelEl?.value ?? precisionActual ?? "via",
+        descripcion: getVal("descripcion"),
+        necesidades,
+        otras_necesidades: getVal("otras_necesidades") || undefined,
+        contacto: getVal("contacto") || undefined,
+        website: getVal("website"), // honeypot
+      };
+
+      if (!(body.coordenadas_nivel === "premisa" || body.coordenadas_nivel === "via" || body.coordenadas_nivel === "barrio")) {
+        body.coordenadas_nivel = "via";
+      }
+
+      try {
+        const res = await fetch(apiUrl("/api/puntos"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        const data = (await res.json().catch(() => null)) as { ok?: boolean; id?: string; error?: string } | null;
+
+        if (res.ok && data?.ok) {
+          form.reset();
+          if (marcador && mapa) marcador.remove();
+          marcador = null;
+          precisionActual = "via";
+          if (nivelEl) nivelEl.value = "via";
+          if (modal) modal.dataset.enviado = "true";
+          mostrarModal(
+            "ok",
+            "Reporte publicado",
+            "El punto ya quedó en la cola de publicación y aparece en el mapa en unos minutos como “sin confirmar”. Gracias por reportar.",
+            `<a class="btn btn-primary" href="/#mapa">Ver en el mapa</a>`
+          );
+        } else {
+          mostrarModal("error", "No se pudo publicar", data?.error ?? "Intentá nuevamente más tarde.");
+        }
+      } catch (err) {
+        // fetch rechazado = error de red/CORS (TypeError); lo demás es interno.
+        console.error("enlace-sismo: error al publicar el reporte", err);
+        const esRed = err instanceof TypeError;
+        const esLocal =
+          location.hostname === "localhost" || location.hostname === "127.0.0.1";
+        mostrarModal(
+          "error",
+          "No se pudo publicar",
+          esRed && esLocal
+            ? `No hay conexión con el servidor de reportes (${apiUrl("/api/puntos")}). En desarrollo, corre también “npm run dev:api” en otra terminal.`
+            : esRed
+              ? "No hay conexión con el servidor de reportes. Intentá nuevamente en unos minutos."
+              : "Ocurrió un error inesperado al enviar el reporte. Intentá nuevamente."
+        );
+      }
+
+      if (btnEnviar) {
+        btnEnviar.disabled = false;
+        btnEnviar.removeAttribute("aria-busy");
+        btnEnviar.textContent = "Publicar reporte";
+      }
+    });
+  }
+</script>
+
+<style>
+  .mapa-picker {
+    height: 320px;
+    border: 1px solid var(--color-rule);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    margin-bottom: var(--space-sm);
+  }
+  .form-acciones-izq {
+    justify-content: flex-start;
+    margin-bottom: var(--space-sm);
+  }
+  /* Necesidades: chips del sistema (patrón tira-chip). Flex-wrap alinea las
+     filas por altura uniforme; nowrap evita textos partidos en dos líneas. */
+  .form-group.necesidades {
+    border: 0;
+    padding: 0;
+    margin: 0 0 var(--space-md);
+    min-width: 0; /* fieldset trae min-content por defecto: rompía la alineación */
+  }
+  .form-group.necesidades legend {
+    display: block;
+    font-weight: 500;
+    font-size: var(--text-sm);
+    margin-bottom: var(--space-2xs);
+  }
+  .necesidades-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-xs);
+  }
+  .necesidad-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2xs);
+    min-height: 44px; /* targets táctiles ≥ 44 px (design.md) */
+    padding: var(--space-xs) var(--space-sm);
+    border: var(--rule-hair) solid var(--color-rule);
+    border-radius: var(--radius-sm);
+    background: var(--color-paper);
+    font-size: var(--text-sm);
+    white-space: nowrap;
+    cursor: pointer;
+    transition: border-color var(--dur-micro) var(--ease-out),
+      background-color var(--dur-micro) var(--ease-out);
+  }
+  /* Microinteracción del sistema: shift de color de borde en superficies. */
+  .necesidad-chip:hover {
+    border-color: var(--color-rule-2);
+  }
+  .necesidad-chip:has(input:checked) {
+    border-color: var(--color-accent);
+    background: var(--color-paper-2);
+  }
+  .necesidad-chip:has(input:focus-visible) {
+    outline: 2px solid var(--color-focus);
+    outline-offset: 2px;
+  }
+  /* El .form-group input global (width 100%, borde, min-height) no aplica al
+     checkbox del chip: se resetea y se tiñe con el acento del sistema. */
+  .necesidad-chip input {
+    width: 1rem;
+    height: 1rem;
+    min-height: 0;
+    flex: none;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: none;
+    outline: none;
+    accent-color: var(--color-accent);
+  }
+  .dedupe-panel {
+    border: 1px solid var(--color-rule-2);
+    border-radius: var(--radius-md);
+    padding: var(--space-md);
+    background: var(--color-paper-2);
+    margin: var(--space-md) 0;
+  }
+  /* En móvil los dos botones (mín. 12rem c/u) no caben en una línea: se
+     envuelven en vez de quedar recortados por overflow-x: clip. */
+  .dedupe-panel .form-acciones {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+  .dedupe-panel p {
+    margin: var(--space-2xs) 0 var(--space-sm);
+    font-size: var(--text-sm);
+  }
+  .modal-acciones {
+    margin-bottom: var(--space-sm);
+  }
+  /* Los estilos de la búsqueda (resultados dinámicos) viven en global.css:
+     Astro scopea por atributo y los elementos creados por JS no lo llevan. */
+</style>
