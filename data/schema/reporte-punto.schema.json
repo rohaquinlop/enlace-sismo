@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://enlacesismo.com/schemas/reporte-punto.schema.json",
+  "title": "Reporte ciudadano de punto de rescate (registro en vivo)",
+  "description": "Entrada de web/public/datos/reportes-puntos.json. Es un reporte ciudadano SIN verificación: su procedencia interna es created_at + ip_hash + confirmaciones + flags. La regla de oro (fuente, verificado_por, fecha_verificacion) aplica al catálogo promovido (punto-rescate.schema.json), no a este archivo.",
+  "type": "object",
+  "properties": {
+    "id": { "type": "string", "pattern": "^p-[a-z0-9-]{6,20}$" },
+    "tipo": { "type": "string", "enum": ["derrumbe", "deslizamiento", "inundacion", "incendio", "punto-rescate", "otro"] },
+    "lat": { "type": "number", "minimum": -90, "maximum": 90 },
+    "lng": { "type": "number", "minimum": -180, "maximum": 180 },
+    "coordenadas_nivel": {
+      "type": "string",
+      "enum": ["premisa", "via", "barrio"],
+      "description": "premisa = edificio/POI exacto · via = calle · barrio = centroide. Lo decide el formulario según el origen del pin (GPS/clic/manual = premisa; resultado de búsqueda = su precisión)."
+    },
+    "ciudad": {
+      "type": "string",
+      "minLength": 2,
+      "maxLength": 80,
+      "description": "Ciudad del reporte, derivada del reverse geocode y normalizada. Opcional: si el geocoder falla, el punto queda sin ciudad (se oculta bajo un filtro de ciudad activo)."
+    },
+    "direccion": { "type": "string", "maxLength": 300 },
+    "descripcion": { "type": "string", "maxLength": 1000 },
+    "necesidades": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": ["agua", "comida", "linternas", "palas", "picos", "mascarillas", "cuerdas", "botiquin", "mantas", "maquinaria", "generador", "voluntarios"]
+      },
+      "uniqueItems": true
+    },
+    "otras_necesidades": { "type": "string", "maxLength": 300 },
+    "contacto": { "type": "string", "maxLength": 200 },
+    "estado": { "type": "string", "enum": ["sin-confirmar", "confirmado", "en-curso", "resuelto", "falso", "promovido"] },
+    "confirmaciones": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/confirmacion" }
+    },
+    "flags": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/flag" }
+    },
+    "ultima_confirmacion": { "type": "string", "minLength": 10 },
+    "ip_hash": { "type": "string", "minLength": 8 },
+    "created_at": { "type": "string", "minLength": 10 }
+  },
+  "$defs": {
+    "confirmacion": {
+      "type": "object",
+      "properties": {
+        "bucket": { "type": "string", "pattern": "^[-0-9.,]+$" },
+        "ip_hash": { "type": "string", "minLength": 8 },
+        "created_at": { "type": "string", "minLength": 10 }
+      },
+      "required": ["bucket", "ip_hash", "created_at"]
+    },
+    "flag": {
+      "type": "object",
+      "properties": {
+        "detalle": { "type": "string", "maxLength": 500 },
+        "ip_hash": { "type": "string", "minLength": 8 },
+        "created_at": { "type": "string", "minLength": 10 }
+      },
+      "required": ["detalle", "ip_hash", "created_at"]
+    }
+  },
+  "required": ["id", "tipo", "lat", "lng", "coordenadas_nivel", "descripcion", "necesidades", "estado", "confirmaciones", "flags", "ip_hash", "created_at"],
+  "additionalProperties": false
+}

@@ -1,6 +1,8 @@
 import { Hono, type Context } from "hono";
 import { cors } from "hono/cors";
 import sugerencias from "./sugerencias";
+import puntos from "./puntos";
+import geocodificar from "./geocodificar";
 
 type Env = {
   DB: D1Database;
@@ -8,6 +10,9 @@ type Env = {
   ADMIN_TOKEN: string;
   PUBLIC_ORIGIN: string;
   GITHUB_TOKEN: string;
+  // PAT con scope contents:write — commitea el registro en vivo de puntos de
+  // rescate (web/public/datos/reportes-puntos.json). Documentado en AGENTS.md.
+  GITHUB_BOT_TOKEN: string;
 };
 
 export type Bindings = { Bindings: Env };
@@ -18,7 +23,13 @@ app.use(
   "/api/*",
   cors({
     origin: (origin) => {
-      const allowed = ["https://enlacesismo.com", "http://localhost:4321", "http://localhost:8787"];
+      const allowed = [
+        "https://enlacesismo.com",
+        "http://localhost:4321",
+        "http://localhost:8787",
+        "http://127.0.0.1:4321",
+        "http://127.0.0.1:8787",
+      ];
       return allowed.includes(origin) ? origin : "https://enlacesismo.com";
     },
     allowMethods: ["GET", "POST"],
@@ -88,6 +99,12 @@ app.post("/api/reportes", async (c) => {
 
 // ---------- Sugerencias ----------
 app.route("/api/sugerencias", sugerencias);
+
+// ---------- Puntos de rescate (registro en vivo) ----------
+app.route("/api/puntos", puntos);
+
+// ---------- Geocodificación para el formulario de reporte ----------
+app.route("/api/geocodificar", geocodificar);
 
 app.notFound((c) => c.json({ error: "No encontrado" }, 404));
 
