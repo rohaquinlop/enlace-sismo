@@ -244,4 +244,96 @@ app.post("/albergues", async (c) => {
   }
 });
 
+// ---------- Ingresos hospitalarios ----------
+
+interface SugerenciaIngresoBody {
+  nombre: string;
+  fecha: string;
+  hora: string;
+  lugar: string;
+  website?: string;
+}
+
+app.post("/ingresos", async (c) => {
+  const body = await c.req.json().catch(() => null);
+  if (!body) return c.json({ error: "JSON inválido" }, 400);
+
+  // Honeypot: si el bot llenó "website", devolver 200 silencioso.
+  if (body.website) return c.json({ ok: true });
+
+  // Rate limit: 10 por IP por hora.
+  if (!(await rateLimit(c, "rl:ingresos", 10))) {
+    return c.json({ error: "Demasiados registros. Intenta en una hora." }, 429);
+  }
+
+  const { nombre, fecha, hora, lugar } = body as SugerenciaIngresoBody;
+
+  // Validación de campos obligatorios.
+  if (!nombre || String(nombre).length < 3) return c.json({ error: "nombre es obligatorio (mínimo 3 caracteres)" }, 400);
+  if (!fecha || !/^\d{4}-\d{2}-\d{2}$/.test(fecha)) return c.json({ error: "fecha es obligatoria (formato YYYY-MM-DD)" }, 400);
+  if (!hora || !/^\d{2}:\d{2}$/.test(hora)) return c.json({ error: "hora es obligatoria (formato HH:MM)" }, 400);
+  if (!lugar || String(lugar).length < 3) return c.json({ error: "lugar es obligatorio (mínimo 3 caracteres)" }, 400);
+
+  // Sanitización con caps.
+  const sNombre = String(nombre).slice(0, 200);
+  const sFecha = String(fecha).slice(0, 10);
+  const sHora = String(hora).slice(0, 5);
+  const sLugar = String(lugar).slice(0, 300);
+  const ip = c.req.header("cf-connecting-ip") ?? "local-dev";
+  const ahora = new Date().toISOString();
+
+  // Construir issue body con markdown formateado.
+  const issueBody = [
+    `## Registro de ingreso hospitalario`,
+    ``,
+    `> **${sNombre}** — ${sLugar}`,
+    ``,
+    `### Datos del ingreso`,
+    ``,
+    `| Campo | Valor |`,
+    `|-------|-------|`,
+    `| **Nombre** | ${sNombre} |`,
+    `| **Fecha de ingreso** | ${sFecha} |`,
+    `| **Hora de ingreso** | ${sHora} |`,
+    `| **Lugar** | ${sLugar} |`,
+    ``,
+    `---`,
+    `*Enviado por: ${ip} — ${ahora}*`,
+    ``,
+    `> Este registro será verificado por un mantenedor antes de publicarse.`,
+  ].join("\n");
+
+  const issueTitle = `[ingreso] ${sNombre} — ${sLugar} (${sFecha})`;
+
+  try {
+    const ghRes = await fetch("https://api.github.com/repos/rohaquinlop/enlace-sismo/issues", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${c.env.GITHUB_TOKEN}`,
+        Accept: "application/vnd.github+json",
+        "Content-Type": "application/json",
+        "User-Agent": "enlace-sismo/1.0",
+        "X-GitHub-Api-Version": "2022-11-28",
+      },
+      body: JSON.stringify({
+        title: issueTitle,
+        body: issueBody,
+        labels: ["ingreso-hospitalario", "sin-verificar"],
+      }),
+    });
+
+    if (!ghRes.ok) {
+      const ghErr = await ghRes.text().catch(() => "sin detalle");
+      console.error("GitHub API error:", ghRes.status, ghErr);
+      return c.json({ error: "No se pudo crear el registro. Intenta más tarde." }, 502);
+    }
+
+    const ghData = (await ghRes.json()) as { html_url: string };
+    return c.json({ ok: true, issue_url: ghData.html_url }, 201);
+  } catch (err) {
+    console.error("Error al crear issue:", err);
+    return c.json({ error: "No se pudo crear el registro. Intenta más tarde." }, 502);
+  }
+});
+
 export default app;

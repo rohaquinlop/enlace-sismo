@@ -1,0 +1,216 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+---
+
+<BaseLayout
+  title="Registrar ingreso hospitalario — Enlace Sismo"
+  description="Registra un ingreso hospitalario para llevar seguimiento de personas atendidas tras el sismo."
+>
+  <section class="seccion-titulo">
+    <h1>Registrar ingreso hospitalario</h1>
+    <p>
+      Registra el ingreso de una persona a un centro de salud.
+      Los datos serán revisados por un mantenedor antes de publicarse.
+    </p>
+  </section>
+
+  <div class="aviso">
+    <strong>Importante</strong>
+    Asegúrate de ingresar datos correctos. Esta información puede ser vital para
+    familiares que buscan a personas afectadas por el sismo.
+  </div>
+
+  <form id="form-ingreso" class="panel form-salud" novalidate>
+    <h2>Datos del ingreso</h2>
+
+    <div class="form-group">
+      <label for="nombre">Nombre completo del paciente *</label>
+      <input type="text" id="nombre" name="nombre" required minlength="3" placeholder="Juan Pérez García" />
+      <span class="helper" id="helper-nombre"></span>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label for="fecha">Fecha de ingreso *</label>
+        <input type="date" id="fecha" name="fecha" required />
+        <span class="helper" id="helper-fecha"></span>
+      </div>
+
+      <div class="form-group">
+        <label for="hora">Hora de ingreso *</label>
+        <input type="time" id="hora" name="hora" required />
+        <span class="helper" id="helper-hora"></span>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="lugar">Lugar (hospital o centro de salud) *</label>
+      <input type="text" id="lugar" name="lugar" required minlength="3" placeholder="Hospital Universitario del Valle" />
+      <span class="helper" id="helper-lugar"></span>
+    </div>
+
+    <!-- Honeypot: oculto para humanos, visible para bots -->
+    <div class="form-honeypot" aria-hidden="true">
+      <label for="website">Website</label>
+      <input type="text" id="website" name="website" tabindex="-1" autocomplete="off" />
+    </div>
+
+    <div class="form-acciones">
+      <button type="submit" class="btn btn-primary" id="btn-enviar">Enviar registro</button>
+    </div>
+  </form>
+
+  <div class="modal-resultado" id="modal-resultado" data-tipo="">
+    <div class="modal-resultado-card">
+      <div class="modal-resultado-icono" id="modal-icono"></div>
+      <div class="modal-resultado-titulo" id="modal-titulo"></div>
+      <div class="modal-resultado-mensaje" id="modal-mensaje"></div>
+      <button class="btn btn-primary" id="modal-cerrar">Cerrar</button>
+    </div>
+  </div>
+</BaseLayout>
+
+<script>
+  import { apiPost } from "../../lib/api";
+
+  interface SugerenciaResponse {
+    ok: boolean;
+    issue_url?: string;
+    error?: string;
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    const form = document.getElementById("form-ingreso") as HTMLFormElement | null;
+    const btnEnviar = document.getElementById("btn-enviar") as HTMLButtonElement | null;
+    const modal = document.getElementById("modal-resultado") as HTMLDivElement | null;
+    const modalIcono = document.getElementById("modal-icono") as HTMLDivElement | null;
+    const modalTitulo = document.getElementById("modal-titulo") as HTMLDivElement | null;
+    const modalMensaje = document.getElementById("modal-mensaje") as HTMLDivElement | null;
+    const modalCerrar = document.getElementById("modal-cerrar") as HTMLButtonElement | null;
+
+    // ---------- Modal ----------
+    function mostrarModal(tipo: "ok" | "error", titulo: string, mensaje: string) {
+      if (!modal || !modalIcono || !modalTitulo || !modalMensaje) return;
+      modal.dataset.tipo = tipo;
+      modalIcono.textContent = tipo === "ok" ? "\u2713" : "\u2717";
+      modalTitulo.textContent = titulo;
+      modalMensaje.textContent = mensaje;
+      modal.dataset.open = "true";
+    }
+
+    function cerrarModal() {
+      if (modal) modal.dataset.open = "false";
+      window.location.href = "/salud";
+    }
+
+    modalCerrar?.addEventListener("click", cerrarModal);
+    modal?.addEventListener("click", (e) => {
+      if (e.target === modal) cerrarModal();
+    });
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && modal?.dataset.open === "true") cerrarModal();
+    });
+
+    // ---------- Validación ----------
+    const REQUIRED: Record<string, { min?: number; label: string }> = {
+      nombre: { min: 3, label: "nombre" },
+      fecha: { label: "fecha" },
+      hora: { label: "hora" },
+      lugar: { min: 3, label: "lugar" },
+    };
+
+    function clearErrors() {
+      if (!form) return;
+      form.querySelectorAll<HTMLElement>("[aria-invalid]").forEach((el) => {
+        el.removeAttribute("aria-invalid");
+      });
+      form.querySelectorAll<HTMLElement>(".helper.error").forEach((el) => {
+        el.classList.remove("error");
+      });
+    }
+
+    function showFieldError(field: string, msg: string) {
+      const input = document.getElementById(field) as HTMLInputElement | null;
+      const helper = document.getElementById(`helper-${field}`);
+      if (input) input.setAttribute("aria-invalid", "true");
+      if (helper) {
+        helper.textContent = msg;
+        helper.classList.add("error");
+      }
+    }
+
+    function validate(): boolean {
+      let ok = true;
+      for (const [id, rule] of Object.entries(REQUIRED)) {
+        const el = document.getElementById(id) as HTMLInputElement | null;
+        if (!el) continue;
+        const val = el.value.trim();
+        if (!val) {
+          showFieldError(id, `${rule.label} es obligatorio`);
+          ok = false;
+        } else if (rule.min && val.length < rule.min) {
+          showFieldError(id, `${rule.label} requiere al menos ${rule.min} caracteres`);
+          ok = false;
+        }
+      }
+
+      const fechaEl = document.getElementById("fecha") as HTMLInputElement | null;
+      if (fechaEl?.value && !/^\d{4}-\d{2}-\d{2}$/.test(fechaEl.value)) {
+        showFieldError("fecha", "fecha debe tener formato válido");
+        ok = false;
+      }
+
+      const horaEl = document.getElementById("hora") as HTMLInputElement | null;
+      if (horaEl?.value && !/^\d{2}:\d{2}$/.test(horaEl.value)) {
+        showFieldError("hora", "hora debe tener formato válido");
+        ok = false;
+      }
+
+      return ok;
+    }
+
+    // ---------- Submit ----------
+    if (form) {
+      form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        clearErrors();
+
+        if (!validate()) return;
+
+        if (btnEnviar) {
+          btnEnviar.disabled = true;
+          btnEnviar.setAttribute("aria-busy", "true");
+          btnEnviar.textContent = "Enviando...";
+        }
+
+        const getVal = (id: string) => {
+          const el = document.getElementById(id) as HTMLInputElement | null;
+          return el?.value.trim() ?? "";
+        };
+
+        const body = {
+          nombre: getVal("nombre"),
+          fecha: getVal("fecha"),
+          hora: getVal("hora"),
+          lugar: getVal("lugar"),
+          website: getVal("website"),
+        };
+
+        const data = await apiPost<SugerenciaResponse>("/api/sugerencias/ingresos", body);
+
+        if (btnEnviar) {
+          btnEnviar.disabled = false;
+          btnEnviar.removeAttribute("aria-busy");
+          btnEnviar.textContent = "Enviar registro";
+        }
+
+        if (data?.ok) {
+          mostrarModal("ok", "Registro enviado", "Un mantenedor revisará los datos antes de publicarlos.");
+          form.reset();
+        } else {
+          mostrarModal("error", "No se pudo enviar", data?.error ?? "Intentá nuevamente más tarde.");
+        }
+      });
+    }
+  });
+</script>
