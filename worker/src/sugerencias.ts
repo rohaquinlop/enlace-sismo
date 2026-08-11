@@ -289,6 +289,86 @@ app.post("/ingresos", async (c) => {
     `> **${sNombre}** — ${sLugar}`,
     ``,
     `### Datos del ingreso`,
+// ---------- Sugerencias de puntos de acopio ----------
+interface SugerenciaAcopioBody {
+  nombre: string;
+  ciudad: string;
+  departamento: string;
+  direccion: string;
+  lat?: number;
+  lng?: number;
+  tipo?: "oficial-comunal" | "oficial-gobierno" | "no-oficial";
+  horario?: string;
+  necesidades?: string[];
+  detalles?: string;
+  estado?: "abierto" | "cerrado" | "sin-confirmar";
+  contacto?: string;
+  fecha_limite?: string;
+  evidencia_links?: string[];
+  imagen_url?: string;
+  fuente?: string;
+  website?: string;
+}
+
+app.post("/acopio", async (c) => {
+  const body = await c.req.json().catch(() => null);
+  if (!body) return c.json({ error: "JSON inválido" }, 400);
+
+  if (body.website) return c.json({ ok: true });
+
+  if (!(await rateLimit(c, "rl:acopio", 5))) {
+    return c.json({ error: "Demasiadas sugerencias. Intenta en una hora." }, 429);
+  }
+
+  const {
+    nombre, ciudad, departamento, direccion, lat, lng, tipo,
+    horario, necesidades, detalles, estado, contacto, fecha_limite,
+    evidencia_links, imagen_url, fuente,
+  } = body as SugerenciaAcopioBody;
+
+  if (!nombre || String(nombre).length < 3) return c.json({ error: "nombre es obligatorio (mínimo 3 caracteres)" }, 400);
+  if (!ciudad || String(ciudad).length < 2) return c.json({ error: "ciudad es obligatoria (mínimo 2 caracteres)" }, 400);
+  if (!departamento || String(departamento).length < 2) return c.json({ error: "departamento es obligatorio (mínimo 2 caracteres)" }, 400);
+  if (!direccion || String(direccion).length < 5) return c.json({ error: "dirección es obligatoria (mínimo 5 caracteres)" }, 400);
+  if (lat != null && (typeof lat !== "number" || lat < -90 || lat > 90)) return c.json({ error: "lat debe estar entre -90 y 90" }, 400);
+  if (lng != null && (typeof lng !== "number" || lng < -180 || lng > 180)) return c.json({ error: "lng debe estar entre -180 y 180" }, 400);
+  if (fuente && !/^https?:\/\//.test(fuente)) return c.json({ error: "fuente debe ser una URL válida" }, 400);
+
+  const sNombre = String(nombre).slice(0, 200);
+  const sCiudad = String(ciudad).slice(0, 80);
+  const sDepto = String(departamento).slice(0, 80);
+  const sDir = String(direccion).slice(0, 300);
+  const sContacto = contacto ? String(contacto).slice(0, 200) : undefined;
+  const sHorario = horario ? String(horario).slice(0, 200) : undefined;
+  const sDetalles = detalles ? String(detalles).slice(0, 1000) : undefined;
+  const sFuente = fuente ? String(fuente).slice(0, 500) : undefined;
+  const sEstado = estado || "sin-confirmar";
+  const sTipo = tipo || "no-oficial";
+  const ip = c.req.header("cf-connecting-ip") ?? "local-dev";
+  const ahora = new Date().toISOString();
+
+  const NecesidadesLabel: Record<string, string> = {
+    "alimentos-no-perecederos": "Alimentos no perecederos",
+    agua: "Agua", ropa: "Ropa", medicamentos: "Medicamentos",
+    "elementos-aseo": "Elementos de aseo", cobijas: "Cobijas",
+    colchonetas: "Colchonetas", "alimentos-bebe": "Alimentos para bebés",
+    mascotas: "Mascotas", herramientas: "Herramientas", voluntarios: "Voluntarios",
+  };
+
+  const necesidadesStr = necesidades?.length
+    ? necesidades.map((n) => NecesidadesLabel[n] ?? n).join(", ")
+    : "no especificadas";
+
+  const evidenciaStr = evidencia_links?.length
+    ? evidencia_links.map((l) => `[${l}](${l})`).join(", ")
+    : "no proporcionada";
+
+  const issueBody = [
+    `## Sugerencia de punto de acopio`,
+    ``,
+    `> **${sNombre}** — ${sCiudad}, ${sDepto}`,
+    ``,
+    `### Datos del acopio`,
     ``,
     `| Campo | Valor |`,
     `|-------|-------|`,
@@ -296,6 +376,21 @@ app.post("/ingresos", async (c) => {
     `| **Fecha de ingreso** | ${sFecha} |`,
     `| **Hora de ingreso** | ${sHora} |`,
     `| **Lugar** | ${sLugar} |`,
+    `| **Ciudad** | ${sCiudad} |`,
+    `| **Departamento** | ${sDepto} |`,
+    `| **Dirección** | ${sDir} |`,
+    `| **Latitud** | ${lat ?? "no proporcionada"} |`,
+    `| **Longitud** | ${lng ?? "no proporcionada"} |`,
+    `| **Tipo** | ${sTipo} |`,
+    `| **Estado** | ${sEstado} |`,
+    `| **Horario** | ${sHorario || "no especificado"} |`,
+    `| **Necesidades** | ${necesidadesStr} |`,
+    `| **Detalles** | ${sDetalles || "no proporcionados"} |`,
+    `| **Contacto** | ${sContacto || "no proporcionado"} |`,
+    `| **Fecha límite** | ${fecha_limite || "no especificada"} |`,
+    `| **Evidencia** | ${evidenciaStr} |`,
+    `| **Imagen** | ${imagen_url ? `[Ver imagen](${imagen_url})` : "no proporcionada"} |`,
+    `| **Fuente** | ${sFuente ? `[${sFuente}](${sFuente})` : "no proporcionada"} |`,
     ``,
     `---`,
     `*Enviado por: ${ip} — ${ahora}*`,
@@ -304,6 +399,10 @@ app.post("/ingresos", async (c) => {
   ].join("\n");
 
   const issueTitle = `[ingreso] ${sNombre} — ${sLugar} (${sFecha})`;
+    `> Este acopio será publicado como **sin confirmar** hasta que un mantenedor verifique la fuente.`,
+  ].join("\n");
+
+  const issueTitle = `[acopio] ${sNombre} — ${sCiudad}`;
 
   try {
     const ghRes = await fetch("https://api.github.com/repos/rohaquinlop/enlace-sismo/issues", {
@@ -319,6 +418,7 @@ app.post("/ingresos", async (c) => {
         title: issueTitle,
         body: issueBody,
         labels: ["ingreso-hospitalario", "sin-verificar"],
+        labels: ["sugerencia-acopio", "sin-verificar"],
       }),
     });
 
@@ -326,6 +426,7 @@ app.post("/ingresos", async (c) => {
       const ghErr = await ghRes.text().catch(() => "sin detalle");
       console.error("GitHub API error:", ghRes.status, ghErr);
       return c.json({ error: "No se pudo crear el registro. Intenta más tarde." }, 502);
+      return c.json({ error: "No se pudo crear el reporte. Intenta más tarde." }, 502);
     }
 
     const ghData = (await ghRes.json()) as { html_url: string };
@@ -333,6 +434,7 @@ app.post("/ingresos", async (c) => {
   } catch (err) {
     console.error("Error al crear issue:", err);
     return c.json({ error: "No se pudo crear el registro. Intenta más tarde." }, 502);
+    return c.json({ error: "No se pudo crear el reporte. Intenta más tarde." }, 502);
   }
 });
 

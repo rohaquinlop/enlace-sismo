@@ -1,1 +1,21 @@
-[]
+[
+  {
+    "id": "p-msp2iath-1fbe",
+    "tipo": "punto-rescate",
+    "lat": 4.8133,
+    "lng": -75.6961,
+    "coordenadas_nivel": "premisa",
+    "descripcion": "PRUEBA SMOKE token unificado — borrar",
+    "necesidades": [
+      "agua"
+    ],
+    "estado": "sin-confirmar",
+    "confirmaciones": [],
+    "flags": [],
+    "ultima_confirmacion": "2026-08-11T19:43:02.981Z",
+    "ip_hash": "eff8e7ca506627fe15dda5e0e512fcaad70b6d520f37cc76597fdb4f2d83a1a3",
+    "created_at": "2026-08-11T19:43:02.981Z",
+    "direccion": "DHL, 9-42, Calle 21, Sector Plaza de Bolivar, Centro, Perimetro Urbano Pereira, Pereira, Risaralda, RAP Eje Cafetero, 660002, Colombia",
+    "ciudad": "Perimetro urbano pereira"
+  }
+]
