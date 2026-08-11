@@ -3,6 +3,7 @@
   "compilerOptions": {
     "resolveJsonModule": true,
     "baseUrl": ".",
+    "types": ["astro/client", "node"],
     "paths": {
       "@/*": ["src/*"]
     }

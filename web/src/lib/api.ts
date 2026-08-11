@@ -1,7 +1,9 @@
 // URL base del API (Cloudflare Workers).
 // En desarrollo local (localhost) se usa el worker local en :8787.
 export function apiUrl(path: string): string {
-  const isLocal = typeof location !== "undefined" && location.hostname === "localhost";
+  const isLocal =
+    typeof location !== "undefined" &&
+    (location.hostname === "localhost" || location.hostname === "127.0.0.1");
   const base =
     isLocal && !import.meta.env.PUBLIC_API_URL
       ? "http://localhost:8787"

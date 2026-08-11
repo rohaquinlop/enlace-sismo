@@ -4,9 +4,11 @@ import { acopios, albergues, centrosSalud, jornadasSangre } from "../lib/catalog
 interface Props {
   ciudades: string[];
   mostrarZonas?: boolean;
+  mostrarRescates?: boolean;
+  rescatesActivos?: number;
 }
 
-const { ciudades, mostrarZonas = false } = Astro.props;
+const { ciudades, mostrarZonas = false, mostrarRescates = false, rescatesActivos = 0 } = Astro.props;
 
 const CATEGORIAS = [
   { valor: "acopio", etiqueta: `Acopios (${acopios.length})`, clase: "punto-acopio" },
@@ -40,6 +42,15 @@ const etiquetaPuntos = totalPuntos === 1 ? "1 punto" : `${totalPuntos} puntos`;
           <span class="tira-label">{c.etiqueta}</span>
         </label>
       ))}
+      {
+        mostrarRescates && (
+          <label class="tira-chip">
+            <input type="checkbox" value="rescates" checked />
+            <span class="tira-dot punto-rescate" aria-hidden="true"></span>
+            <span class="tira-label">Rescates ({rescatesActivos})</span>
+          </label>
+        )
+      }
       {
         mostrarZonas &&
           ZONAS.map((c) => (
