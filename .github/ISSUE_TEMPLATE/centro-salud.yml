@@ -1,0 +1,99 @@
+name: Sugerir centro de salud
+description: Sugiere un centro de salud para incluir en la plataforma.
+labels:
+  - sugerencia-salud
+  - sin-verificar
+body:
+  - type: input
+    id: nombre
+    attributes:
+      label: Nombre
+      description: Nombre completo del centro de salud
+      placeholder: "Hospital Universitario San Juan de Dios"
+    validations:
+      required: true
+
+  - type: input
+    id: ciudad
+    attributes:
+      label: Ciudad
+      placeholder: "Bogotá"
+    validations:
+      required: true
+
+  - type: input
+    id: departamento
+    attributes:
+      label: Departamento
+      placeholder: "Cundinamarca"
+    validations:
+      required: true
+
+  - type: input
+    id: direccion
+    attributes:
+      label: Dirección
+      placeholder: "Calle 100 #15-20"
+    validations:
+      required: true
+
+  - type: input
+    id: lat
+    attributes:
+      label: Latitud
+      description: "Coordenada latitud (-90 a 90) — se detecta automáticamente"
+      placeholder: "4.6875"
+    validations:
+      required: false
+
+  - type: input
+    id: lng
+    attributes:
+      label: Longitud
+      description: "Coordenada longitud (-180 a 180) — se detecta automáticamente"
+      placeholder: "-74.0458"
+    validations:
+      required: false
+
+  - type: dropdown
+    id: tipo
+    attributes:
+      label: Tipo de centro
+      options:
+        - hospital
+        - clinica
+        - punto-primeros-auxilios
+        - puesto-vacunacion
+    validations:
+      required: true
+
+  - type: dropdown
+    id: estado
+    attributes:
+      label: Estado operativo
+      description: "Si no estás seguro, deja \"sin-confirmar\""
+      options:
+        - sin-confirmar
+        - operativo
+        - limitado
+        - cerrado
+    validations:
+      required: true
+
+  - type: input
+    id: contacto
+    attributes:
+      label: Contacto
+      description: "Teléfono, email o ambos (opcional)"
+      placeholder: "(601) 555-1234"
+    validations:
+      required: false
+
+  - type: input
+    id: fuente
+    attributes:
+      label: Fuente
+      description: "URL de la fuente oficial que confirma este centro"
+      placeholder: "https://www.salud.gov.co/comunicado"
+    validations:
+      required: true

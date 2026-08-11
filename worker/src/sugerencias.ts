@@ -1,0 +1,123 @@
+import { Hono, type Context } from "hono";
+import { rateLimit, type Bindings } from "./index";
+
+const app = new Hono<Bindings>();
+
+interface SugerenciaSaludBody {
+  nombre: string;
+  ciudad: string;
+  departamento: string;
+  direccion: string;
+  lat?: number;
+  lng?: number;
+  tipo: "hospital" | "clinica" | "punto-primeros-auxilios" | "puesto-vacunacion";
+  estado: "operativo" | "limitado" | "cerrado" | "sin-confirmar";
+  urgencias_24h?: boolean;
+  contacto?: string;
+  fuente: string;
+  website?: string;
+}
+
+app.post("/salud", async (c) => {
+  const body = await c.req.json().catch(() => null);
+  if (!body) return c.json({ error: "JSON inválido" }, 400);
+
+  // Honeypot: si el bot llenó "website", devolver 200 silencioso.
+  if (body.website) return c.json({ ok: true });
+
+  // Rate limit: 5 por IP por hora.
+  if (!(await rateLimit(c, "rl:salud", 5))) {
+    return c.json({ error: "Demasiadas sugerencias. Intenta en una hora." }, 429);
+  }
+
+  const { nombre, ciudad, departamento, direccion, lat, lng, tipo, estado, urgencias_24h, contacto, fuente } =
+    body as SugerenciaSaludBody;
+
+  // Validación de campos obligatorios.
+  if (!nombre || String(nombre).length < 3) return c.json({ error: "nombre es obligatorio (mínimo 3 caracteres)" }, 400);
+  if (!ciudad || String(ciudad).length < 2) return c.json({ error: "ciudad es obligatoria (mínimo 2 caracteres)" }, 400);
+  if (!departamento || String(departamento).length < 2) return c.json({ error: "departamento es obligatorio (mínimo 2 caracteres)" }, 400);
+  if (!direccion || String(direccion).length < 5) return c.json({ error: "dirección es obligatoria (mínimo 5 caracteres)" }, 400);
+  if (lat != null && (typeof lat !== "number" || lat < -90 || lat > 90)) return c.json({ error: "lat debe estar entre -90 y 90" }, 400);
+  if (lng != null && (typeof lng !== "number" || lng < -180 || lng > 180)) return c.json({ error: "lng debe estar entre -180 y 180" }, 400);
+
+  const TIPOS = ["hospital", "clinica", "punto-primeros-auxilios", "puesto-vacunacion"];
+  if (!tipo || !TIPOS.includes(tipo)) return c.json({ error: "tipo inválido" }, 400);
+
+  const ESTADOS = ["operativo", "limitado", "cerrado", "sin-confirmar"];
+  if (estado && !ESTADOS.includes(estado)) return c.json({ error: "estado inválido" }, 400);
+  if (!fuente || !/^https?:\/\//.test(fuente)) return c.json({ error: "fuente debe ser una URL válida" }, 400);
+
+  // Sanitización con caps.
+  const sNombre = String(nombre).slice(0, 200);
+  const sCiudad = String(ciudad).slice(0, 80);
+  const sDepto = String(departamento).slice(0, 80);
+  const sDir = String(direccion).slice(0, 300);
+  const sContacto = contacto ? String(contacto).slice(0, 200) : undefined;
+  const sFuente = String(fuente).slice(0, 500);
+  const sEstado = estado && ESTADOS.includes(estado) ? estado : "sin-confirmar";
+  const ip = c.req.header("cf-connecting-ip") ?? "local-dev";
+  const ahora = new Date().toISOString();
+
+  // Construir issue body con markdown formateado.
+  const issueBody = [
+    `## Sugerencia de centro de salud`,
+    ``,
+    `> **${sNombre}** — ${sCiudad}, ${sDepto}`,
+    ``,
+    `### Datos del centro`,
+    ``,
+    `| Campo | Valor |`,
+    `|-------|-------|`,
+    `| **Nombre** | ${sNombre} |`,
+    `| **Ciudad** | ${sCiudad} |`,
+    `| **Departamento** | ${sDepto} |`,
+    `| **Dirección** | ${sDir} |`,
+    `| **Latitud** | ${lat ?? "no proporcionada"} |`,
+    `| **Longitud** | ${lng ?? "no proporcionada"} |`,
+    `| **Tipo** | ${tipo} |`,
+    `| **Estado** | ${sEstado} |`,
+    `| **Urgencias 24h** | ${urgencias_24h ? "Sí" : "No"} |`,
+    `| **Contacto** | ${sContacto || "no proporcionado"} |`,
+    `| **Fuente** | [${sFuente}](${sFuente}) |`,
+    ``,
+    `---`,
+    `*Enviado por: ${ip} — ${ahora}*`,
+    ``,
+    `> Este centro será publicado como **sin confirmar** hasta que un mantenedor verifique la fuente.`,
+  ].join("\n");
+
+  const issueTitle = `[salud] ${sNombre} — ${sCiudad}`;
+
+  try {
+    const ghRes = await fetch("https://api.github.com/repos/rohaquinlop/enlace-sismo/issues", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${c.env.GITHUB_TOKEN}`,
+        Accept: "application/vnd.github+json",
+        "Content-Type": "application/json",
+        "User-Agent": "enlace-sismo/1.0",
+        "X-GitHub-Api-Version": "2022-11-28",
+      },
+      body: JSON.stringify({
+        title: issueTitle,
+        body: issueBody,
+        labels: ["sugerencia-salud", "sin-verificar"],
+      }),
+    });
+
+    if (!ghRes.ok) {
+      const ghErr = await ghRes.text().catch(() => "sin detalle");
+      console.error("GitHub API error:", ghRes.status, ghErr);
+      return c.json({ error: "No se pudo crear el reporte. Intenta más tarde." }, 502);
+    }
+
+    const ghData = (await ghRes.json()) as { html_url: string };
+    return c.json({ ok: true, issue_url: ghData.html_url }, 201);
+  } catch (err) {
+    console.error("Error al crear issue:", err);
+    return c.json({ error: "No se pudo crear el reporte. Intenta más tarde." }, 502);
+  }
+});
+
+export default app;

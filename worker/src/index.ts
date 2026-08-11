@@ -1,14 +1,16 @@
 import { Hono, type Context } from "hono";
 import { cors } from "hono/cors";
+import sugerencias from "./sugerencias";
 
 type Env = {
   DB: D1Database;
   KV: KVNamespace;
   ADMIN_TOKEN: string;
   PUBLIC_ORIGIN: string;
+  GITHUB_TOKEN: string;
 };
 
-type Bindings = { Bindings: Env };
+export type Bindings = { Bindings: Env };
 
 const app = new Hono<Bindings>();
 
@@ -23,12 +25,13 @@ app.use(
   })
 );
 
-// Límite de escrituras por IP y hora (reportes de datos incorrectos).
-async function rateLimit(c: Context<Bindings>, key: string, max: number): Promise<boolean> {
-  const ip = c.req.header("cf-connecting-ip") ?? "anon";
+export async function rateLimit(c: Context<Bindings>, key: string, max: number): Promise<boolean> {
+  const ip = c.req.header("cf-connecting-ip") ?? "local-dev";
+  const isLocal = ip === "local-dev";
+  const effectiveMax = isLocal ? 50 : max;
   const bucket = `${key}:${ip}:${new Date().toISOString().slice(0, 13)}`;
   const count = Number((await c.env.KV.get(bucket)) ?? "0");
-  if (count >= max) return false;
+  if (count >= effectiveMax) return false;
   await c.env.KV.put(bucket, String(count + 1), { expirationTtl: 3600 });
   return true;
 }
@@ -82,6 +85,9 @@ app.post("/api/reportes", async (c) => {
     .run();
   return c.json({ ok: true });
 });
+
+// ---------- Sugerencias ----------
+app.route("/api/sugerencias", sugerencias);
 
 app.notFound((c) => c.json({ error: "No encontrado" }, 404));
 

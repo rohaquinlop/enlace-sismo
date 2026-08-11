@@ -1500,6 +1500,47 @@ h2 {
   color: var(--color-error);
 }
 
+.form-salud h2 {
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  letter-spacing: -0.01em;
+  margin-bottom: var(--space-lg);
+  padding-bottom: var(--space-sm);
+  border-bottom: var(--rule-hair) solid var(--color-rule);
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-md);
+}
+
+@media (max-width: 600px) {
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+.form-acciones {
+  display: flex;
+  justify-content: center;
+  margin-top: var(--space-lg);
+}
+
+.form-acciones .btn {
+  min-width: 12rem;
+}
+
+.geo-hint {
+  font-size: var(--text-xs);
+  color: var(--color-text-3, var(--color-muted));
+  margin-top: var(--space-2xs);
+}
+
+.geo-hint.cargando {
+  color: var(--color-text-2, var(--color-neutral));
+}
+
 .form-honeypot {
   position: absolute;
   left: -9999px;
@@ -1529,15 +1570,80 @@ h2 {
 }
 
 /* ============================================================
+   Modal de resultado
+   ============================================================ */
+
+.modal-resultado {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  display: none;
+  place-items: center;
+  background: oklch(24% 0.02 258 / 0.7);
+  backdrop-filter: blur(4px);
+}
+
+.modal-resultado[data-open="true"] {
+  display: grid;
+}
+
+.modal-resultado-card {
+  background: var(--color-paper);
+  border: var(--rule-strong) solid var(--color-rule-2);
+  border-radius: var(--radius-md);
+  padding: var(--space-xl) var(--space-lg);
+  max-width: 28rem;
+  width: 90%;
+  text-align: center;
+  box-shadow: 0 8px 32px oklch(24% 0.02 258 / 0.2);
+}
+
+.modal-resultado-icono {
+  font-size: 2.5rem;
+  margin-bottom: var(--space-sm);
+}
+
+.modal-resultado-titulo {
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: 700;
+  color: var(--color-ink);
+  margin-bottom: var(--space-xs);
+}
+
+.modal-resultado-mensaje {
+  font-size: var(--text-base);
+  color: var(--color-muted);
+  margin-bottom: var(--space-lg);
+  line-height: 1.5;
+}
+
+.modal-resultado[data-tipo="ok"] .modal-resultado-icono { color: var(--color-ok); }
+.modal-resultado[data-tipo="ok"] .modal-resultado-titulo { color: var(--color-ink); }
+.modal-resultado[data-tipo="error"] .modal-resultado-icono { color: var(--color-error); }
+.modal-resultado[data-tipo="error"] .modal-resultado-titulo { color: var(--color-error); }
+
+.modal-resultado .btn {
+  min-width: 8rem;
+}
+
+/* ============================================================
    Filtros y vacío
    ============================================================ */
 
 .filtros {
   display: flex;
+  justify-content: space-between;
+  align-items: center;
   gap: var(--space-sm);
   flex-wrap: wrap;
-  align-items: center;
   margin-bottom: var(--space-lg);
+}
+
+.filtros-controls {
+  display: flex;
+  gap: var(--space-sm);
+  align-items: center;
 }
 
 .filtros label {
