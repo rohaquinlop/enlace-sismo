@@ -1291,24 +1291,28 @@ h2 {
   gap: var(--space-sm);
 }
 
+/* El nombre crece primero (wrap) y la meta conserva su ancho: sin esto, el
+   nombre largo del epicentro comprime la meta a "SIN RE..." */
 .zona-fila .zona-fila-nombre {
+  flex: 1;
+  min-width: 0;
   font-family: var(--font-display);
   font-weight: 600;
   font-size: var(--text-base);
   letter-spacing: -0.01em;
   font-style: normal;
   overflow-wrap: anywhere;
-  min-width: 0;
 }
 
 .zona-fila .zona-fila-meta {
+  flex: none;
   font-family: var(--font-outlier);
   font-size: var(--text-xs);
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--color-muted);
   white-space: nowrap;
-  max-width: 45%;
+  max-width: 50%;
   overflow: hidden;
   text-overflow: ellipsis;
 }
