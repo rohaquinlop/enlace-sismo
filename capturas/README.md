@@ -32,7 +32,7 @@ Los datos solo entran a `data/*.json` después de pasar el protocolo de CONTRIBU
 
 ## Acceso a redes sociales (X, Instagram, Facebook, WhatsApp, Telegram)
 
-**X/Twitter — leíble sin cuenta:** `node scripts/leer-redes.mjs <URL del post>` extrae el texto completo, fecha, autor y las fotos del post (vía api.fxtwitter.com + oEmbed de Twitter). Con `--descargar` baja las fotos a `capturas/redes/` para OCR (el OCR local está en /tmp/ocr.swift — Vision de Apple). Los posts oficiales de las alcaldías suelen tener las direcciones en la IMAGEN: descarga + OCR + verificación cruzada con geocoders.
+**X/Twitter — leíble sin cuenta:** `node scripts/leer-redes.mjs <URL del post>` extrae el texto completo, fecha, autor y las fotos del post (vía api.fxtwitter.com + oEmbed de Twitter). Con `--descargar` baja las fotos a `capturas/redes/` para OCR (`scripts/ocr.swift` — Vision de Apple; compilar: `swiftc -O scripts/ocr.swift -o /tmp/ocr`). Los posts oficiales de las alcaldías suelen tener las direcciones en la IMAGEN: descarga + OCR + verificación cruzada con geocoders.
 
 **Instagram, Facebook, WhatsApp — NO leíbles desde aquí:** los anuncios están detrás de login/antibot. Protocolo: screenshot en `capturas/` + la URL del post en un `.txt` con el mismo nombre. El agente extrae los datos de la imagen y registra la URL como fuente.
 
