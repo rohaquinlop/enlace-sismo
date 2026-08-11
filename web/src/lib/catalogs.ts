@@ -2,7 +2,6 @@ import acopiosData from "../../../data/acopios.json";
 import alberguesData from "../../../data/albergues.json";
 import centrosSaludData from "../../../data/centros-salud.json";
 import donacionSangreData from "../../../data/donacion-sangre.json";
-import ingresosData from "../../../data/ingresos.json";
 
 export interface Verificado {
   fuente: string;
@@ -79,15 +78,6 @@ export interface JornadaSangre extends Verificado {
   contacto?: string;
 }
 
-export interface Ingreso {
-  id: string;
-  nombre: string;
-  fecha: string;
-  hora: string;
-  lugar: string;
-}
-
-export const ingresos: Ingreso[] = ingresosData.ingresos;
 export const acopios: Acopio[] = acopiosData.acopios;
 export const albergues: Albergue[] = alberguesData.albergues;
 export const centrosSalud: CentroSalud[] = centrosSaludData.centros;
