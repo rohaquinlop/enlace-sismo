@@ -27,8 +27,7 @@ La validación automática (`npm run validate:data`) corre en cada PR y **bloque
 ## Reglas de seguridad (no negociables)
 
 - **Cuentas bancarias y enlaces de pago**: solo se aceptan con `"verificacion": "oficial"` (publicados por la entidad oficial) y **2 aprobaciones de mantenedores**. Nunca publiques cuentas personales.
-- **Números de documento**: prohibidos en reportes de desaparecidos (privacidad).
-- **Menores de edad**: los reportes de desaparecidos menores requieren autorización de un familiar directo.
+- **Personas desaparecidas**: el reporte y la búsqueda se referencia a ColombiaTeBusca (https://colombiatebusca.com); este proyecto no mantiene un registro propio.
 - **No inventes coordenadas**: usa la dirección real y, si no sabes las coordenadas, deja el campo y pide ayuda en el PR (un revisor las calcula).
 - **Estados**: usa `sin-confirmar` si no estás seguro. La web muestra la advertencia.
 

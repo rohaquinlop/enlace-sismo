@@ -13,9 +13,12 @@ datos legibles en segundos, cero metáforas editoriales.
 - **Página de inicio:** Workbench (dashboard mapa-primero) — la superficie
   de datos (mapa) ES la página. Panel superpuesto con lectura del evento
   y acceso a secciones. Variación por archetypes: mapa + panel + sheet móvil.
-- **Páginas de app** (mapa, acopios, albergues, salud, desaparecidos, ayuda,
+- **Páginas de app** (mapa, acopios, albergues, salud, ayuda,
   contactos, alertas): familia Index-First / tabular — filas hairline,
   filtros, listas. Sin hero, sin marketing.
+- **Desaparecidos**: página de referencia que enlaza a ColombiaTeBusca
+  (https://colombiatebusca.com), el registro ciudadano de personas
+  desaparecidas. CTA externo, sin formulario ni listas propias.
 - **Ninguna página:** hero centrado, testimonios, pricing, FAQ de ventas.
 
 ## Theme — Cobalt
