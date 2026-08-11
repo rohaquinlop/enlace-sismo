@@ -1,4 +1,4 @@
-const CACHE = "enlace-sismo-v3";
+const CACHE = "enlace-sismo-v4";
 const APP_SHELL = ["/", "/acopios", "/albergues", "/salud", "/desaparecidos", "/ayuda", "/contactos", "/alertas"];
 
 self.addEventListener("install", (event) => {
@@ -19,7 +19,7 @@ self.addEventListener("activate", (event) => {
   );
 });
 
-// Estrategia: cache-first para navegación y estáticos; network-first para el API.
+// Estrategia: stale-while-revalidate para estáticos; network-first para navegación y API.
 self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
   if (url.pathname.startsWith("/api/")) {
@@ -41,16 +41,15 @@ self.addEventListener("fetch", (event) => {
     return;
   }
   event.respondWith(
-    caches.match(event.request).then(
-      (cached) =>
-        cached ||
-        fetch(event.request).then((res) => {
-          if (res.ok && url.origin === self.location.origin) {
-            const copy = res.clone();
-            caches.open(CACHE).then((c) => c.put(event.request, copy));
-          }
-          return res;
-        })
-    )
+    caches.match(event.request).then((cached) => {
+      const networkFetch = fetch(event.request).then((res) => {
+        if (res.ok && url.origin === self.location.origin) {
+          const copy = res.clone();
+          caches.open(CACHE).then((c) => c.put(event.request, copy));
+        }
+        return res;
+      });
+      return cached || networkFetch;
+    })
   );
 });

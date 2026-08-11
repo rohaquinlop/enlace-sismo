@@ -18,10 +18,17 @@ export interface Acopio extends Verificado {
   direccion: string;
   lat: number;
   lng: number;
+  tipo?: "oficial-comunal" | "oficial-gobierno" | "no-oficial";
   horario?: string;
   necesidades?: string[];
+  detalles?: string;
   estado: "abierto" | "cerrado" | "sin-confirmar";
   contacto?: string;
+  fecha_limite?: string;
+  recoleccion_periodica?: boolean;
+  recoleccion_detalle?: string;
+  evidencia_links?: string[];
+  imagen_url?: string;
 }
 
 export interface Albergue extends Verificado {

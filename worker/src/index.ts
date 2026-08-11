@@ -1,12 +1,18 @@
 import { Hono, type Context } from "hono";
 import { cors } from "hono/cors";
 import sugerencias from "./sugerencias";
+import alertas from "./alertas";
+import reportes from "./reportes";
+import upload from "./upload";
 
 type Env = {
   DB: D1Database;
   KV: KVNamespace;
+  IMAGENES: R2Bucket;
   ADMIN_TOKEN: string;
   PUBLIC_ORIGIN: string;
+  // PAT con scope "issues:write" — crear issues para sugerencias públicas.
+  // Configurar como secreto del Worker: wrangler secret put GITHUB_TOKEN
   GITHUB_TOKEN: string;
 };
 
@@ -38,55 +44,10 @@ export async function rateLimit(c: Context<Bindings>, key: string, max: number):
 
 app.get("/api/health", (c) => c.json({ ok: true, servicio: "enlace-sismo-api" }));
 
-// ---------- Alertas oficiales ----------
-app.get("/api/alertas", async (c) => {
-  const { results } = await c.env.DB.prepare(
-    "SELECT id, titulo, contenido, fuente, prioridad, created_at FROM alertas ORDER BY created_at DESC LIMIT 50"
-  ).all();
-  return c.json(results);
-});
-
-app.post("/api/alertas", async (c) => {
-  const token = c.req.header("Authorization")?.replace("Bearer ", "");
-  if (!token || token !== c.env.ADMIN_TOKEN) return c.json({ error: "No autorizado" }, 401);
-
-  const body = await c.req.json().catch(() => null);
-  if (!body) return c.json({ error: "JSON inválido" }, 400);
-
-  const { titulo, contenido, fuente, prioridad = "normal", creado_por = "admin" } = body;
-  if (!titulo || !contenido || !fuente) {
-    return c.json({ error: "titulo, contenido y fuente son obligatorios" }, 400);
-  }
-  if (!/^https?:\/\//.test(fuente)) {
-    return c.json({ error: "la fuente debe ser una URL oficial" }, 400);
-  }
-
-  await c.env.DB.prepare(
-    "INSERT INTO alertas (titulo, contenido, fuente, prioridad, creado_por) VALUES (?, ?, ?, ?, ?)"
-  )
-    .bind(String(titulo).slice(0, 200), String(contenido).slice(0, 2000), fuente, String(prioridad).slice(0, 20), String(creado_por).slice(0, 80))
-    .run();
-  return c.json({ ok: true });
-});
-
-// ---------- Reportes de datos incorrectos ----------
-app.post("/api/reportes", async (c) => {
-  const body = await c.req.json().catch(() => null);
-  if (!body) return c.json({ error: "JSON inválido" }, 400);
-
-  const { tipo, ref_id, detalle } = body;
-  if (!tipo || !detalle) return c.json({ error: "tipo y detalle son obligatorios" }, 400);
-  if (!(await rateLimit(c, "rl:reportes", 20))) {
-    return c.json({ error: "Demasiados reportes. Espera un momento." }, 429);
-  }
-
-  await c.env.DB.prepare("INSERT INTO reportes (tipo, ref_id, detalle) VALUES (?, ?, ?)")
-    .bind(String(tipo).slice(0, 40), ref_id ? String(ref_id).slice(0, 80) : null, String(detalle).slice(0, 1000))
-    .run();
-  return c.json({ ok: true });
-});
-
-// ---------- Sugerencias ----------
+app.route("/api/alertas", alertas);
+app.route("/api/reportes", reportes);
+app.route("/api/upload", upload);
+app.route("/api/imagen", upload);
 app.route("/api/sugerencias", sugerencias);
 
 app.notFound((c) => c.json({ error: "No encontrado" }, 404));
