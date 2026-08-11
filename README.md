@@ -43,7 +43,8 @@ equivocado**, así que la precisión es parte del protocolo.
 
 - **Datos** (acopios, jornadas de sangre, albergues…): lee [CONTRIBUTING.md](CONTRIBUTING.md)
   y abre un PR con `data/*.json` actualizado. El protocolo incluye cómo verificar
-  coordenadas y cómo tratar datos que circulan en redes sociales.
+  coordenadas y cómo tratar datos que circulan en redes sociales — guía práctica en
+  [docs/guia-redes-sociales.md](docs/guia-redes-sociales.md).
 - **Código**: abre un issue para proponer cambios grandes; los cambios siguen el flujo
   spec-driven en `.sdd/` (propose → apply → archive).
 - **Revisar**: cualquier persona puede comentar en un PR "verifiqué contra [fuente],
