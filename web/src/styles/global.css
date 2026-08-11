@@ -697,6 +697,7 @@ h2 {
 .punto-acopio { background: var(--color-accent); }
 .punto-albergue { background: var(--color-ok); }
 .punto-salud { background: var(--color-error); }
+.punto-sangre { background: var(--color-sangre); }
 .punto-zona { background: var(--color-neutral); }
 .punto-epicentro { background: var(--color-error); }
 
@@ -1673,6 +1674,11 @@ h2 {
 .popup-badge-salud {
   color: var(--color-error);
   border-color: var(--color-error);
+}
+
+.popup-badge-sangre {
+  color: var(--color-sangre);
+  border-color: var(--color-sangre);
 }
 
 /* ============================================================

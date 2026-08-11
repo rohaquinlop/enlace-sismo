@@ -24,6 +24,7 @@
   --color-accent-ink:  oklch(99% 0.003 250);
   --color-focus:       oklch(54% 0.19 256);
   --color-error:       oklch(50% 0.19 25);
+  --color-sangre:      oklch(60% 0.26 350);
   --color-error-ink:   oklch(40% 0.13 25);
   --color-ok:          oklch(46% 0.12 150);
 

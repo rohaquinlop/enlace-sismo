@@ -1,5 +1,5 @@
 ---
-import type { Acopio, Albergue, CentroSalud } from "../lib/catalogs";
+import type { Acopio, Albergue, CentroSalud, JornadaSangre } from "../lib/catalogs";
 import type { Zona } from "../lib/zonas";
 import evento from "../../../data/evento.json";
 import { haversineKm, formatearDistancia } from "../lib/geo";
@@ -8,27 +8,47 @@ interface Props {
   acopios: Acopio[];
   albergues: Albergue[];
   centros: CentroSalud[];
+  jornadas?: JornadaSangre[];
   zonas?: Zona[];
 }
 
-const { acopios, albergues, centros, zonas = [] } = Astro.props;
+const { acopios, albergues, centros, jornadas = [], zonas = [] } = Astro.props;
 
 type Punto = {
   id: string;
   nombre: string;
   lat: number;
   lng: number;
-  tipo: "acopio" | "albergue" | "salud";
+  tipo: "acopio" | "albergue" | "salud" | "sangre";
   estado: string;
   ciudad: string;
   direccion: string;
   fuente: string;
+  detalle?: string;
+};
+
+const MESES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
+const fmtDia = (iso: string) => {
+  const [, m, d] = iso.split("-").map(Number);
+  return `${d} ${MESES[m - 1]}`;
 };
 
 const puntos: Punto[] = [
   ...acopios.map((e) => ({ id: e.id, nombre: e.nombre, lat: e.lat, lng: e.lng, tipo: "acopio" as const, estado: e.estado, ciudad: e.ciudad, direccion: e.direccion, fuente: e.fuente })),
   ...albergues.map((e) => ({ id: e.id, nombre: e.nombre, lat: e.lat, lng: e.lng, tipo: "albergue" as const, estado: e.estado, ciudad: e.ciudad, direccion: e.direccion, fuente: e.fuente })),
   ...centros.map((e) => ({ id: e.id, nombre: e.nombre, lat: e.lat, lng: e.lng, tipo: "salud" as const, estado: e.estado, ciudad: e.ciudad, direccion: e.direccion, fuente: e.fuente })),
+  ...jornadas.map((e) => ({
+    id: e.id,
+    nombre: e.punto,
+    lat: e.lat,
+    lng: e.lng,
+    tipo: "sangre" as const,
+    estado: e.estado,
+    ciudad: e.ciudad,
+    direccion: e.direccion,
+    fuente: e.fuente,
+    detalle: `${e.fecha_fin ? `${fmtDia(e.fecha_inicio)} → ${fmtDia(e.fecha_fin)}` : `Desde ${fmtDia(e.fecha_inicio)}`} · ${e.horario}`,
+  })),
 ];
 
 // Distancia al epicentro calculada en build (haversine) y pasada al cliente.
@@ -57,11 +77,12 @@ const eventoJson = JSON.stringify({ fecha: evento.fecha.slice(0, 10) });
     nombre: string;
     lat: number;
     lng: number;
-    tipo: "acopio" | "albergue" | "salud";
+    tipo: "acopio" | "albergue" | "salud" | "sangre";
     estado: string;
     ciudad: string;
     direccion: string;
     fuente: string;
+    detalle?: string;
   };
 
   type Zona = {
@@ -112,6 +133,7 @@ const eventoJson = JSON.stringify({ fecha: evento.fecha.slice(0, 10) });
       acopio: cssVar("--color-accent", "#1d4ed8"),
       albergue: cssVar("--color-ok", "#2f7d4f"),
       salud: cssVar("--color-error", "#9e2a1d"),
+      sangre: cssVar("--color-sangre", "#e40095"),
       neutral: cssVar("--color-neutral", "#6b7280"),
       geo: cssVar("--color-geo", "#2563eb"),
     };
@@ -120,6 +142,8 @@ const eventoJson = JSON.stringify({ fecha: evento.fecha.slice(0, 10) });
 
     const ESTADOS: Record<string, string> = {
       abierto: "Abierto",
+      activa: "Activa",
+      finalizada: "Finalizada",
       operativo: "Operativo",
       limitado: "Limitado",
       cerrado: "Cerrado",
@@ -579,6 +603,7 @@ const eventoJson = JSON.stringify({ fecha: evento.fecha.slice(0, 10) });
               `<strong class="popup-titulo">${escapar(p.nombre)}</strong>` +
               `<p class="popup-meta"><span class="popup-badge popup-badge-${p.tipo}">${escapar(ESTADOS[p.estado] ?? p.estado)}</span> ${escapar(p.ciudad)}</p>` +
               `<p class="popup-linea">${escapar(p.direccion)}</p>` +
+              `${p.detalle ? `<p class="popup-linea">${escapar(p.detalle)}</p>` : ""}` +
               `<p class="popup-fuente">Fuente: <a href="${escapar(p.fuente)}" target="_blank" rel="noopener">ver fuente</a> · ` +
               `<a href="https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}" target="_blank" rel="noopener">Cómo llegar</a></p>` +
               `</div>`
