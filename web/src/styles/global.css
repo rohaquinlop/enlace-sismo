@@ -742,6 +742,11 @@ h2 {
   flex: none;
 }
 
+/* Toggle del rail: solo visible en móvil (ver media query max-width: 60rem) */
+.rail-toggle {
+  display: none;
+}
+
 /* Rail derecho con pestañas (Zonas · Secciones) */
 .rail {
   display: flex;
@@ -2495,6 +2500,54 @@ ul.picklist-list li:hover:not(.selected) {
     border-radius: 0;
     box-shadow: none;
     overflow: hidden;
+  }
+
+  /* Botón toggle del rail en móvil */
+  .rail-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    min-height: 44px;
+    padding: var(--space-xs) 0;
+    background: none;
+    border: none;
+    border-bottom: var(--rule-hair) solid var(--color-rule);
+    cursor: pointer;
+    color: var(--color-neutral);
+    transition: color var(--dur-short) var(--ease-out);
+    flex-shrink: 0;
+  }
+
+  .rail-toggle:hover {
+    color: var(--color-ink);
+  }
+
+  .rail-toggle:focus-visible {
+    outline: 2px solid var(--color-focus);
+    outline-offset: 2px;
+  }
+
+  .rail-toggle:active {
+    opacity: 0.7;
+  }
+
+  .rail-toggle svg {
+    transition: transform var(--dur-short) var(--ease-out);
+  }
+
+  .rail-toggle[aria-expanded="false"] svg {
+    transform: rotate(180deg);
+  }
+
+  /* Rail colapsado: ocultar el aside Y la tira de leyenda */
+  .rail-toggle[aria-expanded="false"] ~ .rail,
+  .rail-toggle[aria-expanded="false"] ~ .leyenda-tira {
+    display: none;
+  }
+
+  .dash.con-mapa .mapa-overlays:has(.rail-toggle[aria-expanded="false"]) {
+    max-height: fit-content;
   }
 }
 
