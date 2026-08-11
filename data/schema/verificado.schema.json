@@ -10,6 +10,11 @@
       "format": "uri",
       "description": "URL o identificación de la fuente oficial (boletín, cuenta oficial, comunicado de alcaldía). OBLIGATORIA."
     },
+    "fuente_secundaria": {
+      "type": "string",
+      "format": "uri",
+      "description": "URL opcional de una fuente adicional que respalda el dato (p. ej. comunicado de prensa que cita el boletín oficial)."
+    },
     "verificado_por": {
       "type": "string",
       "minLength": 2,

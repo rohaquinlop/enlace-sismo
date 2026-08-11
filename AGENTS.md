@@ -35,8 +35,9 @@ enlace-sismo/
 │   │                        # salud, desaparecidos (referencia a ColombiaTeBusca),
 │   │                        # ayuda, alertas, contactos
 │   │                        # (NOTA: /mapa fue eliminado → 301 a /#mapa)
-│   ├── src/components/      # Map, MapLegend, DatosEvento, IndiceSecciones,
-│   │                        # ZonasLista, CatalogCard, StatusBadge
+│   ├── src/components/      # Map, MapLegend (tira de chips), DatosEvento (barra
+│   │                        # de estado), IndiceSecciones, ZonasLista, CatalogCard,
+│   │                        # StatusBadge
 │   ├── src/lib/             # catalogs.ts, zonas.ts, geo.ts (haversine),
 │   │                        # color.ts (oklch→hex para MapLibre), api.ts
 │   ├── src/styles/global.css
@@ -44,7 +45,10 @@ enlace-sismo/
 ├── worker/                  # API Hono
 │   ├── src/index.ts         # alertas, reportes + rate limits
 │   └── migrations/001_init.sql
-├── .sdd/changes/            # Cambios spec-driven (propose → apply → archive)
+├── .sdd/                   # Cambios spec-driven
+│   ├── changes/             # Activos (propose → apply)
+│   ├── archive/             # Completados (proposal + design + tasks como registro)
+│   └── specs/               # Specs autoritativas por capacidad (Given/When/Then)
 ├── tokens.css               # Sistema de diseño Cobalt (fuente única de tokens)
 ├── design.md                # Sistema de diseño bloqueado (Hallmark)
 ├── .github/workflows/
@@ -95,12 +99,16 @@ cd worker && npx wrangler d1 migrations apply enlace-sismo --local|--remote
 
 ## Key Files
 
-- `data/schema/verificado.schema.json` — campos obligatorios de toda entrada (`fuente`, `verificado_por`, `fecha_verificacion`, `verificacion`)
+- `design.md` — sistema de diseño bloqueado (modern-minimal · Cobalt · Workbench); leer antes de tocar UI; solo él y `tokens.css` definen color/tipografía
+- `data/schema/verificado.schema.json` — campos obligatorios de toda entrada (`fuente`, `verificado_por`, `fecha_verificacion`, `verificacion`); `fuente_secundaria` opcional (URL adicional que respalda el dato)
 - `scripts/validate-data.mjs` — validador; incluye regla de seguridad: cuentas bancarias solo con `estado: oficial`
-- `web/src/components/Map.astro` — mapa MapLibre progresivo: capas por intensidad Mercalli, anillo del epicentro (rAF + IntersectionObserver), "Cerca de mí", sincronización lista↔mapa por `CustomEvent` (`enlace:mapa:volar-zona|zona-activa|posicion|reiniciar`), deep-link `/?ciudad=<id>#mapa`; sin WebGL o con CDN bloqueado, el contenido base (lista) queda visible; nunca pantalla en blanco
+- `web/src/components/Map.astro` — mapa MapLibre progresivo: capas por intensidad Mercalli, anillo del epicentro (rAF + IntersectionObserver), "Cerca de mí", popups con estilo del sistema y texto escapado (`escapar()`), sincronización lista↔mapa por `CustomEvent` (`enlace:mapa:volar-zona|zona-activa|posicion|reiniciar`), deep-link `/?ciudad=<id>#mapa`; sin WebGL o con CDN bloqueado, el contenido base (lista) queda visible; nunca pantalla en blanco
 - `web/src/lib/geo.ts` — haversine + formateo de distancia (build y cliente)
 - `web/src/lib/color.ts` — conversión oklch→hex (MapLibre no soporta oklch)
-- `web/src/pages/index.astro` — dashboard mapa-primero (`.dash` base = contenido en flujo; `.con-mapa` = superposición); ancla `id="mapa"`
+- `web/src/pages/index.astro` — dashboard mapa-primero: barra de estado superior, rail derecho con pestañas Zonas · Secciones (tabs accesibles: roving tabindex; sin JS ambos paneles visibles) y tira de leyenda (una sola instancia en el DOM); `.dash` base = contenido en flujo, `.con-mapa` = superposición; ancla `id="mapa"`; script de tabs con sync a `enlace:mapa:zona-activa|posicion`
+- `web/src/components/DatosEvento.astro` — barra de estado (lectura SGC + distancia + badges de verificación + reporte); único momento oscuro por página
+- `web/src/components/MapLegend.astro` — tira de chips: capas (checkboxes reales visualmente ocultos), select de ciudad, chip "Cerca de mí" (8 estados, spinner con `aria-busy`); selectores `.leyenda-tira` usados por `Map.astro` y `ZonasLista.astro`
+- `web/src/components/ZonasLista.astro` — filas con dot de intensidad Mercalli real, escala I–XII de referencia, chevron, `aria-pressed`; el rail filtra por las casillas de la tira y ordena por distancia con "Cerca de mí"
 - `web/public/_redirects` — `/mapa` → `/#mapa` (301, Cloudflare Pages)
 - `web/public/sw.js` — PWA offline; el `APP_SHELL` NO debe listar páginas borradas (rompe el install)
 - `worker/src/index.ts` — API; `ADMIN_TOKEN` (secreto) para publicar alertas oficiales
@@ -109,7 +117,10 @@ cd worker && npx wrangler d1 migrations apply enlace-sismo --local|--remote
 ## Conventions
 
 - **Los datos entran por PRs** al repo: `data/*.json` → CI valida → mantenedor revisa contra la fuente → merge → deploy automático
-- **Cambios grandes vía `.sdd/changes/`** (spec-driven): `/sdd:propose` → `/sdd:apply` → `/sdd:archive`
+- **Cambios grandes vía `.sdd/`** (spec-driven): `/sdd:propose` → `/sdd:apply` → `/sdd:archive`; las specs archivadas viven en `.sdd/specs/`
+- **Zonas ↔ filtro de ciudad comparten estado**: clic en una fila de zona filtra los puntos de esa ciudad y sincroniza el select; el select resalta la fila y vuela; el epicentro vuelve a "Ciudad: Todas"; el select incluye la unión de ciudades con puntos y zonas afectadas
+- **El único momento oscuro por página** es la barra de estado del evento (graphite); no añadir otras superficies oscuras sin tocar `design.md`
+- **Fuentes**: `fuente` apunta a la ficha oficial (p. ej. SGC); una URL de prensa que la cita puede ir en `fuente_secundaria`
 - **Zonas sin `intensidad`** en `zonas-afectadas.json` se dibujan neutrales etiquetadas "Sin reporte" — nunca estimar intensidad sin fuente
 - **Enlaces "Cómo llegar"** (Google Maps `dir/?api=1&destination=lat,lng`) en popups y tarjetas: no eliminar
 - **Cuentas bancarias / enlaces de pago:** solo con `"verificacion": "oficial"` (publicados por la entidad) y 2 aprobaciones de mantenedores
