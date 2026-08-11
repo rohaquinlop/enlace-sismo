@@ -12,6 +12,7 @@
     "direccion": { "type": "string", "minLength": 5 },
     "lat": { "type": "number", "minimum": -90, "maximum": 90 },
     "lng": { "type": "number", "minimum": -180, "maximum": 180 },
+    "tipo": { "type": "string", "enum": ["oficial-comunal", "oficial-gobierno", "no-oficial"] },
     "horario": { "type": "string" },
     "necesidades": {
       "type": "array",
@@ -25,12 +26,18 @@
       },
       "uniqueItems": true
     },
+    "detalles": { "type": "string" },
     "estado": {
       "type": "string",
       "enum": ["abierto", "cerrado", "sin-confirmar"],
       "description": "Estado operativo del punto de acopio."
     },
-    "contacto": { "type": "string" }
+    "contacto": { "type": "string" },
+    "fecha_limite": { "type": "string", "format": "date" },
+    "recoleccion_periodica": { "type": "boolean" },
+    "recoleccion_detalle": { "type": "string" },
+    "evidencia_links": { "type": "array", "items": { "type": "string", "format": "uri" } },
+    "imagen_url": { "type": "string", "format": "uri" }
   },
   "required": ["id", "nombre", "ciudad", "departamento", "direccion", "lat", "lng", "estado"]
 }

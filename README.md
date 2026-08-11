@@ -75,9 +75,10 @@ El push a `main` despliega automáticamente web y API (GitHub Actions → Cloudf
 La configuración de D1/KV/secretos y los pasos manuales viven en
 `.github/workflows/` y `worker/wrangler.toml`.
 
-Secretos del worker: `ADMIN_TOKEN` (alertas oficiales), `GITHUB_TOKEN` (issues de
-sugerencias) y `GITHUB_BOT_TOKEN` (PAT con `contents:write` — commitea el registro en
-vivo de puntos de rescate `web/public/datos/reportes-puntos.json`). Ver `CONTRIBUTING.md`.
+Secretos del worker: `ADMIN_TOKEN` (alertas oficiales) y `GITHUB_TOKEN` (un solo
+fine-grained PAT con `issues:write` + `contents:write` sobre el repo — crea issues de
+sugerencias y commitea el registro en vivo de puntos de rescate
+`web/public/datos/reportes-puntos.json`). Ver `CONTRIBUTING.md`.
 
 ## Licencia
 

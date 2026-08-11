@@ -23,18 +23,26 @@ const NECESIDADES: Record<string, string> = {
   cobijas: "Cobijas",
   colchonetas: "Colchonetas",
   "alimentos-bebe": "Alimentos para bebés",
-  mascotas: "Alimentos para mascotas",
+  mascotas: "Mascotas",
   herramientas: "Herramientas",
   voluntarios: "Voluntarios",
 };
+const TIPO_ACOPIO: Record<string, string> = {
+  "oficial-comunal": "Oficial comunal",
+  "oficial-gobierno": "Oficial gobierno",
+  "no-oficial": "No oficial",
+};
+
+const verificacionClase = entrada.verificacion === "oficial" ? "card-oficial" : entrada.verificacion === "sin-confirmar" ? "card-sin-confirmar" : "";
 ---
 
-<article class="card">
+<article class={`card ${verificacionClase}`}>
   <div class="card-head">
     <h3>{entrada.nombre}</h3>
     <StatusBadge estado={entrada.estado} />
   </div>
   <p class="card-tipo">{TIPOS[tipo]}</p>
+  {"tipo" in entrada && entrada.tipo && <p class="card-tipo-acopio">{TIPO_ACOPIO[entrada.tipo] ?? entrada.tipo}</p>}
   <p class="card-dir">{entrada.direccion}</p>
   <p class="card-ciudad">
     {entrada.ciudad}, {entrada.departamento} ·{" "}
@@ -44,19 +52,34 @@ const NECESIDADES: Record<string, string> = {
       rel="noopener"
     >Cómo llegar</a>
   </p>
-  {"horario" in entrada && entrada.horario && <p>Horario: {entrada.horario}</p>}
-  {"necesidades" in entrada && entrada.necesidades && entrada.necesidades.length > 0 && (
-    <div class="chips">
-      {entrada.necesidades.map((n) => <span class="chip">{NECESIDADES[n] ?? n}</span>)}
-    </div>
-  )}
-  {"capacidad" in entrada && entrada.capacidad && (
-    <p>Capacidad: {entrada.capacidad} personas</p>
-  )}
-  {"urgencias_24h" in entrada && (
-    <p>{entrada.urgencias_24h ? "Urgencias 24 horas" : "Sin urgencias 24 horas"}</p>
-  )}
-  {"contacto" in entrada && entrada.contacto && <p>Contacto: {entrada.contacto}</p>}
+  <div class="card-body">
+    {"horario" in entrada && entrada.horario && <p>Horario: {entrada.horario}</p>}
+    {"necesidades" in entrada && entrada.necesidades && entrada.necesidades.length > 0 && (
+      <div class="chips">
+        {entrada.necesidades.map((n) => <span class="chip">{NECESIDADES[n] ?? n}</span>)}
+      </div>
+    )}
+    {"detalles" in entrada && entrada.detalles && <p class="card-detalles">{entrada.detalles}</p>}
+    {"fecha_limite" in entrada && entrada.fecha_limite && <p>Recolección hasta: {entrada.fecha_limite}</p>}
+    {"capacidad" in entrada && entrada.capacidad && (
+      <p>Capacidad: {entrada.capacidad} personas</p>
+    )}
+    {"urgencias_24h" in entrada && (
+      <p>{entrada.urgencias_24h ? "Urgencias 24 horas" : "Sin urgencias 24 horas"}</p>
+    )}
+    {"contacto" in entrada && entrada.contacto && <p>Contacto: {entrada.contacto}</p>}
+    {"imagen_url" in entrada && entrada.imagen_url && (
+      <a href={entrada.imagen_url} target="_blank" rel="noopener" class="card-imagen-link">Ver imagen</a>
+    )}
+    {"evidencia_links" in entrada && entrada.evidencia_links && entrada.evidencia_links.length > 0 && (
+      <div class="card-evidencia">
+        <span>Evidencia:</span>
+        {entrada.evidencia_links.map((l, i) => (
+          <a href={l} target="_blank" rel="noopener">[{i + 1}]</a>
+        ))}
+      </div>
+    )}
+  </div>
   <p class="card-fuente">
     <StatusBadge estado={entrada.verificacion} /> Fuente:{" "}
     <a href={entrada.fuente} target="_blank" rel="noopener">{entrada.fuente}</a>

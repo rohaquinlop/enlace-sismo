@@ -56,7 +56,7 @@ deslizamiento, rescate en curso) con **ubicación exacta** y **necesidades**, de
 
 **Cómo funciona:** el formulario envía a `POST /api/puntos`; el worker valida, geocodifica
 (Nominatim con caché KV) y commitea la entrada a `web/public/datos/reportes-puntos.json` con
-un token de bot (`GITHUB_BOT_TOKEN`, PAT con scope `contents:write`). El push a main dispara
+un token de bot unificado (`GITHUB_TOKEN`, fine-grained PAT con `contents:write` e `issues:write` sobre el repo). El push a main dispara
 el deploy Pages (~1-3 min) y el punto aparece en el mapa y en la pestaña Rescates del
 dashboard. No hay D1 nuevo: el archivo ES el registro, y cualquier contribuidor puede verlo,
 corregirlo o archivarlo por PR.
@@ -79,11 +79,11 @@ corregirlo o archivarlo por PR.
   original `promovido` (deja de mostrarse en vivo). El punto verificado sobrevive a una API
   caída porque se renderiza desde el build.
 
-**Secreto requerido:** `GITHUB_BOT_TOKEN` (PAT con scope `contents:write` sobre el repo) como
-secreto del worker:
+**Secreto requerido:** `GITHUB_TOKEN` (un solo fine-grained PAT con `contents:write` e
+`issues:write` sobre el repo) como secreto del worker:
 
 ```bash
-cd worker && npx wrangler secret put GITHUB_BOT_TOKEN
+cd worker && npx wrangler secret put GITHUB_TOKEN
 ```
 
 Nota: si `main` tiene branch protection, el token necesita bypass para pushear.
@@ -109,12 +109,10 @@ Cuando una ciudad reportada se confirma contra fuente oficial (SGC, UNGRD, alcal
 La plataforma permite al público sugerir centros de salud mediante un formulario web.
 El flujo es: formulario → API → GitHub Issue → revisión del mantenedor → PR al catálogo → CI → merge.
 
-**Secreto requerido**: el Worker necesita un `GITHUB_TOKEN` (PAT con scope `issues:write`)
-configurado como secreto de Cloudflare Worker para crear issues desde la API.
-
-```bash
-cd worker && npx wrangler secret put GITHUB_TOKEN
-```
+**Secreto requerido**: el Worker usa el mismo `GITHUB_TOKEN` de los puntos de rescate
+(un solo fine-grained PAT con `issues:write` y `contents:write` sobre el repo) configurado
+como secreto de Cloudflare Worker. Rotación: crear PAT nuevo → `wrangler secret put
+GITHUB_TOKEN` → smoke test → borrar el secreto viejo si es distinto.
 
 El formulario crea un issue etiquetado `sugerencia-salud` · `sin-verificar`. No hay
 procesamiento automático posterior: un mantenedor revisa el issue contra la fuente, añade
