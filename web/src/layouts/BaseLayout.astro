@@ -12,7 +12,7 @@ const { title, description, rail = true } = Astro.props;
 const GITHUB = "https://github.com/rohaquinlop/enlace-sismo";
 
 const SECCIONES = [
-  { href: "/mapa", label: "Mapa", descripcion: "Acopios, albergues y salud sobre el territorio." },
+  { href: "/#mapa", label: "Mapa", descripcion: "Zonas afectadas, epicentro y puntos sobre el territorio." },
   { href: "/acopios", label: "Puntos de acopio", descripcion: "Dónde entregar alimentos, ropa, agua y medicamentos." },
   { href: "/albergues", label: "Albergues", descripcion: "Refugios habilitados para damnificados." },
   { href: "/salud", label: "Centros de salud", descripcion: "Hospitales, clínicas y primeros auxilios." },
@@ -22,9 +22,16 @@ const SECCIONES = [
   { href: "/contactos", label: "Contactos", descripcion: "Líneas de emergencia oficiales." },
 ];
 
+// La paleta enlaza ciudades al mapa de la portada con deep-link: /?ciudad=<id>#mapa
+const slugCiudad = (c: string) =>
+  c
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/\s+/g, "-");
 const CIUDADES = [
   "Bogotá", "Cali", "Medellín", "Pereira", "Manizales", "Armenia", "Chocó", "Valle del Cauca",
-];
+].map((c) => ({ label: c, href: `/?ciudad=${slugCiudad(c)}#mapa` }));
 ---
 
 <!doctype html>
@@ -79,7 +86,7 @@ const CIUDADES = [
       rail && (
         <nav class="section-rail" aria-label="Secciones">
           {SECCIONES.map((s) => (
-            <a href={s.href} class:list={{ active: Astro.url.pathname === s.href }}>
+            <a href={s.href} class:list={{ active: Astro.url.pathname === new URL(s.href, Astro.url).pathname }}>
               {s.label}
             </a>
           ))}
@@ -134,6 +141,19 @@ const CIUDADES = [
     </div>
 
     <script is:inline define:vars={{ SECCIONES, CIUDADES, GITHUB }}>
+      // Marca "Enlace Sismo": en la portada vuelve al mapa y limpia el deep-link
+      // sin recargar la página; en otras páginas navega a la portada (comportamiento normal).
+      const brand = document.querySelector(".brand");
+      brand?.addEventListener("click", (e) => {
+        const enPortada = location.pathname.replace(/\/+$/, "") === "";
+        if (!enPortada) return;
+        e.preventDefault();
+        if (location.search) history.replaceState(null, "", "/");
+        window.dispatchEvent(new CustomEvent("enlace:mapa:reiniciar"));
+        const mapa = document.getElementById("mapa");
+        (mapa ?? document.body).scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+
       const abrir = document.getElementById("cmdk-abrir");
       const backdrop = document.getElementById("cmdk-backdrop");
       const palette = document.getElementById("cmdk-palette");
@@ -160,13 +180,13 @@ const CIUDADES = [
         if (!t) {
           return [
             ...SECCIONES.map((s) => ({ ...s, meta: "sección" })),
-            ...CIUDADES.map((c) => ({ href: "/mapa", label: c, descripcion: "Ver el mapa de " + c, meta: "ciudad" })),
+            ...CIUDADES.map((c) => ({ ...c, descripcion: "Ver el mapa de " + c.label, meta: "ciudad" })),
           ];
         }
         const sec = SECCIONES.filter((s) => (s.label + " " + s.descripcion).toLowerCase().includes(t))
           .map((s) => ({ ...s, meta: "sección" }));
-        const ciu = CIUDADES.filter((c) => c.toLowerCase().includes(t))
-          .map((c) => ({ href: "/mapa", label: c, descripcion: "Ver el mapa de " + c, meta: "ciudad" }));
+        const ciu = CIUDADES.filter((c) => c.label.toLowerCase().includes(t))
+          .map((c) => ({ ...c, descripcion: "Ver el mapa de " + c.label, meta: "ciudad" }));
         return [...sec, ...ciu];
       }
 

@@ -1,4 +1,6 @@
 ---
+import { acopios, albergues, centrosSalud } from "../lib/catalogs";
+
 interface Props {
   ciudades: string[];
   mostrarZonas?: boolean;
@@ -7,15 +9,17 @@ interface Props {
 const { ciudades, mostrarZonas = false } = Astro.props;
 
 const CATEGORIAS = [
-  { valor: "acopio", etiqueta: "Acopios", clase: "punto-acopio" },
-  { valor: "albergue", etiqueta: "Albergues", clase: "punto-albergue" },
-  { valor: "salud", etiqueta: "Centros de salud", clase: "punto-salud" },
+  { valor: "acopio", etiqueta: `Acopios (${acopios.length})`, clase: "punto-acopio" },
+  { valor: "albergue", etiqueta: `Albergues (${albergues.length})`, clase: "punto-albergue" },
+  { valor: "salud", etiqueta: `Centros de salud (${centrosSalud.length})`, clase: "punto-salud" },
 ];
 
 const ZONAS = [
   { valor: "zona", etiqueta: "Zonas afectadas", clase: "punto-zona" },
   { valor: "epicentro", etiqueta: "Epicentro", clase: "punto-epicentro" },
 ];
+
+const ROMANOS = ["", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII"];
 ---
 
 <div class="mapa-leyenda">
@@ -35,6 +39,27 @@ const ZONAS = [
       ))
   }
   {
+    mostrarZonas && (
+      <div class="mercalli-escala" aria-label="Escala de intensidad Mercalli">
+        <span class="mercalli-titulo">Intensidad · Mercalli</span>
+        <span class="mercalli-dots">
+          {ROMANOS.slice(1).map((r, i) => (
+            <span
+              class:list={["punto", `mercalli-${i + 1}`]}
+              title={`Intensidad ${r}`}
+              aria-label={`Intensidad ${r}`}
+            ></span>
+          ))}
+          <span class="punto punto-zona" title="Sin reporte de intensidad" aria-label="Sin reporte"></span>
+        </span>
+        <span class="mercalli-extremos" aria-hidden="true">
+          <span>I</span>
+          <span>XII</span>
+        </span>
+      </div>
+    )
+  }
+  {
     ciudades.length > 0 && (
       <select aria-label="Filtrar por ciudad">
         <option value="">Todas las ciudades</option>
@@ -42,6 +67,16 @@ const ZONAS = [
           <option value={c}>{c}</option>
         ))}
       </select>
+    )
+  }
+  {
+    mostrarZonas && (
+      <>
+        <button type="button" class="btn btn-primary btn-geo" id="btn-cerca-de-mi">
+          Cerca de mí
+        </button>
+        <p class="geo-mensaje" id="geo-mensaje" hidden></p>
+      </>
     )
   }
 </div>

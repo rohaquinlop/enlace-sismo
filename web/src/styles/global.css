@@ -421,7 +421,7 @@ h2 {
   font-size: var(--text-sm);
 }
 
-/* Neutralizada: el overlay se posiciona solo en .mapa-wrap.con-mapa */
+/* Neutralizada: los overlays se posicionan solo con .dash.con-mapa */
 .dash-leyenda label,
 .mapa-leyenda label {
   display: flex;
@@ -480,21 +480,24 @@ h2 {
 .zona-dot-epicentro { background: var(--color-error); }
 .zona-dot-ciudad { background: var(--color-neutral); }
 
-/* Panel: base en flujo (legible sin mapa) */
-.dash-panel {
-  position: static;
+/* Overlays: base en flujo (legible sin mapa) — orden: evento → zonas → secciones → leyenda */
+.mapa-overlays {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
   width: 100%;
   max-width: 68rem;
   margin: 0 auto;
-  display: block;
 }
 
-/* Sheet: solo con mapa, en móvil */
-.dash-sheet {
-  display: none;
+.mapa-base {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
 }
 
-.dash-sheet summary {
+/* Cajas colapsables (secciones y leyenda) */
+.mapa-base summary {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -508,25 +511,125 @@ h2 {
   text-transform: uppercase;
   color: var(--color-ink);
   min-height: 48px;
+  user-select: none;
 }
 
-.dash-sheet summary::-webkit-details-marker {
+.mapa-base summary::-webkit-details-marker {
   display: none;
 }
 
-.dash-sheet[open] .dash-sheet-body {
-  display: block;
+.mapa-leyenda-box,
+.secciones-box {
+  background: var(--color-paper);
+  border: var(--rule-hair) solid var(--color-rule-2);
+  border-radius: var(--radius-sm);
+}
+
+.mapa-leyenda-box[open] .box-body,
+.secciones-box[open] .box-body {
   border-top: var(--rule-hair) solid var(--color-rule);
-  padding: var(--space-md);
-  max-height: 40dvh;
+  padding: var(--space-xs) var(--space-sm);
+  max-height: 38dvh;
   overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
-.dash-sheet-body {
-  display: none;
+/* La leyenda dentro de su caja no repite el borde */
+.mapa-leyenda-box .mapa-leyenda {
+  background: none;
+  border: none;
+  padding: 0;
 }
 
-/* Con mapa: dashboard superpuesto */
+/* Filas de zona interactivas (lista ↔ mapa) */
+.dash-row.zona-fila {
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  background: none;
+  border-radius: 0;
+  cursor: pointer;
+}
+
+.zona-fila .dist-usuario {
+  font-family: var(--font-outlier);
+  font-size: var(--text-xs);
+  color: var(--color-geo);
+  margin-top: var(--space-2xs);
+}
+
+.zona-fila.zona-activa {
+  background: var(--color-paper-3);
+  box-shadow: inset 3px 0 0 var(--color-accent);
+}
+
+.zona-fila.zona-cercana {
+  box-shadow: inset 3px 0 0 var(--color-geo);
+}
+
+.zona-fila.zona-cercana .dash-row-meta {
+  color: var(--color-geo);
+}
+
+/* Escala Mercalli en la leyenda */
+.mercalli-escala {
+  margin-top: var(--space-2xs);
+  padding-top: var(--space-2xs);
+  border-top: var(--rule-hair) solid var(--color-rule);
+}
+
+.mercalli-titulo {
+  display: block;
+  font-family: var(--font-outlier);
+  font-size: var(--text-xs);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+.mercalli-dots {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-top: 0.2rem;
+}
+
+.mercalli-extremos {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--font-outlier);
+  font-size: var(--text-xs);
+  color: var(--color-muted);
+}
+
+.mercalli-1  { background: var(--mercalli-1); }
+.mercalli-2  { background: var(--mercalli-2); }
+.mercalli-3  { background: var(--mercalli-3); }
+.mercalli-4  { background: var(--mercalli-4); }
+.mercalli-5  { background: var(--mercalli-5); }
+.mercalli-6  { background: var(--mercalli-6); }
+.mercalli-7  { background: var(--mercalli-7); }
+.mercalli-8  { background: var(--mercalli-8); }
+.mercalli-9  { background: var(--mercalli-9); }
+.mercalli-10 { background: var(--mercalli-10); }
+.mercalli-11 { background: var(--mercalli-11); }
+.mercalli-12 { background: var(--mercalli-12); }
+
+/* Cerca de mí */
+.btn-geo {
+  width: 100%;
+  margin-top: var(--space-2xs);
+  font-size: var(--text-sm);
+}
+
+.geo-mensaje {
+  margin: var(--space-2xs) 0 0;
+  font-size: var(--text-xs);
+  color: var(--color-muted);
+  line-height: 1.5;
+}
+
+/* Con mapa: dashboard superpuesto — todo sobre el mapa */
 .dash.con-mapa {
   height: calc(100dvh - 4.5rem);
   min-height: 34rem;
@@ -538,33 +641,62 @@ h2 {
   inset: 0;
 }
 
-.dash.con-mapa .dash-panel {
+.dash.con-mapa .mapa-overlays {
   position: absolute;
-  top: var(--space-sm);
-  left: var(--space-sm);
-  bottom: var(--space-sm);
-  width: 21rem;
-  max-width: calc(100% - 2rem);
+  inset: var(--space-sm);
+  pointer-events: none;
   z-index: var(--z-raised);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-sm);
+}
+
+.dash.con-mapa .mapa-overlays > * {
+  pointer-events: auto;
+}
+
+/* Tarjeta del evento — arriba a la izquierda */
+.dash > .graphite {
+  width: 100%;
+  max-width: 68rem;
+  margin: 0 auto;
+}
+
+.dash.con-mapa .graphite {
+  position: absolute;
+  top: 0;
+  left: 0;
+  max-width: 26rem;
+  margin: 0;
+}
+
+/* Lista de zonas — columna derecha (deja sitio al botón Secciones) */
+.dash.con-mapa .zonas-overlay {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 5rem;
+  width: 19rem;
+  max-width: calc(100% - 2rem);
   overflow-y: auto;
   overscroll-behavior: contain;
 }
 
-.dash.con-mapa .dash-sheet {
-  display: block;
+/* Leyenda (abajo izquierda) y secciones (abajo derecha) */
+.dash.con-mapa .mapa-base {
   position: absolute;
-  left: var(--space-sm);
-  right: var(--space-sm);
-  bottom: var(--space-sm);
-  z-index: var(--z-raised);
-  background: var(--color-paper);
-  border: var(--rule-hair) solid var(--color-rule-2);
-  border-radius: var(--radius-sm);
-  box-shadow: var(--shadow-lift);
+  left: 0;
+  right: 0;
+  bottom: 0;
+  align-items: flex-start;
+  pointer-events: none;
 }
+
+.dash.con-mapa .mapa-base > * {
+  pointer-events: auto;
+}
+
+.dash.con-mapa .secciones-box {
+  align-self: flex-end;
+}
+
 
 /* Tarjeta graphite — lectura del evento */
 .graphite {
@@ -1184,81 +1316,8 @@ h2 {
 }
 
 /* ============================================================
-   Mapa (página /mapa)
+   Mapa — popups
    ============================================================ */
-
-.mapa-wrap {
-  position: relative;
-  min-height: 30rem;
-}
-
-.mapa-wrap .mapa-full {
-  display: none;
-}
-
-.mapa-wrap.con-mapa {
-  height: calc(100dvh - 9rem);
-  min-height: 30rem;
-}
-
-.mapa-wrap.con-mapa .mapa-full {
-  display: block;
-  position: absolute;
-  inset: 0;
-}
-
-.mapa-wrap.con-mapa .dash-panel {
-  position: absolute;
-  top: var(--space-sm);
-  left: var(--space-sm);
-  bottom: var(--space-sm);
-  width: 21rem;
-  max-width: calc(100% - 2rem);
-  z-index: var(--z-raised);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-sm);
-  overflow-y: auto;
-  overscroll-behavior: contain;
-}
-
-.mapa-wrap.con-mapa .dash-sheet {
-  display: block;
-  position: absolute;
-  left: var(--space-sm);
-  right: var(--space-sm);
-  bottom: var(--space-sm);
-  z-index: var(--z-raised);
-  background: var(--color-paper);
-  border: var(--rule-hair) solid var(--color-rule-2);
-  border-radius: var(--radius-sm);
-  box-shadow: var(--shadow-lift);
-}
-
-.mapa-leyenda {
-  background: var(--color-paper);
-  border: var(--rule-hair) solid var(--color-rule-2);
-  border-radius: var(--radius-sm);
-  padding: var(--space-xs) var(--space-sm);
-  font-size: var(--text-sm);
-}
-
-.mapa-leyenda label {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2xs);
-  margin: 0.2rem 0;
-  cursor: pointer;
-  white-space: nowrap;
-  font-size: var(--text-xs);
-}
-
-.mapa-leyenda input {
-  accent-color: var(--color-accent);
-  min-height: 44px;
-  min-width: 44px;
-  margin: 0;
-}
 
 .maplibregl-popup-content {
   font-family: var(--font-body);
@@ -1339,24 +1398,75 @@ h2 {
   .cmdk-trigger .cmdk-hint {
     display: inline;
   }
-
-  .dash.con-mapa .dash-sheet {
-    display: none;
-  }
-
-  .mapa-wrap.con-mapa .dash-sheet {
-    display: none;
-  }
 }
 
 /* Nav compacto en móvil: sin enlace Ayuda, ⌘K sin tecla */
 @media (max-width: 40rem) {
-  .dash.con-mapa .dash-panel {
-    display: none; /* en móvil el contenido vive en la sheet */
+  /* Móvil con mapa: evento como barra compacta arriba; el resto en hoja inferior */
+  .dash.con-mapa .mapa-overlays {
+    position: absolute;
+    top: auto;
+    left: var(--space-sm);
+    right: var(--space-sm);
+    bottom: var(--space-sm);
+    max-height: 45dvh;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    background: var(--color-paper);
+    border: var(--rule-hair) solid var(--color-rule-2);
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-lift);
+    padding: var(--space-sm);
+    z-index: var(--z-raised);
   }
 
-  .mapa-wrap.con-mapa .dash-panel {
+  .dash.con-mapa .graphite {
+    position: absolute;
+    top: var(--space-sm);
+    left: var(--space-sm);
+    right: var(--space-sm);
+    max-width: none;
+    padding: var(--space-xs) var(--space-sm);
+  }
+
+  .dash.con-mapa .graphite .graphite-line,
+  .dash.con-mapa .graphite .graphite-fuente {
     display: none;
+  }
+
+  .dash.con-mapa .graphite #dist-epicentro {
+    display: block;
+  }
+
+  .dash.con-mapa .graphite #dist-epicentro[hidden] {
+    display: none;
+  }
+
+  .dash.con-mapa .graphite h2 {
+    font-size: var(--text-sm);
+    margin: 0;
+  }
+
+  .dash.con-mapa .graphite .status-chip {
+    margin-bottom: var(--space-2xs);
+  }
+
+  .dash.con-mapa .zonas-overlay {
+    position: static;
+    width: 100%;
+    max-width: none;
+    border: none;
+    background: none;
+    padding: 0;
+  }
+
+  .dash.con-mapa .mapa-base {
+    position: static;
+    align-items: stretch;
+  }
+
+  .dash.con-mapa .secciones-box {
+    align-self: auto;
   }
 
   .brand {

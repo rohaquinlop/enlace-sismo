@@ -6,6 +6,8 @@ export interface Zona {
   tipo: "epicentro" | "ciudad";
   lat: number;
   lng: number;
+  /** Intensidad Mercalli reportada (I–XII). Solo con fuente verificable; sin reporte, omitir. */
+  intensidad?: number;
   detalle?: string;
   fuente: string;
   verificado_por: string;

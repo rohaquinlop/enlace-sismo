@@ -1,6 +1,8 @@
 ---
 import type { Acopio, Albergue, CentroSalud } from "../lib/catalogs";
 import type { Zona } from "../lib/zonas";
+import evento from "../../../data/evento.json";
+import { haversineKm, formatearDistancia } from "../lib/geo";
 
 interface Props {
   acopios: Acopio[];
@@ -29,15 +31,26 @@ const puntos: Punto[] = [
   ...centros.map((e) => ({ id: e.id, nombre: e.nombre, lat: e.lat, lng: e.lng, tipo: "salud" as const, estado: e.estado, ciudad: e.ciudad, direccion: e.direccion, fuente: e.fuente })),
 ];
 
+// Distancia al epicentro calculada en build (haversine) y pasada al cliente.
+const epicentro = zonas.find((z) => z.tipo === "epicentro");
+const zonasConDistancia = zonas.map((z) => ({
+  ...z,
+  distEpicentroKm: epicentro && z.id !== epicentro.id
+    ? haversineKm(z.lat, z.lng, epicentro.lat, epicentro.lng)
+    : 0,
+}));
+
 const puntosJson = JSON.stringify(puntos);
-const zonasJson = JSON.stringify(zonas);
+const zonasJson = JSON.stringify(zonasConDistancia);
+const eventoJson = JSON.stringify({ fecha: evento.fecha.slice(0, 10) });
 ---
 
-<div class="mapa-full" id="mapa" data-puntos={puntosJson} data-zonas={zonasJson}></div>
+<div class="mapa-full" id="mapa-libre" data-puntos={puntosJson} data-zonas={zonasJson} data-evento={eventoJson}></div>
 
 <script>
   import maplibre from "maplibre-gl";
   import "maplibre-gl/dist/maplibre-gl.css";
+  import { oklchAHex } from "../lib/color";
 
   type Punto = {
     id: string;
@@ -57,12 +70,14 @@ const zonasJson = JSON.stringify(zonas);
     tipo: "epicentro" | "ciudad";
     lat: number;
     lng: number;
+    intensidad?: number;
     detalle?: string;
     fuente: string;
+    distEpicentroKm: number;
   };
 
-  const el = document.getElementById("mapa") as HTMLDivElement;
-  const contenedor = el.closest(".dash, .mapa-wrap");
+  const el = document.getElementById("mapa-libre") as HTMLDivElement;
+  const contenedor = el.closest(".dash");
 
   // Progresivo: el contenido base ya es legible. El mapa solo se muestra
   // cuando carga sin errores. Sin WebGL, con error o tras 8 s → fallback.
@@ -85,15 +100,20 @@ const zonasJson = JSON.stringify(zonas);
   if (!tieneWebGL) {
     fallido = true;
   } else {
-    // Colores desde los tokens del diseño (tokens.css) — nunca valores sueltos
-    const cssVar = (name: string, fallback: string) =>
-      getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback;
+    // Colores desde los tokens del diseño (tokens.css) — nunca valores sueltos.
+    // MapLibre no acepta oklch(): se convierte a hex en runtime.
+    const cssVar = (name: string, fallback: string) => {
+      const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+      if (!v) return fallback;
+      return oklchAHex(v) ?? v;
+    };
 
     const COLORS: Record<string, string> = {
       acopio: cssVar("--color-accent", "#1d4ed8"),
       albergue: cssVar("--color-ok", "#2f7d4f"),
       salud: cssVar("--color-error", "#9e2a1d"),
       neutral: cssVar("--color-neutral", "#6b7280"),
+      geo: cssVar("--color-geo", "#2563eb"),
     };
     const PAPER = cssVar("--color-paper", "#f8f9fb");
     const INK = cssVar("--color-ink", "#1b2733");
@@ -106,8 +126,17 @@ const zonasJson = JSON.stringify(zonas);
       "sin-confirmar": "Sin confirmar",
     };
 
+    const ROMANOS = ["", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII"];
+
     const puntos: Punto[] = JSON.parse(el.dataset.puntos ?? "[]");
     const zonas: Zona[] = JSON.parse(el.dataset.zonas ?? "[]");
+    const { fecha } = JSON.parse(el.dataset.evento ?? "{}") as { fecha?: string };
+    const epicentro = zonas.find((z) => z.tipo === "epicentro") ?? null;
+
+    // Rama Mercalli desde tokens; sin intensidad → neutral.
+    const colorIntensidad = (i: number | undefined) =>
+      i ? cssVar(`--mercalli-${i}`, COLORS.neutral) : COLORS.neutral;
+    const radioIntensidad = (i: number | undefined) => (i ? Math.round(5 + i * 0.9) : 7);
 
     // Cadena de respaldo: OpenFreeMap → OSM raster → lista de datos.
     const ESTILO_OSM = {
@@ -133,13 +162,6 @@ const zonasJson = JSON.stringify(zonas);
     });
 
     map.addControl(new maplibre.NavigationControl({ showCompass: false }), "top-right");
-    map.addControl(
-      new maplibre.GeolocateControl({
-        positionOptions: { enableHighAccuracy: true },
-        trackUserLocation: false,
-      }),
-      "top-right"
-    );
 
     function featureCollection(lista: Punto[]) {
       return {
@@ -158,9 +180,64 @@ const zonasJson = JSON.stringify(zonas);
         features: lista.map((z) => ({
           type: "Feature" as const,
           geometry: { type: "Point" as const, coordinates: [z.lng, z.lat] },
-          properties: z,
+          properties: {
+            ...z,
+            color: colorIntensidad(z.intensidad),
+            radio: radioIntensidad(z.intensidad),
+          },
         })),
       };
+    }
+
+    function featureOnda(r: number, o: number) {
+      if (!epicentro) return null;
+      return {
+        type: "FeatureCollection" as const,
+        features: [
+          {
+            type: "Feature" as const,
+            geometry: { type: "Point" as const, coordinates: [epicentro.lng, epicentro.lat] },
+            properties: { r, o },
+          },
+        ],
+      };
+    }
+
+    function featureUsuario(lat: number, lng: number) {
+      return {
+        type: "FeatureCollection" as const,
+        features: [
+          {
+            type: "Feature" as const,
+            geometry: { type: "Point" as const, coordinates: [lng, lat] },
+            properties: {},
+          },
+        ],
+      };
+    }
+
+    let popupActivo: maplibre.Popup | null = null;
+
+    function abrirPopupZona(z: Zona) {
+      const intensidad = z.intensidad
+        ? `Intensidad ${ROMANOS[z.intensidad]} — Mercalli`
+        : "Sin reporte de intensidad";
+      const distancia = z.distEpicentroKm
+        ? `A ${formatearDistancia(z.distEpicentroKm)} del epicentro`
+        : "";
+      popupActivo?.remove();
+      popupActivo = new maplibre.Popup({ offset: 16 })
+        .setLngLat([z.lng, z.lat])
+        .setHTML(
+          `<strong>${z.nombre}</strong><br/>${intensidad}${distancia ? `<br/>${distancia}` : ""}<br/>${z.detalle ?? "Sismo sentido"} · ${fecha ?? ""}<br/><small>Fuente: <a href="${z.fuente}" target="_blank" rel="noopener">SGC</a> · <a href="https://www.google.com/maps/dir/?api=1&destination=${z.lat},${z.lng}" target="_blank" rel="noopener">Cómo llegar</a></small>`
+        )
+        .addTo(map);
+      window.dispatchEvent(new CustomEvent("enlace:mapa:zona-activa", { detail: { id: z.id } }));
+    }
+
+    function volarAZona(z: Zona) {
+      map.flyTo({ center: [z.lng, z.lat], zoom: z.tipo === "epicentro" ? 8 : 9, essential: true });
+      abrirPopupZona(z);
     }
 
     function aplicarFiltros() {
@@ -175,7 +252,9 @@ const zonasJson = JSON.stringify(zonas);
       const puntosFiltrados = puntos.filter(
         (p) => visibles.has(p.tipo) && (!ciudad || p.ciudad === ciudad)
       );
-      const zonasFiltradas = zonas.filter((z) => visibles.has(z.tipo));
+      const zonasFiltradas = zonas.filter((z) =>
+        z.tipo === "epicentro" ? visibles.has("epicentro") : visibles.has("zona")
+      );
       const srcP = map.getSource("puntos");
       if (srcP && "setData" in srcP) {
         (srcP as maplibre.GeoJSONSource).setData(featureCollection(puntosFiltrados));
@@ -184,7 +263,159 @@ const zonasJson = JSON.stringify(zonas);
       if (srcZ && "setData" in srcZ) {
         (srcZ as maplibre.GeoJSONSource).setData(featureCollectionZonas(zonasFiltradas));
       }
+      // El anillo del epicentro sigue la casilla "Epicentro"
+      if (map.getLayer("epicentro-onda")) {
+        map.setLayoutProperty("epicentro-onda", "visibility", visibles.has("epicentro") ? "visible" : "none");
+      }
+      if (visibles.has("epicentro")) arrancarOnda();
+      else detenerOnda();
     }
+
+    // ---- Anillo expansivo del epicentro (rAF, pausa fuera del viewport) ----
+    let ondaFrame = 0;
+    let ondaActiva = false;
+    const ONDA_DUR = 2600;
+    const motionReducida = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    function arrancarOnda() {
+      const src = map.getSource("epicentro-onda");
+      if (!src || ondaActiva || !cargado) return;
+      ondaActiva = true;
+      if (motionReducida) {
+        // Movimiento reducido: halo estático, sin animación
+        const f = featureOnda(30, 0.14);
+        if (f) (src as maplibre.GeoJSONSource).setData(f);
+        return;
+      }
+      const inicio = performance.now();
+      const tick = (ahora: number) => {
+        if (!ondaActiva) return;
+        const p = ((ahora - inicio) % ONDA_DUR) / ONDA_DUR;
+        const f = featureOnda(4 + p * 80, (1 - p) * 0.4);
+        if (f) (src as maplibre.GeoJSONSource).setData(f);
+        ondaFrame = requestAnimationFrame(tick);
+      };
+      ondaFrame = requestAnimationFrame(tick);
+    }
+
+    function detenerOnda() {
+      ondaActiva = false;
+      cancelAnimationFrame(ondaFrame);
+    }
+
+    // ---- Cerca de mí (geolocalización) ----
+    const btnGeo = document.getElementById("btn-cerca-de-mi");
+    const msgGeo = document.getElementById("geo-mensaje");
+    const lineaDist = document.getElementById("dist-epicentro");
+    let ultimaPos: GeolocationPosition | null = null;
+
+    function mensajeGeo(texto: string) {
+      if (!msgGeo) return;
+      msgGeo.textContent = texto;
+      msgGeo.hidden = false;
+    }
+
+    function actualizarPrecision(accuracy: number) {
+      if (!ultimaPos) return;
+      if (!map.getLayer("usuario-preciso")) return;
+      const lat = ultimaPos.coords.latitude;
+      const mpp = (156543.03392 * Math.cos((lat * Math.PI) / 180)) / Math.pow(2, map.getZoom());
+      map.setPaintProperty("usuario-preciso", "circle-radius", Math.max(accuracy / mpp, 6));
+    }
+
+    function dibujarUsuario(pos: GeolocationPosition) {
+      const { latitude, longitude, accuracy } = pos.coords;
+      const src = map.getSource("usuario");
+      if (src && "setData" in src) {
+        (src as maplibre.GeoJSONSource).setData(featureUsuario(latitude, longitude));
+      }
+      actualizarPrecision(accuracy);
+      // Lleva la vista a la ubicación del usuario para que el resultado sea visible
+      map.flyTo({ center: [longitude, latitude], zoom: 8, essential: true });
+      if (epicentro) {
+        const km = haversineKm(latitude, longitude, epicentro.lat, epicentro.lng);
+        if (lineaDist) {
+          lineaDist.hidden = false;
+          lineaDist.textContent = `Estás a ${formatearDistancia(km)} del epicentro`;
+        }
+      }
+      window.dispatchEvent(
+        new CustomEvent("enlace:mapa:posicion", {
+          detail: {
+            distancias: zonas.map((z) => ({
+              id: z.id,
+              km: haversineKm(latitude, longitude, z.lat, z.lng),
+            })),
+          },
+        })
+      );
+    }
+
+    function geolocalizar() {
+      if (!("geolocation" in navigator)) {
+        mensajeGeo("Tu navegador no soporta geolocalización.");
+        if (btnGeo) btnGeo.hidden = true;
+        return;
+      }
+      if (btnGeo) btnGeo.setAttribute("aria-busy", "true");
+      // Red de seguridad: si el navegador nunca responde (permiso bloqueado,
+      // GPS lento), el botón se libera y el usuario recibe un mensaje.
+      let pendiente = true;
+      const liberar = () => {
+        if (!pendiente) return;
+        pendiente = false;
+        if (btnGeo) btnGeo.removeAttribute("aria-busy");
+      };
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          liberar();
+          if (msgGeo) msgGeo.hidden = true;
+          if (btnGeo) btnGeo.textContent = "Actualizar ubicación";
+          ultimaPos = pos;
+          try {
+            dibujarUsuario(pos);
+          } catch (err) {
+            console.error("enlace-sismo: error al dibujar la ubicación", err);
+          }
+        },
+        (err) => {
+          liberar();
+          const msgs: Record<number, string> = {
+            [GeolocationPositionError.PERMISSION_DENIED]:
+              "Permiso denegado: sin tu ubicación no podemos medir distancias.",
+            [GeolocationPositionError.POSITION_UNAVAILABLE]:
+              "No pudimos obtener tu ubicación. Intenta de nuevo.",
+            [GeolocationPositionError.TIMEOUT]:
+              "Tardamos demasiado en obtener tu ubicación. Intenta de nuevo.",
+          };
+          mensajeGeo(msgs[err.code] ?? "Error al obtener tu ubicación.");
+        },
+        // Precisión baja: fija rápida por red/Wi-Fi, suficiente para distancias
+        // a nivel de ciudad. La alta precisión (GPS) puede no responder en equipos sin GPS.
+        { enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 }
+      );
+      setTimeout(() => {
+        if (pendiente) {
+          liberar();
+          mensajeGeo("No pudimos obtener tu ubicación. Revisa los permisos de ubicación del navegador.");
+        }
+      }, 12000);
+    }
+
+    btnGeo?.addEventListener("click", geolocalizar);
+    map.on("zoomend", () => {
+      if (ultimaPos) actualizarPrecision(ultimaPos.coords.accuracy);
+    });
+
+    // Pausa del anillo cuando el mapa no es visible (batería)
+    const obsOnda = new IntersectionObserver((entries) => {
+      entries.forEach((en) => {
+        if (!cargado) return;
+        if (en.isIntersecting) arrancarOnda();
+        else detenerOnda();
+      });
+    });
+    obsOnda.observe(el);
 
     map.on("load", () => {
       cargado = true;
@@ -195,6 +426,25 @@ const zonasJson = JSON.stringify(zonas);
 
       if (map.getSource("puntos")) return;
 
+      // Anillo expansivo bajo los círculos de zonas
+      if (epicentro) {
+        map.addSource("epicentro-onda", {
+          type: "geojson",
+          data: featureOnda(4, 0) ?? { type: "FeatureCollection", features: [] },
+        });
+        map.addLayer({
+          id: "epicentro-onda",
+          type: "circle",
+          source: "epicentro-onda",
+          paint: {
+            "circle-radius": ["get", "r"],
+            "circle-color": COLORS.salud,
+            "circle-opacity": ["get", "o"],
+            "circle-stroke-width": 0,
+          },
+        });
+      }
+
       map.addSource("puntos", { type: "geojson", data: featureCollection(puntos) });
       map.addSource("zonas", { type: "geojson", data: featureCollectionZonas(zonas) });
 
@@ -204,8 +454,8 @@ const zonasJson = JSON.stringify(zonas);
         type: "circle",
         source: "zonas",
         paint: {
-          "circle-radius": ["match", ["get", "tipo"], "epicentro", 14, "ciudad", 7, 7],
-          "circle-color": ["match", ["get", "tipo"], "epicentro", COLORS.salud, "ciudad", COLORS.neutral, COLORS.neutral],
+          "circle-radius": ["get", "radio"],
+          "circle-color": ["get", "color"],
           "circle-stroke-width": ["match", ["get", "tipo"], "epicentro", 3, "ciudad", 2, 2],
           "circle-stroke-color": PAPER,
         },
@@ -234,10 +484,21 @@ const zonasJson = JSON.stringify(zonas);
         type: "circle",
         source: "puntos",
         paint: {
-          "circle-radius": 9,
+          "circle-radius": 10,
           "circle-color": ["get", "color"],
-          "circle-stroke-width": 2,
+          "circle-stroke-width": 2.5,
           "circle-stroke-color": PAPER,
+        },
+      });
+
+      // Centro blanco: distingue los puntos de datos de los círculos de zona
+      map.addLayer({
+        id: "puntos-interior",
+        type: "circle",
+        source: "puntos",
+        paint: {
+          "circle-radius": 4,
+          "circle-color": PAPER,
         },
       });
 
@@ -245,9 +506,10 @@ const zonasJson = JSON.stringify(zonas);
         id: "puntos-texto",
         type: "symbol",
         source: "puntos",
+        minzoom: 7,
         layout: {
           "text-field": ["get", "nombre"],
-          "text-size": 11,
+          "text-size": 10,
           "text-offset": [0, 1.4],
           "text-anchor": "top",
           "text-max-width": 9,
@@ -259,15 +521,40 @@ const zonasJson = JSON.stringify(zonas);
         },
       });
 
+      // Ubicación del usuario (rellenada por "Cerca de mí")
+      map.addSource("usuario", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
+      map.addLayer({
+        id: "usuario-preciso",
+        type: "circle",
+        source: "usuario",
+        paint: {
+          "circle-radius": 8,
+          "circle-color": COLORS.geo,
+          "circle-opacity": 0.15,
+        },
+      });
+      map.addLayer({
+        id: "usuario-marcador",
+        type: "circle",
+        source: "usuario",
+        paint: {
+          "circle-radius": 7,
+          "circle-color": COLORS.geo,
+          "circle-stroke-width": 2.5,
+          "circle-stroke-color": PAPER,
+        },
+      });
+
       map.on("click", "puntos-circulo", (e) => {
         const f = e.features?.[0];
         if (!f) return;
         const p = f.properties as unknown as Punto;
         const coords = (f.geometry as { type: "Point"; coordinates: [number, number] }).coordinates;
-        new maplibre.Popup({ offset: 16 })
+      popupActivo?.remove();
+        popupActivo = new maplibre.Popup({ offset: 16 })
           .setLngLat(coords)
           .setHTML(
-            `<strong>${p.nombre}</strong><br/>${p.ciudad} · ${ESTADOS[p.estado] ?? p.estado}<br/>${p.direccion}<br/><small>Fuente: <a href="${p.fuente}" target="_blank" rel="noopener">ver fuente</a></small>`
+            `<strong>${p.nombre}</strong><br/>${p.ciudad} · ${ESTADOS[p.estado] ?? p.estado}<br/>${p.direccion}<br/><small>Fuente: <a href="${p.fuente}" target="_blank" rel="noopener">ver fuente</a> · <a href="https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}" target="_blank" rel="noopener">Cómo llegar</a></small>`
           )
           .addTo(map);
       });
@@ -279,18 +566,11 @@ const zonasJson = JSON.stringify(zonas);
         map.getCanvas().style.cursor = "";
       });
 
-      // Popup y cursor para zonas
+      // Popup y cursor para zonas (sincroniza la lista)
       map.on("click", "zonas-circulo", (e) => {
         const f = e.features?.[0];
         if (!f) return;
-        const z = f.properties as unknown as Zona;
-        const coords = (f.geometry as { type: "Point"; coordinates: [number, number] }).coordinates;
-        new maplibre.Popup({ offset: 16 })
-          .setLngLat(coords)
-          .setHTML(
-            `<strong>${z.nombre}</strong><br/>${z.detalle ?? "Sismo sentido"} · 10-08-2026<br/><small>Fuente: <a href="${z.fuente}" target="_blank" rel="noopener">SGC</a></small>`
-          )
-          .addTo(map);
+        abrirPopupZona(f.properties as unknown as Zona);
       });
 
       map.on("mouseenter", "zonas-circulo", () => {
@@ -299,6 +579,31 @@ const zonasJson = JSON.stringify(zonas);
       map.on("mouseleave", "zonas-circulo", () => {
         map.getCanvas().style.cursor = "";
       });
+
+      arrancarOnda();
+
+      // Deep-link: /?ciudad=<id>#mapa → vuelo + popup
+      const ciudadParam = new URLSearchParams(location.search).get("ciudad");
+      if (ciudadParam) {
+        const z = zonas.find((x) => x.id === ciudadParam);
+        if (z) volarAZona(z);
+      }
+    });
+
+    // Fila de la lista → vuelo + popup
+    window.addEventListener(
+      "enlace:mapa:volar-zona",
+      ((e: CustomEvent<{ id: string }>) => {
+        const z = zonas.find((x) => x.id === e.detail.id);
+        if (z) volarAZona(z);
+      }) as EventListener
+    );
+
+    // Marca "Enlace Sismo" en la portada: cerrar popup y volver a la vista inicial
+    window.addEventListener("enlace:mapa:reiniciar", () => {
+      popupActivo?.remove();
+      popupActivo = null;
+      map.flyTo({ center: [-75.6, 4.4], zoom: 6, essential: true });
     });
 
     map.on("styleerror", () => {

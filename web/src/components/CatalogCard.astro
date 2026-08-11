@@ -36,7 +36,14 @@ const NECESIDADES: Record<string, string> = {
   </div>
   <p class="card-tipo">{TIPOS[tipo]}</p>
   <p class="card-dir">{entrada.direccion}</p>
-  <p class="card-ciudad">{entrada.ciudad}, {entrada.departamento}</p>
+  <p class="card-ciudad">
+    {entrada.ciudad}, {entrada.departamento} ·{" "}
+    <a
+      href={`https://www.google.com/maps/dir/?api=1&destination=${entrada.lat},${entrada.lng}`}
+      target="_blank"
+      rel="noopener"
+    >Cómo llegar</a>
+  </p>
   {"horario" in entrada && entrada.horario && <p>Horario: {entrada.horario}</p>}
   {"necesidades" in entrada && entrada.necesidades && entrada.necesidades.length > 0 && (
     <div class="chips">

@@ -3,36 +3,45 @@ import BaseLayout from "../layouts/BaseLayout.astro";
 import Map from "../components/Map.astro";
 import MapLegend from "../components/MapLegend.astro";
 import DatosEvento from "../components/DatosEvento.astro";
+import ZonasLista from "../components/ZonasLista.astro";
 import IndiceSecciones from "../components/IndiceSecciones.astro";
 import StatusBadge from "../components/StatusBadge.astro";
 import { acopios, albergues, centrosSalud, todasLasCiudades } from "../lib/catalogs";
+import { zonas } from "../lib/zonas";
 ---
 
 <BaseLayout
   title="Enlace Sismo — Información verificada para el sismo en Colombia"
-  description="Mapa de acopios, albergues y centros de salud; personas desaparecidas y canales oficiales de ayuda para el sismo M7.4 del 10 de agosto de 2026. Cada dato tiene fuente verificable."
+  description="Mapa de zonas afectadas y epicentro del sismo M7.4 del 10 de agosto de 2026: intensidad, distancias y puntos de ayuda cerca de ti. Cada dato tiene fuente verificable."
   rail={false}
 >
   <main class="wide">
-    <!-- Progresivo: sin JavaScript o sin mapa, el contenido se lee en flujo.
-         Solo cuando el mapa carga, .con-mapa lo convierte en dashboard. -->
-    <section class="dash" aria-label="Mapa de ayuda">
-      <Map acopios={acopios} albergues={albergues} centros={centrosSalud} />
+    <!-- Progresivo: sin JavaScript o sin mapa, el contenido se lee en flujo
+         (evento → zonas → secciones → leyenda). Solo cuando el mapa carga,
+         .con-mapa posiciona esos bloques como overlays sobre el mapa. -->
+    <section class="dash" id="mapa" aria-label="Mapa de ayuda">
+      <Map acopios={acopios} albergues={albergues} centros={centrosSalud} zonas={zonas} />
 
-      <aside class="dash-panel">
-        <MapLegend ciudades={todasLasCiudades} />
-        <DatosEvento />
-        <IndiceSecciones />
-      </aside>
+      <DatosEvento />
 
-      <details class="dash-sheet">
-        <summary>Datos del sismo · Secciones</summary>
-        <div class="dash-sheet-body">
-          <MapLegend ciudades={todasLasCiudades} />
-          <DatosEvento />
-          <IndiceSecciones />
+      <div class="mapa-overlays">
+        <ZonasLista zonas={zonas} />
+
+        <div class="mapa-base">
+          <details class="secciones-box">
+            <summary>Secciones</summary>
+            <div class="box-body">
+              <IndiceSecciones />
+            </div>
+          </details>
+          <details class="mapa-leyenda-box">
+            <summary>Leyenda</summary>
+            <div class="box-body">
+              <MapLegend ciudades={todasLasCiudades} mostrarZonas />
+            </div>
+          </details>
         </div>
-      </details>
+      </div>
     </section>
 
     <section class="verif-strip" aria-label="Niveles de verificación">

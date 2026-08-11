@@ -1,5 +1,7 @@
 ---
 import type { Zona } from "../lib/zonas";
+import evento from "../../../data/evento.json";
+import { haversineKm, formatearDistancia } from "../lib/geo";
 
 interface Props {
   zonas: Zona[];
@@ -11,26 +13,108 @@ const TIPO_LABEL: Record<string, string> = {
   epicentro: "Epicentro",
   ciudad: "Ciudad",
 };
+const ROMANOS = ["", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII"];
+const epicentro = zonas.find((z) => z.tipo === "epicentro");
+const fecha = evento.fecha.slice(0, 10);
+const filas = zonas.map((z) => ({
+  z,
+  km: epicentro && z.id !== epicentro.id ? haversineKm(z.lat, z.lng, epicentro.lat, epicentro.lng) : 0,
+}));
 ---
 
-<div class="dash-index">
+<div class="dash-index zonas-overlay">
   <h3>Zonas afectadas</h3>
   {
-    zonas.map((z) => (
-      <div class="dash-row" style="cursor: default">
+    filas.map(({ z, km }) => (
+      <button type="button" class="dash-row zona-fila" data-zona-id={z.id} data-tipo={z.tipo}>
         <span class="dash-row-top">
           <span class="dash-row-nombre">
             <span class:list={["zona-dot", z.tipo === "epicentro" ? "zona-dot-epicentro" : "zona-dot-ciudad"]}></span>{" "}
             {z.nombre}
           </span>
-          <span class="dash-row-meta">{TIPO_LABEL[z.tipo]}</span>
+          <span class="dash-row-meta">
+            {TIPO_LABEL[z.tipo]} · {z.intensidad ? `Mercalli ${ROMANOS[z.intensidad]}` : "Sin reporte"}
+          </span>
         </span>
         <p>
-          {z.detalle ?? "Sismo sentido"} · 10-08-2026 ·{" "}
-          <small style="font-family: var(--font-outlier)">{z.lat.toFixed(2)}°N {z.lng.toFixed(2)}°O</small> ·{" "}
-          <small><a href={z.fuente} target="_blank" rel="noopener">SGC</a></small>
+          {z.detalle ?? "Sismo sentido"} · {fecha}
+          {km > 0 && <> · a {formatearDistancia(km)} del epicentro</>} ·{" "}
+          <small style="font-family: var(--font-outlier)">{z.lat.toFixed(2)}°N {z.lng.toFixed(2)}°O</small> · SGC
         </p>
-      </div>
+        <p class="dist-usuario" hidden></p>
+      </button>
     ))
   }
 </div>
+
+<script>
+  import { formatearDistancia } from "../lib/geo";
+
+  const filas = Array.from(document.querySelectorAll<HTMLButtonElement>(".zona-fila"));
+
+  function resaltar(id: string) {
+    filas.forEach((f) => f.classList.toggle("zona-activa", f.dataset.zonaId === id));
+  }
+
+  // Fila → el mapa vuela a la zona y abre su popup
+  filas.forEach((f) => {
+    f.addEventListener("click", () => {
+      window.dispatchEvent(new CustomEvent("enlace:mapa:volar-zona", { detail: { id: f.dataset.zonaId } }));
+    });
+  });
+
+  // Popup abierto en el mapa → fila resaltada
+  window.addEventListener(
+    "enlace:mapa:zona-activa",
+    ((e: CustomEvent<{ id: string }>) => {
+      resaltar(e.detail.id);
+      filas.find((f) => f.dataset.zonaId === e.detail.id)?.scrollIntoView({ block: "nearest" });
+    }) as EventListener
+  );
+
+  // Marca "Enlace Sismo": limpiar resaltado al reiniciar la vista del mapa
+  window.addEventListener("enlace:mapa:reiniciar", () => resaltar(""));
+
+  // Filtro por las casillas de la leyenda (zonas / epicentro)
+  function aplicarFiltroLista() {
+    const visibles = new Set(
+      Array.from(document.querySelectorAll<HTMLInputElement>(".mapa-leyenda input[type='checkbox']:checked")).map(
+        (i) => i.value
+      )
+    );
+    filas.forEach((f) => {
+      const tipo = f.dataset.tipo;
+      f.hidden = tipo === "epicentro" ? !visibles.has("epicentro") : !visibles.has("zona");
+    });
+  }
+  document.querySelectorAll<HTMLInputElement>(".mapa-leyenda input[type='checkbox']").forEach((i) => {
+    i.addEventListener("change", aplicarFiltroLista);
+  });
+  aplicarFiltroLista();
+
+  // Cerca de mí: ordenar por distancia al usuario y resaltar la más cercana
+  window.addEventListener(
+    "enlace:mapa:posicion",
+    ((e: CustomEvent<{ distancias: { id: string; km: number }[] }>) => {
+      try {
+        const porKm = new Map(e.detail.distancias.map((d) => [d.id, d.km]));
+        const orden = [...filas].sort(
+          (a, b) => (porKm.get(a.dataset.zonaId ?? "") ?? 0) - (porKm.get(b.dataset.zonaId ?? "") ?? 0)
+        );
+        orden.forEach((f, i) => {
+          const km = porKm.get(f.dataset.zonaId ?? "");
+          const p = f.querySelector<HTMLParagraphElement>(".dist-usuario");
+          if (p && km != null) {
+            p.hidden = false;
+            p.textContent = `A ${formatearDistancia(km)} de ti`;
+          }
+          f.classList.toggle("zona-cercana", i === 0);
+        });
+        const contenedor = document.querySelector(".zonas-overlay");
+        orden.forEach((f) => contenedor?.appendChild(f));
+      } catch (err) {
+        console.error("enlace-sismo: error al ordenar zonas", err);
+      }
+    }) as EventListener
+  );
+</script>

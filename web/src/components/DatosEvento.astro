@@ -13,6 +13,8 @@ const lectura = {
   <h2>{lectura.linea1}</h2>
   <p class="graphite-line">{lectura.linea2}</p>
   <p class="graphite-line">{lectura.linea3}</p>
+  <!-- Llenada por el script del mapa tras "Cerca de mí" (geolocalización) -->
+  <p class="graphite-line" id="dist-epicentro" hidden></p>
   <p class="graphite-fuente">
     Fuente: <a href={evento.fuente_url} target="_blank" rel="noopener">{evento.fuente}</a> ·{" "}
     {evento.fecha.slice(0, 10)}

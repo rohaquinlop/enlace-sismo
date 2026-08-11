@@ -33,6 +33,25 @@
   --color-graphite-muted: oklch(74% 0.012 252);
   --color-graphite-accent: oklch(72% 0.16 256);
 
+  /* ---- Color · rama Mercalli (intensidad sísmica I–XII) ----
+     Convención: azul → verde → amarillo → naranja → rojo.
+     Solo se dibuja intensidad real con fuente; sin reporte → --color-neutral. */
+  --mercalli-1:  oklch(74% 0.09 250);
+  --mercalli-2:  oklch(70% 0.10 245);
+  --mercalli-3:  oklch(66% 0.11 205);
+  --mercalli-4:  oklch(64% 0.12 175);
+  --mercalli-5:  oklch(65% 0.13 135);
+  --mercalli-6:  oklch(70% 0.14 105);
+  --mercalli-7:  oklch(72% 0.15 85);
+  --mercalli-8:  oklch(68% 0.16 65);
+  --mercalli-9:  oklch(60% 0.17 50);
+  --mercalli-10: oklch(52% 0.18 38);
+  --mercalli-11: oklch(44% 0.17 32);
+  --mercalli-12: oklch(36% 0.15 27);
+
+  /* ---- Color · ubicación del usuario ---- */
+  --color-geo: oklch(58% 0.15 245);
+
   /* ---- Color · estados de verificación y operativos ---- */
   --color-badge-oficial-bg:       oklch(24% 0.02 258);
   --color-badge-oficial-ink:      oklch(96% 0.005 250);
