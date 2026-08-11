@@ -44,8 +44,24 @@ data/          Datos verificados (acopios, albergues, salud, contactos, canales 
 scripts/       Validación automática de datos
 web/           Frontend (Astro, Cloudflare Pages)
 worker/        API (Hono, Cloudflare Workers, D1)
-.github/       CI y despliegue automático
+.github/       CI, despliegue automático y procesamiento de sugerencias
 ```
+
+## Sugerencias de centros de salud
+
+La plataforma permite al público sugerir centros de salud mediante un formulario web.
+El flujo es: formulario → API → GitHub Issue → GitHub Action → PR → CI → revisión de mantenedor.
+
+**Secreto requerido**: el Worker necesita un `GITHUB_TOKEN` (PAT con scope `issues:write`)
+configurado como secreto de Cloudflare Worker para crear issues desde la API.
+
+```bash
+cd worker && npx wrangler secret put GITHUB_TOKEN
+```
+
+Las sugerencias se procesan automáticamente: el Action crea un PR con los datos validados
+contra el esquema. Todo entra como `verificacion: "sin-confirmar"` — un mantenedor debe
+verificar contra la fuente antes de hacer merge.
 
 ## Desarrollo local
 

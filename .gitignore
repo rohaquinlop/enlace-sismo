@@ -5,6 +5,8 @@ dist/
 .DS_Store
 *.local
 bun.lock
+.astro/
+.atl/
 
 # Capturas sin verificar (nunca publicar)
 capturas/*

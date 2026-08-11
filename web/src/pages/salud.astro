@@ -24,16 +24,20 @@ import { centrosSalud, todasLasCiudades } from "../lib/catalogs";
           Se está confirmando el estado de la red hospitalaria con las secretarías de salud.
           ¿Tienes un dato verificado? Súbelo al repositorio.
         </p>
-        <a class="btn btn-primary" href="https://github.com/rohaquinlop/enlace-sismo/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener">Agregar un centro (guía)</a>
+        <a class="btn btn-primary" href="/salud/sugerir-centro-salud">Sugerir un centro de salud</a>
+        <a class="btn" href="https://github.com/rohaquinlop/enlace-sismo/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener" style="margin-top:var(--space-xs)">Agregar un centro (guía)</a>
       </div>
     ) : (
       <>
         <div class="filtros">
-          <label for="filtro-ciudad">Filtrar por ciudad:</label>
-          <select id="filtro-ciudad">
-            <option value="">Todas</option>
-            {todasLasCiudades.map((c) => <option value={c}>{c}</option>)}
-          </select>
+          <div class="filtros-controls">
+            <label for="filtro-ciudad">Filtrar por ciudad:</label>
+            <select id="filtro-ciudad">
+              <option value="">Todas</option>
+              {todasLasCiudades.map((c) => <option value={c}>{c}</option>)}
+            </select>
+          </div>
+          <a class="btn btn-primary" href="/salud/sugerir-centro-salud">Sugerir un centro de salud</a>
         </div>
         <div class="grid" id="lista">
           {centrosSalud.map((c) => (
