@@ -103,7 +103,7 @@ Cuando una ciudad reportada se confirma contra fuente oficial (SGC, UNGRD, alcal
 ## Sugerencias de centros de salud
 
 La plataforma permite al público sugerir centros de salud mediante un formulario web.
-El flujo es: formulario → API → GitHub Issue → GitHub Action → PR → CI → revisión de mantenedor.
+El flujo es: formulario → API → GitHub Issue → revisión del mantenedor → PR al catálogo → CI → merge.
 
 **Secreto requerido**: el Worker necesita un `GITHUB_TOKEN` (PAT con scope `issues:write`)
 configurado como secreto de Cloudflare Worker para crear issues desde la API.
@@ -112,9 +112,10 @@ configurado como secreto de Cloudflare Worker para crear issues desde la API.
 cd worker && npx wrangler secret put GITHUB_TOKEN
 ```
 
-Las sugerencias se procesan automáticamente: el Action crea un PR con los datos validados
-contra el esquema. Todo entra como `verificacion: "sin-confirmar"` — un mantenedor debe
-verificar contra la fuente antes de hacer merge.
+El formulario crea un issue etiquetado `sugerencia-salud` · `sin-verificar`. No hay
+procesamiento automático posterior: un mantenedor revisa el issue contra la fuente, añade
+la entrada a `data/centros-salud.json` (todo entra como `verificacion: "sin-confirmar"`) y
+abre el PR, que el CI valida antes del merge.
 
 ## Desarrollo local
 
