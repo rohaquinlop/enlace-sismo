@@ -197,6 +197,12 @@ const eventoJson = JSON.stringify({ fecha: evento.fecha.slice(0, 10) });
     return [0, centroVisible - dashRect.height / 2];
   }
 
+  // Detectar móvil: el botón toggle solo es visible en < 60rem
+  function esMovilMapa(): boolean {
+    const toggle = document.getElementById("rail-toggle");
+    return toggle ? getComputedStyle(toggle).display !== "none" : false;
+  }
+
   // Progresivo: el contenido base ya es legible. El mapa solo se muestra
   // cuando carga sin errores. Sin WebGL, con error o tras 8 s → fallback.
   let cargado = false;
@@ -326,6 +332,34 @@ const eventoJson = JSON.stringify({ fecha: evento.fecha.slice(0, 10) });
 
     map.addControl(new maplibre.NavigationControl({ showCompass: false }), "top-right");
 
+    // Centrar el mapa tras abrir un popup, midiendo su altura real.
+    // En móvil (panel colapsado): calcula el offset para que el popup completo
+    // quepa entre la barra superior y el punto. En desktop: usa offsetCentro().
+    function centrarEnPopup(coords: [number, number]) {
+      if (!esMovilMapa()) {
+        map.easeTo({ center: coords, offset: offsetCentro(), duration: 400 });
+        return;
+      }
+      // Esperar un frame para que el popup se renderice y tenga dimensiones
+      requestAnimationFrame(() => {
+        const popupEl = document.querySelector<HTMLElement>(".maplibregl-popup");
+        const barra = document.querySelector<HTMLElement>(".barra-evento");
+        const mapRect = contenedor?.getBoundingClientRect();
+        if (!mapRect) return;
+        const altPopup = popupEl?.offsetHeight ?? 120;
+        // Borde inferior de la barra, relativo al top del mapa
+        const barraBottom = barra
+          ? barra.getBoundingClientRect().bottom - mapRect.top
+          : 60;
+        const mapHeight = mapRect.height;
+        // El punto debe quedar a: barraBottom + altPopup + margen (para que
+        // el popup quepa entre la barra y el punto sin solaparse)
+        const puntoDeseado = barraBottom + altPopup + 16;
+        const offset: [number, number] = [0, puntoDeseado - mapHeight / 2];
+        map.easeTo({ center: coords, offset, duration: 400 });
+      });
+    }
+
     function featureCollection(lista: Punto[]) {
       return {
         type: "FeatureCollection" as const,
@@ -428,8 +462,15 @@ const eventoJson = JSON.stringify({ fecha: evento.fecha.slice(0, 10) });
     }
 
     function volarAZona(z: Zona) {
-      map.flyTo({ center: [z.lng, z.lat], zoom: z.tipo === "epicentro" ? 8 : 9, offset: offsetCentro(), essential: true });
       abrirPopupZona(z);
+      const zoom = z.tipo === "epicentro" ? 8 : 9;
+      if (!esMovilMapa()) {
+        map.flyTo({ center: [z.lng, z.lat], zoom, offset: offsetCentro(), essential: true });
+      } else {
+        // En móvil: volar primero, luego ajustar con el popup medido
+        map.flyTo({ center: [z.lng, z.lat], zoom, essential: true });
+        map.once("moveend", () => centrarEnPopup([z.lng, z.lat]));
+      }
     }
 
     // Última ciudad elegida: volar a la ciudad solo cuando cambia el filtro
@@ -897,6 +938,7 @@ const eventoJson = JSON.stringify({ fecha: evento.fecha.slice(0, 10) });
         if (!f) return;
         const p = f.properties as unknown as Punto;
         const coords = (f.geometry as { type: "Point"; coordinates: [number, number] }).coordinates;
+        window.dispatchEvent(new CustomEvent("enlace:mapa:punto-click"));
         popupActivo?.remove();
         popupActivo = new maplibre.Popup({ offset: 16 })
           .setLngLat(coords)
@@ -911,6 +953,7 @@ const eventoJson = JSON.stringify({ fecha: evento.fecha.slice(0, 10) });
               `</div>`
           )
           .addTo(map);
+        centrarEnPopup(coords);
       });
 
       map.on("mouseenter", "puntos-circulo", () => {
@@ -926,6 +969,7 @@ const eventoJson = JSON.stringify({ fecha: evento.fecha.slice(0, 10) });
         if (!f) return;
         const p = f.properties as unknown as PuntoRescateMap;
         const coords = (f.geometry as { type: "Point"; coordinates: [number, number] }).coordinates;
+        window.dispatchEvent(new CustomEvent("enlace:mapa:punto-click"));
         popupActivo?.remove();
         // MapLibre serializa arrays/objetos en properties como strings JSON
         const necesidades: string[] = typeof p.necesidades === "string" ? JSON.parse(p.necesidades) : (p.necesidades ?? []);
@@ -951,6 +995,7 @@ const eventoJson = JSON.stringify({ fecha: evento.fecha.slice(0, 10) });
               `</div>`
           )
           .addTo(map);
+        centrarEnPopup(coords);
       });
 
       map.on("mouseenter", "rescates-circulo", () => {
@@ -966,6 +1011,7 @@ const eventoJson = JSON.stringify({ fecha: evento.fecha.slice(0, 10) });
         if (!f) return;
         const c = f.properties as unknown as CiudadReportadaMap;
         const coords = (f.geometry as { type: "Point"; coordinates: [number, number] }).coordinates;
+        window.dispatchEvent(new CustomEvent("enlace:mapa:punto-click"));
         popupActivo?.remove();
         const puntosHtml = c.puntos
           .map((p) => {
@@ -991,6 +1037,7 @@ const eventoJson = JSON.stringify({ fecha: evento.fecha.slice(0, 10) });
               `</div>`
           )
           .addTo(map);
+        centrarEnPopup(coords);
       });
 
       map.on("mouseenter", "ciudades-reportadas-circulo", () => {
@@ -1004,7 +1051,8 @@ const eventoJson = JSON.stringify({ fecha: evento.fecha.slice(0, 10) });
       map.on("click", "zonas-circulo", (e) => {
         const f = e.features?.[0];
         if (!f) return;
-        abrirPopupZona(f.properties as unknown as Zona);
+        window.dispatchEvent(new CustomEvent("enlace:mapa:punto-click"));
+        volarAZona(f.properties as unknown as Zona);
       });
 
       map.on("mouseenter", "zonas-circulo", () => {
