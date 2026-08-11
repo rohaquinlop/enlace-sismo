@@ -27,6 +27,7 @@ const CATALOGOS = [
   { file: "acopios.json", schema: "acopio.schema.json", key: "acopios" },
   { file: "albergues.json", schema: "albergue.schema.json", key: "albergues" },
   { file: "centros-salud.json", schema: "centro-salud.schema.json", key: "centros" },
+  { file: "donacion-sangre.json", schema: "jornada-sangre.schema.json", key: "jornadas" },
   { file: "contactos.json", schema: "contacto.schema.json", key: null },
   { file: "canales-ayuda.json", schema: "canal-ayuda.schema.json", key: null },
   { file: "zonas-afectadas.json", schema: "zonas.schema.json", key: null },
