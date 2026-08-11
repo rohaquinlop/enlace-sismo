@@ -100,6 +100,43 @@ const eventoJson = JSON.stringify({ fecha: evento.fecha.slice(0, 10) });
   const el = document.getElementById("mapa-libre") as HTMLDivElement;
   const contenedor = el.closest(".dash");
 
+  // El rail se posiciona bajo la barra de evento. Se mide en runtime para no
+  // depender de cálculos frágiles (zoom de fuente, contenido dinámico como
+  // la línea de distancia al geolocalizar). Fallback CSS: --barra-h.
+  let medirBarra: (() => void) | null = null;
+  const barra = document.querySelector<HTMLElement>(".barra-evento");
+  if (contenedor && barra && "ResizeObserver" in window) {
+    const medir = () => {
+      contenedor.style.setProperty("--barra-h-real", `${barra.getBoundingClientRect().height}px`);
+    };
+    medirBarra = medir;
+    medir();
+    new ResizeObserver(medir).observe(barra);
+    window.addEventListener("resize", medir);
+  }
+
+  // Compensación del centro en móvil: la hoja inferior (mapa-overlays) tapa
+  // el centro del canvas; el punto objetivo debe quedar en el centro del área
+  // visible — entre la barra superior y la hoja. En desktop la hoja es un
+  // overlay transparente full-height y no se compensa. Devuelve el offset en
+  // píxeles del viewport del mapa (negativo en Y = el punto sube).
+  function offsetCentro(): [number, number] {
+    if (!contenedor) return [0, 0];
+    const hoja = document.querySelector<HTMLElement>(".mapa-overlays");
+    const barraEv = document.querySelector<HTMLElement>(".barra-evento");
+    if (!hoja || !barraEv) return [0, 0];
+    const dashRect = contenedor.getBoundingClientRect();
+    const hojaRect = hoja.getBoundingClientRect();
+    const barraRect = barraEv.getBoundingClientRect();
+    const topVisible = barraRect.bottom - dashRect.top;
+    const topHoja = hojaRect.top - dashRect.top;
+    // La hoja debe estar anclada a la parte inferior del dash (modo móvil);
+    // si ocupa todo el alto (desktop) o está oculta, no hay nada que compensar
+    if (topHoja <= topVisible + 16 || hojaRect.height <= 0) return [0, 0];
+    const centroVisible = (topVisible + topHoja) / 2;
+    return [0, centroVisible - dashRect.height / 2];
+  }
+
   // Progresivo: el contenido base ya es legible. El mapa solo se muestra
   // cuando carga sin errores. Sin WebGL, con error o tras 8 s → fallback.
   let cargado = false;
@@ -107,6 +144,9 @@ const eventoJson = JSON.stringify({ fecha: evento.fecha.slice(0, 10) });
 
   function activarMapa() {
     if (!fallido && contenedor) contenedor.classList.add("con-mapa");
+    // La barra pasa de tarjeta (flujo) a barra superior: re-medir en el mismo
+    // frame para que el rail no quede desalineado ni un instante
+    medirBarra?.();
   }
 
   const tieneWebGL = (() => {
@@ -271,7 +311,7 @@ const eventoJson = JSON.stringify({ fecha: evento.fecha.slice(0, 10) });
     }
 
     function volarAZona(z: Zona) {
-      map.flyTo({ center: [z.lng, z.lat], zoom: z.tipo === "epicentro" ? 8 : 9, essential: true });
+      map.flyTo({ center: [z.lng, z.lat], zoom: z.tipo === "epicentro" ? 8 : 9, offset: offsetCentro(), essential: true });
       abrirPopupZona(z);
     }
 
@@ -291,7 +331,7 @@ const eventoJson = JSON.stringify({ fecha: evento.fecha.slice(0, 10) });
         ciudadFiltro = ciudad;
         if (ciudad && volar) {
           const z = zonas.find((x) => x.nombre.toLowerCase() === ciudad.toLowerCase());
-          if (z) map.flyTo({ center: [z.lng, z.lat], zoom: 8, essential: true });
+          if (z) map.flyTo({ center: [z.lng, z.lat], zoom: 8, offset: offsetCentro(), essential: true });
         }
       }
       const puntosFiltrados = puntos.filter(
@@ -303,6 +343,12 @@ const eventoJson = JSON.stringify({ fecha: evento.fecha.slice(0, 10) });
       const srcP = map.getSource("puntos");
       if (srcP && "setData" in srcP) {
         (srcP as maplibre.GeoJSONSource).setData(featureCollection(puntosFiltrados));
+      }
+      // Conteo de puntos visibles en la tira (instrumento: cuánto hay aquí)
+      const conteo = document.getElementById("puntos-conteo");
+      if (conteo) {
+        conteo.textContent =
+          puntosFiltrados.length === 1 ? "1 punto" : `${puntosFiltrados.length} puntos`;
       }
       const srcZ = map.getSource("zonas");
       if (srcZ && "setData" in srcZ) {
@@ -376,7 +422,7 @@ const eventoJson = JSON.stringify({ fecha: evento.fecha.slice(0, 10) });
       }
       actualizarPrecision(accuracy);
       // Lleva la vista a la ubicación del usuario para que el resultado sea visible
-      map.flyTo({ center: [longitude, latitude], zoom: 8, essential: true });
+      map.flyTo({ center: [longitude, latitude], zoom: 8, offset: offsetCentro(), essential: true });
       if (epicentro) {
         const km = haversineKm(latitude, longitude, epicentro.lat, epicentro.lng);
         if (lineaDist) {

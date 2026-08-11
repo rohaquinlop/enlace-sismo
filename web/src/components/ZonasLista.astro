@@ -31,15 +31,19 @@ const metaFila = (z: Zona, km: number) => {
 
 <div class="dash-index zonas-overlay">
   <div class="zonas-header">
-    <h3>Zonas afectadas</h3>
-    <div class="zonas-header-derecha">
+    <div class="zonas-titulo">
+      <h3>Zonas afectadas</h3>
       <span class="zonas-count" aria-label={`${filas.length} zonas afectadas`}>{filas.length}</span>
-      <div class="mercalli-ref" aria-label="Escala de intensidad Mercalli, de I a XII">
+    </div>
+    <!-- Escala etiquetada: los dots solo tienen sentido con su clave visible -->
+    <div class="zonas-escala" aria-label="Escala de intensidad Mercalli, de I a XII">
+      <span class="zonas-escala-label">Mercalli I–XII</span>
+      <span class="mercalli-ref">
         {ROMANOS.slice(1).map((r, i) => (
           <span class:list={["punto", `mercalli-${i + 1}`]} title={`Intensidad ${r}`} aria-hidden="true"></span>
         ))}
         <span class="punto punto-zona" title="Sin reporte de intensidad" aria-hidden="true"></span>
-      </div>
+      </span>
     </div>
   </div>
   {
