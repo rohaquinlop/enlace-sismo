@@ -262,6 +262,7 @@ const dedupeJson = JSON.stringify(dedupeDatos).replace(/</g, "\\u003c");
       return;
     }
     if (btnUbicacion) btnUbicacion.setAttribute("aria-busy", "true");
+    if (geoHint) geoHint.textContent = "Buscando tu ubicación…";
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         if (btnUbicacion) btnUbicacion.removeAttribute("aria-busy");
