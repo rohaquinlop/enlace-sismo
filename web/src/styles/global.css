@@ -501,7 +501,10 @@ h2 {
   display: flex;
   align-items: center;
   gap: var(--space-2xs);
-  flex: 1;
+  /* Línea completa siempre: con flex: 1 (basis 0) los controles de la tira
+     (select + conteo + acciones) llenan la línea y los chips quedan con
+     ancho ~0 — invisibles. Basis 100% garantiza su fila propia. */
+  flex: 1 1 100%;
   min-width: 0;
   overflow-x: auto;
   overscroll-behavior: contain;
