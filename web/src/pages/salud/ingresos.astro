@@ -1,0 +1,160 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import { ingresos } from "../../lib/catalogs";
+---
+
+<BaseLayout
+  title="Ingresos hospitalarios — Enlace Sismo"
+  description="Busca personas ingresadas en centros de salud tras el sismo. Filtra por nombre o lugar."
+>
+  <section class="seccion-titulo">
+    <h1>Ingresos hospitalarios</h1>
+    <p>
+      Consulta las personas registradas en centros de salud.
+      Usa los filtros para buscar por nombre o por hospital.
+    </p>
+  </section>
+
+  {
+    ingresos.length === 0 ? (
+      <div class="vacio">
+        <h3>Aún no hay ingresos registrados</h3>
+        <p>
+          Los registros enviados están siendo verificados por los mantenedores.
+          ¿Conoces un ingreso? Ayúdanos a registrarlo.
+        </p>
+        <a class="btn btn-primary" href="/salud/registrar-ingreso">Registrar un ingreso</a>
+      </div>
+    ) : (
+      <>
+        <div class="filtros">
+          <div class="filtros-controls">
+            <div class="form-group" style="flex:1;min-width:200px">
+              <label for="buscar-nombre">Buscar por nombre:</label>
+              <input type="text" id="buscar-nombre" placeholder="Ej: Juan Pérez" />
+            </div>
+            <div class="form-group" style="flex:1;min-width:200px">
+              <label for="buscar-lugar">Buscar por hospital:</label>
+              <input type="text" id="buscar-lugar" placeholder="Ej: Hospital Universitario" />
+            </div>
+          </div>
+          <a class="btn btn-primary" href="/salud/registrar-ingreso">Registrar un ingreso</a>
+        </div>
+
+        <div class="resultado-busqueda" id="resultado-busqueda">
+          <span id="conteo">{ingresos.length} registro(s)</span>
+        </div>
+
+        <div class="tabla-wrapper">
+          <table class="tabla-ingresos" id="tabla-ingresos">
+            <thead>
+              <tr>
+                <th>Nombre</th>
+                <th>Fecha</th>
+                <th>Hora</th>
+                <th>Lugar</th>
+              </tr>
+            </thead>
+            <tbody>
+              {ingresos.map((i) => (
+                <tr data-nombre={i.nombre.toLowerCase()} data-lugar={i.lugar.toLowerCase()}>
+                  <td>{i.nombre}</td>
+                  <td>{i.fecha}</td>
+                  <td>{i.hora}</td>
+                  <td>{i.lugar}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </>
+    )
+  }
+</BaseLayout>
+
+<style>
+  .resultado-busqueda {
+    margin-bottom: var(--space-sm);
+    color: var(--color-muted);
+    font-size: var(--font-sm);
+  }
+
+  .tabla-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .tabla-ingresos {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--font-sm);
+  }
+
+  .tabla-ingresos th,
+  .tabla-ingresos td {
+    padding: var(--space-xs) var(--space-sm);
+    text-align: left;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .tabla-ingresos th {
+    background: var(--color-surface);
+    font-weight: 600;
+    position: sticky;
+    top: 0;
+  }
+
+  .tabla-ingresos tbody tr:hover {
+    background: var(--color-surface);
+  }
+
+  .tabla-ingresos tbody tr.oculto {
+    display: none;
+  }
+
+  .filtros-controls {
+    display: flex;
+    gap: var(--space-sm);
+    flex-wrap: wrap;
+    flex: 1;
+  }
+
+  .filtros-controls .form-group {
+    margin-bottom: 0;
+  }
+</style>
+
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    const inputNombre = document.getElementById("buscar-nombre") as HTMLInputElement | null;
+    const inputLugar = document.getElementById("buscar-lugar") as HTMLInputElement | null;
+    const tabla = document.getElementById("tabla-ingresos");
+    const conteo = document.getElementById("conteo");
+
+    if (!tabla) return;
+
+    const filas = Array.from(tabla.querySelectorAll<HTMLTableRowElement>("tbody tr"));
+
+    function filtrar() {
+      const nombre = (inputNombre?.value ?? "").toLowerCase().trim();
+      const lugar = (inputLugar?.value ?? "").toLowerCase().trim();
+      let visibles = 0;
+
+      filas.forEach((fila) => {
+        const matchNombre = !nombre || (fila.dataset.nombre?.includes(nombre) ?? false);
+        const matchLugar = !lugar || (fila.dataset.lugar?.includes(lugar) ?? false);
+        const mostrar = matchNombre && matchLugar;
+
+        fila.classList.toggle("oculto", !mostrar);
+        if (mostrar) visibles++;
+      });
+
+      if (conteo) {
+        conteo.textContent = `${visibles} registro(s)`;
+      }
+    }
+
+    inputNombre?.addEventListener("input", filtrar);
+    inputLugar?.addEventListener("input", filtrar);
+  });
+</script>
