@@ -5,6 +5,7 @@ import MapLegend from "../components/MapLegend.astro";
 import DatosEvento from "../components/DatosEvento.astro";
 import ZonasLista from "../components/ZonasLista.astro";
 import IndiceSecciones from "../components/IndiceSecciones.astro";
+import StatusBadge from "../components/StatusBadge.astro";
 import { acopios, albergues, centrosSalud, jornadasSangre, todasLasCiudades } from "../lib/catalogs";
 import { zonas } from "../lib/zonas";
 
@@ -48,6 +49,14 @@ const ciudadesFiltro = Array.from(
           </div>
           <div class="rail-panel" role="tabpanel" id="panel-secciones" aria-labelledby="tab-secciones">
             <IndiceSecciones />
+          </div>
+          <!-- Pie del panel: cómo leer la verificación de cada dato (fuera de
+               las pestañas, visible siempre) -->
+          <div class="rail-verif" aria-label="Niveles de verificación de los datos">
+            <span class="verif-label">Verificación</span>
+            <StatusBadge estado="oficial" />
+            <StatusBadge estado="confirmado" />
+            <StatusBadge estado="sin-confirmar" />
           </div>
         </aside>
 

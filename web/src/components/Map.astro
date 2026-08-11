@@ -100,6 +100,19 @@ const eventoJson = JSON.stringify({ fecha: evento.fecha.slice(0, 10) });
   const el = document.getElementById("mapa-libre") as HTMLDivElement;
   const contenedor = el.closest(".dash");
 
+  // El rail se posiciona bajo la barra de evento. Se mide en runtime para no
+  // depender de cálculos frágiles (zoom de fuente, contenido dinámico como
+  // la línea de distancia al geolocalizar). Fallback CSS: --barra-h.
+  const barra = document.querySelector<HTMLElement>(".barra-evento");
+  if (contenedor && barra && "ResizeObserver" in window) {
+    const medir = () => {
+      contenedor.style.setProperty("--barra-h-real", `${barra.getBoundingClientRect().height}px`);
+    };
+    medir();
+    new ResizeObserver(medir).observe(barra);
+    window.addEventListener("resize", medir);
+  }
+
   // Progresivo: el contenido base ya es legible. El mapa solo se muestra
   // cuando carga sin errores. Sin WebGL, con error o tras 8 s → fallback.
   let cargado = false;
@@ -303,6 +316,12 @@ const eventoJson = JSON.stringify({ fecha: evento.fecha.slice(0, 10) });
       const srcP = map.getSource("puntos");
       if (srcP && "setData" in srcP) {
         (srcP as maplibre.GeoJSONSource).setData(featureCollection(puntosFiltrados));
+      }
+      // Conteo de puntos visibles en la tira (instrumento: cuánto hay aquí)
+      const conteo = document.getElementById("puntos-conteo");
+      if (conteo) {
+        conteo.textContent =
+          puntosFiltrados.length === 1 ? "1 punto" : `${puntosFiltrados.length} puntos`;
       }
       const srcZ = map.getSource("zonas");
       if (srcZ && "setData" in srcZ) {

@@ -179,6 +179,15 @@ a:hover {
   display: none;
 }
 
+/* Desktop con ratón: los enlaces envuelven en líneas (mismo arreglo que la
+   tira de leyenda — un scroll sin scrollbar visible es inalcanzable). */
+@media (hover: hover) and (pointer: fine) {
+  .section-rail {
+    flex-wrap: wrap;
+    overflow-x: visible;
+  }
+}
+
 .section-rail a {
   font-family: var(--font-outlier);
   font-size: var(--text-xs);
@@ -413,12 +422,12 @@ h2 {
   display: none;
 }
 
-/* Barra de estado del evento — el único momento oscuro por página
-   (design.md). En flujo es tarjeta; con mapa, barra superior. */
+/* Barra de estado del evento — lectura de instrumento, el único momento
+   oscuro por página (design.md). En flujo es tarjeta; con mapa, barra superior. */
 .barra-evento {
   background: var(--color-graphite);
   color: var(--color-graphite-ink);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
   padding: var(--space-md);
   display: flex;
   flex-direction: column;
@@ -438,10 +447,33 @@ h2 {
 .barra-fila-2 {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-md);
+  align-items: baseline;
+  gap: var(--space-2xs) var(--space-sm);
   border-top: var(--rule-hair) solid var(--color-graphite-2);
   padding-top: var(--space-xs);
+}
+
+/* Métricas del instrumento: una línea mono, separadas por punto medio */
+.barra-fila-2 .graphite-line {
+  display: inline;
+}
+
+.barra-fila-2 .graphite-line + .graphite-line::before {
+  content: "·";
+  margin-inline: var(--space-xs);
+  color: var(--color-graphite-2);
+}
+
+/* Fuente del dato — la regla de oro del proyecto, siempre visible */
+.barra-fuente {
+  margin-left: auto;
+  font-family: var(--font-outlier);
+  font-size: var(--text-xs);
+  color: var(--color-graphite-muted);
+}
+
+.barra-fuente a {
+  font-size: inherit;
 }
 
 /* Tira de leyenda — una sola instancia, siempre visible */
@@ -472,6 +504,41 @@ h2 {
   display: none;
 }
 
+/* Desktop con ratón: los chips envuelven en líneas — un scroll sin scrollbar
+   visible es inalcanzable con el ratón. El deslizamiento táctil de móvil
+   se conserva (hover: none). Los chips van en su propia fila; los controles
+   (ciudad · conteo · acción) en la fila siguiente. */
+@media (hover: hover) and (pointer: fine) {
+  .tira-chips {
+    flex-wrap: wrap;
+    overflow-x: visible;
+    flex: 1 1 100%;
+  }
+
+  .tira-sep {
+    display: none;
+  }
+}
+
+/* Separador entre grupos de la barra de herramientas (capas | ciudad+conteo | acción) */
+.tira-sep {
+  width: var(--rule-hair);
+  height: 1.5rem;
+  flex: none;
+  background: var(--color-rule);
+  margin-inline: var(--space-2xs);
+}
+
+/* Conteo de puntos visibles — llenado por el script del mapa al filtrar */
+.tira-conteo {
+  font-family: var(--font-outlier);
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+  color: var(--color-muted);
+  white-space: nowrap;
+  padding-inline: var(--space-xs);
+}
+
 .tira-chip {
   position: relative;
   display: inline-flex;
@@ -490,6 +557,10 @@ h2 {
 
 .tira-chip:hover {
   background: var(--color-paper-2);
+}
+
+.tira-chip:active {
+  background: var(--color-paper-3);
 }
 
 .tira-chip:has(input:checked) {
@@ -626,6 +697,52 @@ h2 {
   display: none;
 }
 
+/* Acceso secundario del dashboard: "Cómo ayudar" — el perfil que quiere
+   ayudar no debe depender de la pestaña Secciones ni de ⌘K (en móvil el
+   enlace "Ayuda" de la nav está oculto). Botón delineado: no compite con
+   la acción primaria cobalto "Cerca de mí". */
+.tira-chip-ayuda {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  flex: none;
+  padding: 0 var(--space-md);
+  border: var(--rule-hair) solid var(--color-rule-2);
+  border-radius: var(--radius-xs);
+  background: var(--color-paper);
+  color: var(--color-ink-2);
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  text-decoration: none;
+  transition:
+    border-color var(--dur-micro) var(--ease-out),
+    color var(--dur-micro) var(--ease-out),
+    background-color var(--dur-micro) var(--ease-out);
+}
+
+@media (hover: hover) {
+  .tira-chip-ayuda:hover {
+    border-color: var(--color-accent);
+    color: var(--color-accent);
+    background: var(--color-paper-2);
+    text-decoration: none;
+  }
+}
+
+.tira-chip-ayuda:active {
+  background: var(--color-paper-3);
+}
+
+.tira-chip-ayuda:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
 .tira-dot {
   width: 0.65rem;
   height: 0.65rem;
@@ -641,13 +758,13 @@ h2 {
   min-width: 0;
 }
 
+/* Pestañas del rail: switches con subrayado cobalto, sin caja alrededor */
 .rail-tabs {
   display: flex;
   gap: var(--space-2xs);
-  padding: var(--space-2xs);
-  background: var(--color-paper);
-  border: var(--rule-hair) solid var(--color-rule-2);
-  border-radius: var(--radius-sm);
+  border-bottom: var(--rule-hair) solid var(--color-rule);
+  background: transparent;
+  padding: 0;
 }
 
 .rail-tab {
@@ -657,7 +774,8 @@ h2 {
   justify-content: center;
   min-height: 44px;
   border: none;
-  border-radius: var(--radius-xs);
+  border-bottom: var(--rule-strong) solid transparent;
+  border-radius: 0;
   background: transparent;
   font-family: var(--font-outlier);
   font-size: var(--text-xs);
@@ -666,16 +784,21 @@ h2 {
   font-weight: 500;
   color: var(--color-muted);
   cursor: pointer;
+  transition: color var(--dur-micro) var(--ease-out);
 }
 
 .rail-tab:hover {
   color: var(--color-ink);
 }
 
-.rail-tab[aria-selected="true"] {
-  background: var(--color-paper-2);
+.rail-tab:active {
   color: var(--color-ink);
-  box-shadow: inset 0 -2px 0 var(--color-accent);
+  background: var(--color-paper-2);
+}
+
+.rail-tab[aria-selected="true"] {
+  color: var(--color-ink);
+  border-bottom-color: var(--color-accent);
 }
 
 .rail-tab:focus-visible {
@@ -739,17 +862,28 @@ h2 {
   margin-top: var(--space-2xs);
 }
 
+/* Fila más cercana al usuario: dot anillado en geo + meta teñida */
+.zona-fila.zona-cercana .zona-dot {
+  box-shadow: 0 0 0 2px var(--color-geo);
+}
+
+.zona-fila.zona-cercana .dash-row-meta,
+.zona-fila.zona-cercana .dist-usuario {
+  color: var(--color-geo);
+}
+
+/* Fila activa (popup abierto): fondo + dot anillado en cobalto, sin stripe
+   lateral. Declarada después de zona-cercana: la activa gana si coinciden. */
 .zona-fila.zona-activa {
   background: var(--color-paper-3);
-  box-shadow: inset 3px 0 0 var(--color-accent);
 }
 
-.zona-fila.zona-cercana {
-  box-shadow: inset 3px 0 0 var(--color-geo);
+.zona-fila.zona-activa .zona-dot {
+  box-shadow: 0 0 0 2px var(--color-accent);
 }
 
-.zona-fila.zona-cercana .dash-row-meta {
-  color: var(--color-geo);
+.zona-fila.zona-activa .zona-fila-nombre {
+  color: var(--color-ink);
 }
 
 /* Escala Mercalli — referencia compacta en el header del rail de zonas */
@@ -759,18 +893,35 @@ h2 {
   gap: 2px;
 }
 
+/* Header del panel de zonas: título + count, y escala Mercalli etiquetada
+   (los dots sin clave visible son ruido) */
 .zonas-header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xs);
+  padding: var(--space-sm) var(--space-xs);
+  border-bottom: var(--rule-hair) solid var(--color-rule);
+  margin-bottom: var(--space-2xs);
+}
+
+.zonas-titulo {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-sm);
-  padding: var(--space-sm) var(--space-xs) var(--space-2xs);
 }
 
-.zonas-header-derecha {
+.zonas-escala {
   display: flex;
   align-items: center;
   gap: var(--space-xs);
+}
+
+.zonas-escala-label {
+  font-family: var(--font-outlier);
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+  color: var(--color-muted);
 }
 
 .zonas-count {
@@ -780,6 +931,40 @@ h2 {
   border: var(--rule-hair) solid var(--color-rule-2);
   border-radius: var(--radius-xs);
   padding: 0.1rem 0.4rem;
+}
+
+/* Header del índice de secciones: mismo patrón título + count que zonas */
+.dash-index-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  margin: var(--space-sm) 0 var(--space-2xs);
+}
+
+.dash-index-head h3 {
+  margin: 0;
+}
+
+/* Pie del rail: cómo leer la verificación de cada dato (siempre visible) */
+.rail-verif {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2xs);
+  padding: var(--space-xs) var(--space-sm);
+  border: var(--rule-hair) solid var(--color-rule-2);
+  border-radius: var(--radius-sm);
+  background: var(--color-paper);
+}
+
+.rail-verif .verif-label {
+  font-family: var(--font-outlier);
+  font-size: var(--text-xs);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+  margin-right: auto;
 }
 
 .mercalli-1  { background: var(--mercalli-1); }
@@ -806,7 +991,7 @@ h2 {
 
 /* Con mapa: dashboard superpuesto — todo sobre el mapa */
 .dash.con-mapa {
-  --barra-h: 3.5rem;
+  --barra-h: 3.25rem;
   height: calc(100dvh - 4.5rem);
   min-height: 34rem;
 }
@@ -828,7 +1013,8 @@ h2 {
   pointer-events: auto;
 }
 
-/* Barra de estado — superior, full-width, translúcida */
+/* Barra de estado — superior, full-width, translúcida. z-index por encima
+   del rail: la cabecera nunca se tapa, pase lo que pase. */
 .dash.con-mapa .barra-evento {
   position: absolute;
   top: 0;
@@ -842,12 +1028,12 @@ h2 {
   background: color-mix(in oklab, var(--color-graphite) 92%, transparent);
   backdrop-filter: blur(8px);
   border-bottom: var(--rule-hair) solid var(--color-graphite-2);
-  z-index: var(--z-raised);
+  z-index: var(--z-dropdown);
 }
 
 .dash.con-mapa .barra-fila-1 {
   flex-wrap: nowrap;
-  min-height: 2.75rem;
+  min-height: 2.5rem;
 }
 
 .dash.con-mapa .barra-fila-2 {
@@ -869,7 +1055,9 @@ h2 {
 /* Rail derecho — un solo contenedor con pestañas */
 .dash.con-mapa .rail {
   position: absolute;
-  top: var(--barra-h);
+  /* Medido en runtime (Map.astro): --barra-h-real gana; el fallback cubre
+     navegadores sin ResizeObserver */
+  top: var(--barra-h-real, var(--barra-h));
   right: 0;
   bottom: 0;
   width: 19rem;
@@ -884,18 +1072,21 @@ h2 {
   overflow: hidden;
 }
 
-.dash.con-mapa .rail-tabs {
-  border: none;
-  border-radius: 0;
-  border-bottom: var(--rule-hair) solid var(--color-rule);
-  background: transparent;
-}
-
 .dash.con-mapa .rail-panel {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
+}
+
+/* Pie de verificación: sin caja propia dentro del rail translúcido */
+.dash.con-mapa .rail-verif {
+  border: none;
+  border-top: var(--rule-hair) solid var(--color-rule);
+  border-radius: 0;
+  background: transparent;
+  padding: var(--space-xs) var(--space-sm);
+  flex: none;
 }
 
 /* Los paneles internos no repiten borde dentro del rail */
@@ -993,14 +1184,9 @@ h2 {
   padding: 0.15rem 0.5rem;
 }
 
-.barra-verif {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2xs);
-}
-
 .barra-reporte {
-  margin-left: auto;
+  font-family: var(--font-outlier);
+  font-size: var(--text-xs);
   white-space: nowrap;
 }
 
@@ -1710,6 +1896,20 @@ h2 {
   border-right-color: var(--color-paper);
 }
 
+/* Cierre del popup: con tokens, no el default negro del navegador */
+.maplibregl-popup-close-button {
+  color: var(--color-muted);
+  font-size: var(--text-md);
+  line-height: 1;
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: var(--radius-xs);
+}
+
+.maplibregl-popup-close-button:hover {
+  background: var(--color-paper-2);
+  color: var(--color-ink);
+}
+
 .popup-titulo {
   display: block;
   font-family: var(--font-display);
@@ -1866,7 +2066,12 @@ h2 {
 
   .dash.con-mapa .barra-fila-1 {
     gap: var(--space-xs);
-    min-height: 2.5rem;
+    min-height: 2.25rem;
+  }
+
+  /* La barra de herramientas se compacta: sin separadores de grupo */
+  .tira-sep {
+    display: none;
   }
 
   .dash.con-mapa .barra-fila-2 {
@@ -1932,6 +2137,7 @@ h2 {
   }
 
   .dash.con-mapa {
+    /* Fallback con colchón: la medición real (--barra-h-real) lo supera */
     --barra-h: 5.75rem;
   }
 

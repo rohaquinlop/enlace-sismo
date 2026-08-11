@@ -1,5 +1,16 @@
 [
   {
+    "date": "2026-08-11",
+    "scope": "app",
+    "design-system": "design.md",
+    "genre": "modern-minimal",
+    "theme": "Cobalt",
+    "theme_axes": "light-cool / grotesk-sans / cool-cobalt",
+    "macrostructure": "Workbench (map-first dashboard)",
+    "redesign": "contenedores del dashboard: barra de evento compacta (sin badges, fuente+reporte en fila-2), rail con tabs subrayados + franja de verificación al pie, filas sin stripe lateral (dot anillado), escala Mercalli etiquetada, tira con grupos separados + contador de puntos, popup close button con tokens",
+    "brief": "Enlace Sismo — refinamiento visual y de uso de los contenedores del mapa en la página principal (mood: instrumento)"
+  },
+  {
     "date": "2026-08-10",
     "scope": "app",
     "design-system": "design.md",
