@@ -197,12 +197,29 @@ const enlaceMaps = (lat: number, lng: number) =>
   const railToggle = document.getElementById("rail-toggle") as HTMLButtonElement | null;
   const railAside = document.getElementById("rail-panel-aside") as HTMLElement | null;
   const leyendaTira = railToggle?.parentElement?.querySelector<HTMLElement>(".leyenda-tira") ?? null;
+
+  function colapsarPanel() {
+    if (!railToggle || railToggle.getAttribute("aria-expanded") !== "true") return;
+    railToggle.setAttribute("aria-expanded", "false");
+    railToggle.setAttribute("aria-label", "Mostrar panel");
+    if (railAside) railAside.hidden = true;
+    if (leyendaTira) leyendaTira.hidden = true;
+  }
+
   railToggle?.addEventListener("click", () => {
     const expanded = railToggle.getAttribute("aria-expanded") === "true";
     railToggle.setAttribute("aria-expanded", String(!expanded));
     railToggle.setAttribute("aria-label", expanded ? "Mostrar panel" : "Ocultar panel");
     if (railAside) railAside.hidden = expanded;
     if (leyendaTira) leyendaTira.hidden = expanded;
+  });
+
+  // Auto-colapsar panel en móvil al hacer click en un punto del mapa
+  function esMovil() {
+    return railToggle ? getComputedStyle(railToggle).display !== "none" : false;
+  }
+  window.addEventListener("enlace:mapa:punto-click", () => {
+    if (esMovil()) colapsarPanel();
   });
   const tabZonas = tabs.find((t) => t.id === "tab-zonas");
 
