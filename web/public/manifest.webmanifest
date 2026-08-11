@@ -1,7 +1,7 @@
 {
   "name": "Enlace Sismo",
   "short_name": "EnlaceSismo",
-  "description": "Información verificada para el sismo en Colombia: acopios, albergues, salud, desaparecidos y cómo ayudar.",
+  "description": "Información verificada para el sismo en Colombia: acopios, albergues, salud y cómo ayudar.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#f8f9fb",

@@ -924,6 +924,15 @@ h2 {
   cursor: progress;
 }
 
+/* CTA del encabezado: etiqueta completa en desktop, compacta en móvil */
+.btn-cta-full {
+  display: inline;
+}
+
+.btn-cta-movil {
+  display: none;
+}
+
 /* ============================================================
    Tarjetas — hairline, radio 6px, sin sombras
    ============================================================ */
@@ -1325,37 +1334,6 @@ h2 {
 }
 
 /* ============================================================
-   Filas de búsqueda (desaparecidos)
-   ============================================================ */
-
-.lista-filas {
-  border-top: var(--rule-strong) solid var(--color-ink);
-}
-
-.fila-busqueda {
-  padding: var(--space-md) 0;
-  border-bottom: var(--rule-hair) solid var(--color-rule);
-}
-
-.fila-busqueda h3 {
-  font-family: var(--font-display);
-  font-weight: 600;
-  font-size: var(--text-md);
-  line-height: 1.2;
-  letter-spacing: -0.01em;
-  margin: 0 0 var(--space-2xs);
-  font-style: normal;
-  overflow-wrap: anywhere;
-  min-width: 0;
-}
-
-.fila-busqueda p {
-  margin: 0.15rem 0;
-  font-size: var(--text-sm);
-  color: var(--color-muted);
-}
-
-/* ============================================================
    Pie — Ft2 línea única
    ============================================================ */
 
@@ -1480,6 +1458,14 @@ h2 {
   .btn.btn-primary {
     padding: 0 var(--space-sm);
     font-size: var(--text-sm);
+  }
+
+  .btn-cta-full {
+    display: none;
+  }
+
+  .btn-cta-movil {
+    display: inline;
   }
 }
 

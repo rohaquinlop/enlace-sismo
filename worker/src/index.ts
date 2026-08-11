@@ -23,7 +23,7 @@ app.use(
   })
 );
 
-// Límite de escrituras por IP: 5 reportes de desaparecidos / hora.
+// Límite de escrituras por IP y hora (reportes de datos incorrectos).
 async function rateLimit(c: Context<Bindings>, key: string, max: number): Promise<boolean> {
   const ip = c.req.header("cf-connecting-ip") ?? "anon";
   const bucket = `${key}:${ip}:${new Date().toISOString().slice(0, 13)}`;
@@ -64,45 +64,6 @@ app.post("/api/alertas", async (c) => {
     .bind(String(titulo).slice(0, 200), String(contenido).slice(0, 2000), fuente, String(prioridad).slice(0, 20), String(creado_por).slice(0, 80))
     .run();
   return c.json({ ok: true });
-});
-
-// ---------- Personas desaparecidas ----------
-app.get("/api/desaparecidos", async (c) => {
-  const estado = c.req.query("estado") ?? "buscando";
-  const { results } = await c.env.DB.prepare(
-    "SELECT id, nombre, edad, ciudad, lugar, fecha, descripcion, estado, created_at FROM desaparecidos WHERE estado = ? ORDER BY created_at DESC LIMIT 200"
-  )
-    .bind(estado)
-    .all();
-  return c.json(results);
-});
-
-app.post("/api/desaparecidos", async (c) => {
-  const body = await c.req.json().catch(() => null);
-  if (!body) return c.json({ error: "JSON inválido" }, 400);
-
-  const { nombre, edad, ciudad, lugar, fecha, descripcion, contacto } = body;
-  if (!nombre || !ciudad || !contacto) {
-    return c.json({ error: "nombre, ciudad y contacto son obligatorios" }, 400);
-  }
-  if (!(await rateLimit(c, "rl:desaparecidos", 5))) {
-    return c.json({ error: "Demasiados reportes desde esta conexión. Espera una hora." }, 429);
-  }
-
-  const info = await c.env.DB.prepare(
-    "INSERT INTO desaparecidos (nombre, edad, ciudad, lugar, fecha, descripcion, contacto) VALUES (?, ?, ?, ?, ?, ?, ?)"
-  )
-    .bind(
-      String(nombre).slice(0, 120),
-      edad ? Number(edad) : null,
-      String(ciudad).slice(0, 80),
-      lugar ? String(lugar).slice(0, 200) : null,
-      fecha ? String(fecha).slice(0, 10) : null,
-      descripcion ? String(descripcion).slice(0, 500) : null,
-      String(contacto).slice(0, 120)
-    )
-    .run();
-  return c.json({ ok: true, id: info.meta.last_row_id });
 });
 
 // ---------- Reportes de datos incorrectos ----------

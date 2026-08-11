@@ -32,7 +32,8 @@ enlace-sismo/
 │   └── validate-data.mjs    # Validación con Ajv + reglas de seguridad
 ├── web/                     # Frontend Astro
 │   ├── src/pages/           # index (dashboard mapa-primero), acopios, albergues,
-│   │                        # salud, desaparecidos, ayuda, alertas, contactos
+│   │                        # salud, desaparecidos (referencia a ColombiaTeBusca),
+│   │                        # ayuda, alertas, contactos
 │   │                        # (NOTA: /mapa fue eliminado → 301 a /#mapa)
 │   ├── src/components/      # Map, MapLegend, DatosEvento, IndiceSecciones,
 │   │                        # ZonasLista, CatalogCard, StatusBadge
@@ -41,7 +42,7 @@ enlace-sismo/
 │   ├── src/styles/global.css
 │   └── public/              # sw.js (PWA offline, cache v3), _redirects
 ├── worker/                  # API Hono
-│   ├── src/index.ts         # alertas, desaparecidos, reportes + rate limits
+│   ├── src/index.ts         # alertas, reportes + rate limits
 │   └── migrations/001_init.sql
 ├── .sdd/changes/            # Cambios spec-driven (propose → apply → archive)
 ├── tokens.css               # Sistema de diseño Cobalt (fuente única de tokens)
@@ -112,7 +113,7 @@ cd worker && npx wrangler d1 migrations apply enlace-sismo --local|--remote
 - **Zonas sin `intensidad`** en `zonas-afectadas.json` se dibujan neutrales etiquetadas "Sin reporte" — nunca estimar intensidad sin fuente
 - **Enlaces "Cómo llegar"** (Google Maps `dir/?api=1&destination=lat,lng`) en popups y tarjetas: no eliminar
 - **Cuentas bancarias / enlaces de pago:** solo con `"verificacion": "oficial"` (publicados por la entidad) y 2 aprobaciones de mantenedores
-- **Desaparecidos:** prohibido publicar números de documento; menores requieren autorización de familiar
+- **Desaparecidos:** el registro se referencia a ColombiaTeBusca (https://colombiatebusca.com); no hay registro propio ni API de reportes en este proyecto
 - **Estados operativos:** `abierto | cerrado | sin-confirmar` (acopios/albergues), `operativo | limitado | cerrado | sin-confirmar` (salud)
 - **Etiquetas de verificación:** `oficial` (entidad oficial) · `confirmado` (2+ revisores) · `sin-confirmar` (cautela)
 - El mapa es mejora progresiva: el contenido siempre se lee primero; nunca romper el fallback a lista
