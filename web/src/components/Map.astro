@@ -927,8 +927,10 @@ const eventoJson = JSON.stringify({ fecha: evento.fecha.slice(0, 10) });
         const p = f.properties as unknown as PuntoRescateMap;
         const coords = (f.geometry as { type: "Point"; coordinates: [number, number] }).coordinates;
         popupActivo?.remove();
-        const needs = p.necesidades.length
-          ? `<span class="popup-rescate-ns">${p.necesidades
+        // MapLibre serializa arrays/objetos en properties como strings JSON
+        const necesidades: string[] = typeof p.necesidades === "string" ? JSON.parse(p.necesidades) : (p.necesidades ?? []);
+        const needs = necesidades.length
+          ? `<span class="popup-rescate-ns">${necesidades
               .map((n) => `<span>${escapar(etiquetaNecesidad(n))}</span>`)
               .join("")}</span>`
           : "";
