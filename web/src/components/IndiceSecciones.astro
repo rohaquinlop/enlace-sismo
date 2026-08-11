@@ -1,5 +1,5 @@
 ---
-import { acopios, albergues, centrosSalud } from "../lib/catalogs";
+import { acopios, albergues, centrosSalud, jornadasSangre } from "../lib/catalogs";
 
 const GITHUB = "https://github.com/rohaquinlop/enlace-sismo";
 
@@ -8,6 +8,7 @@ const SECCIONES = [
   { href: "/acopios", titulo: "Puntos de acopio", descripcion: "Dónde entregar alimentos, ropa, agua y medicamentos.", meta: `${acopios.length} verificados` },
   { href: "/albergues", titulo: "Albergues", descripcion: "Refugios habilitados, con capacidad y estado.", meta: `${albergues.length} verificados` },
   { href: "/salud", titulo: "Centros de salud", descripcion: "Hospitales, clínicas y primeros auxilios operativos.", meta: `${centrosSalud.length} verificados` },
+  { href: "/donar-sangre", titulo: "Donar sangre", descripcion: "Jornadas de donación de sangre: dónde, cuándo y qué grupos se necesitan.", meta: `${jornadasSangre.length} jornadas` },
   { href: "/desaparecidos", titulo: "Personas desaparecidas", descripcion: "Reportes de personas desaparecidas en ColombiaTeBusca, el registro ciudadano de referencia.", meta: "referencia" },
   { href: "/ayuda", titulo: "Cómo ayudar", descripcion: "Canales oficiales de donación y voluntariado.", meta: "verificado" },
   { href: "/alertas", titulo: "Alertas oficiales", descripcion: "Boletines de SGC, UNGRD y alcaldías.", meta: "en vivo" },

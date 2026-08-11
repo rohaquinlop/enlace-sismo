@@ -1,0 +1,48 @@
+---
+import type { JornadaSangre } from "../lib/catalogs";
+import StatusBadge from "./StatusBadge.astro";
+
+interface Props {
+  jornada: JornadaSangre;
+}
+
+const { jornada } = Astro.props;
+
+const MESES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
+const fmt = (iso: string) => {
+  const [y, m, d] = iso.split("-").map(Number);
+  return `${d} ${MESES[m - 1]}`;
+};
+
+const fechas = jornada.fecha_fin
+  ? `${fmt(jornada.fecha_inicio)} – ${fmt(jornada.fecha_fin)}`
+  : `Desde ${fmt(jornada.fecha_inicio)}`;
+---
+
+<article class="card">
+  <div class="card-head">
+    <h3>{jornada.punto}</h3>
+    <StatusBadge estado={jornada.estado} />
+  </div>
+  <p class="card-tipo">Donación de sangre · {jornada.organizador}</p>
+  <p class="card-dir">{jornada.direccion}</p>
+  <p class="card-ciudad">
+    {jornada.ciudad}, {jornada.departamento} ·{" "}
+    <a
+      href={`https://www.google.com/maps/dir/?api=1&destination=${jornada.lat},${jornada.lng}`}
+      target="_blank"
+      rel="noopener"
+    >Cómo llegar</a>
+  </p>
+  <p><strong>{fechas}</strong> · {jornada.horario}</p>
+  {jornada.grupos && jornada.grupos.length > 0 && (
+    <div class="chips">
+      {jornada.grupos.map((g) => <span class="chip">{g === "todos" ? "Todos los grupos" : `Grupo ${g}`}</span>)}
+    </div>
+  )}
+  {jornada.contacto && <p>Contacto: {jornada.contacto}</p>}
+  <p class="card-fuente">
+    <StatusBadge estado={jornada.verificacion} /> Fuente:{" "}
+    <a href={jornada.fuente} target="_blank" rel="noopener">{jornada.fuente}</a>
+  </p>
+</article>

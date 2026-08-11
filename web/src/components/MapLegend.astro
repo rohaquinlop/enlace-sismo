@@ -1,5 +1,5 @@
 ---
-import { acopios, albergues, centrosSalud } from "../lib/catalogs";
+import { acopios, albergues, centrosSalud, jornadasSangre } from "../lib/catalogs";
 
 interface Props {
   ciudades: string[];
@@ -12,6 +12,7 @@ const CATEGORIAS = [
   { valor: "acopio", etiqueta: `Acopios (${acopios.length})`, clase: "punto-acopio" },
   { valor: "albergue", etiqueta: `Albergues (${albergues.length})`, clase: "punto-albergue" },
   { valor: "salud", etiqueta: `Salud (${centrosSalud.length})`, clase: "punto-salud" },
+  { valor: "sangre", etiqueta: `Donar sangre (${jornadasSangre.length})`, clase: "punto-sangre" },
 ];
 
 const ZONAS = [

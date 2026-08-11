@@ -1,0 +1,61 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import JornadaSangreCard from "../components/JornadaSangreCard.astro";
+import { jornadasSangre, todasLasCiudades } from "../lib/catalogs";
+---
+
+<BaseLayout
+  title="Donar sangre — Enlace Sismo"
+  description="Jornadas de donación de sangre para los damnificados del sismo en Colombia: dónde, cuándo y qué grupos se necesitan. Verificadas contra fuentes."
+>
+  <section class="seccion-titulo">
+    <h1>Donar sangre</h1>
+    <p>
+      Jornadas de donación de sangre habilitadas tras el sismo. Cada jornada está verificada contra una fuente.
+      Confirma por teléfono antes de desplazarte: las jornadas pueden cambiar o cerrarse.
+    </p>
+  </section>
+
+  {
+    jornadasSangre.length === 0 ? (
+      <div class="vacio">
+        <h3>Aún no hay jornadas de donación verificadas</h3>
+        <p>
+          Las jornadas oficiales están siendo confirmadas por la Cruz Roja y las alcaldías.
+          Este es un proyecto open-source: si tienes un dato verificado, súbelo y publícalo.
+        </p>
+        <a class="btn btn-primary" href="https://github.com/rohaquinlop/enlace-sismo/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener">Agregar una jornada (guía)</a>
+      </div>
+    ) : (
+      <>
+        <div class="filtros">
+          <label for="filtro-ciudad">Filtrar por ciudad:</label>
+          <select id="filtro-ciudad">
+            <option value="">Todas</option>
+            {todasLasCiudades.map((c) => <option value={c}>{c}</option>)}
+          </select>
+        </div>
+        <div class="grid" id="lista">
+          {jornadasSangre.map((j) => (
+            <div class="card-item" data-ciudad={j.ciudad}>
+              <JornadaSangreCard jornada={j} />
+            </div>
+          ))}
+        </div>
+      </>
+    )
+  }
+</BaseLayout>
+
+<script>
+  const select = document.getElementById("filtro-ciudad") as HTMLSelectElement | null;
+  if (select) {
+    select.addEventListener("change", () => {
+      const ciudad = select.value;
+      document.querySelectorAll<HTMLElement>(".card-item").forEach((card) => {
+        const coincide = !ciudad || card.dataset.ciudad === ciudad;
+        card.style.display = coincide ? "" : "none";
+      });
+    });
+  }
+</script>

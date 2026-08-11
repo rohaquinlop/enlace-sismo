@@ -1,6 +1,7 @@
 import acopiosData from "../../../data/acopios.json";
 import alberguesData from "../../../data/albergues.json";
 import centrosSaludData from "../../../data/centros-salud.json";
+import donacionSangreData from "../../../data/donacion-sangre.json";
 
 export interface Verificado {
   fuente: string;
@@ -53,10 +54,28 @@ export interface CentroSalud extends Verificado {
   contacto?: string;
 }
 
+export interface JornadaSangre extends Verificado {
+  id: string;
+  organizador: string;
+  punto: string;
+  ciudad: string;
+  departamento: string;
+  direccion: string;
+  lat: number;
+  lng: number;
+  fecha_inicio: string;
+  fecha_fin?: string;
+  horario: string;
+  grupos?: string[];
+  estado: "activa" | "finalizada" | "sin-confirmar";
+  contacto?: string;
+}
+
 export const acopios: Acopio[] = acopiosData.acopios;
 export const albergues: Albergue[] = alberguesData.albergues;
 export const centrosSalud: CentroSalud[] = centrosSaludData.centros;
+export const jornadasSangre: JornadaSangre[] = donacionSangreData.jornadas;
 
 export const todasLasCiudades: string[] = Array.from(
-  new Set([...acopios, ...albergues, ...centrosSalud].map((e) => e.ciudad))
+  new Set([...acopios, ...albergues, ...centrosSalud, ...jornadasSangre].map((e) => e.ciudad))
 ).sort();

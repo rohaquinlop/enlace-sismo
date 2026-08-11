@@ -28,7 +28,8 @@ La validación automática (`npm run validate:data`) corre en cada PR y **bloque
 
 - **Cuentas bancarias y enlaces de pago**: solo se aceptan con `"verificacion": "oficial"` (publicados por la entidad oficial) y **2 aprobaciones de mantenedores**. Nunca publiques cuentas personales.
 - **Personas desaparecidas**: el reporte y la búsqueda se referencia a ColombiaTeBusca (https://colombiatebusca.com); este proyecto no mantiene un registro propio.
-- **No inventes coordenadas**: usa la dirección real y, si no sabes las coordenadas, deja el campo y pide ayuda en el PR (un revisor las calcula).
+- **No inventes coordenadas**: la dirección y el pin deben apuntar al MISMO lugar (el enlace "Cómo llegar" usa las coordenadas). Antes de publicar una coordenada nueva, corre `node scripts/verificar-coordenadas.mjs` y publica solo donde coinciden ≥2 fuentes independientes (Google Maps embed + ArcGIS + POI de OSM). Marca la precisión en `coordenadas_nivel` (`premisa` = edificio/POI · `via` = calle · `barrio` = centroide). Un pin equivocado es peor que ningún pin: si no puedes confirmarlo, deja el campo y pide ayuda en el PR.
+- **Datos desde redes sociales**: los posts oficiales de X se leen con `node scripts/leer-redes.mjs <URL>` (texto + fotos); Instagram, Facebook y WhatsApp requieren captura de pantalla en `capturas/` con la URL del post en un `.txt` junto a la imagen. Las cuentas personales NO son fuente publicable; el gráfico oficial que difunden sí, verificado contra el original de la entidad.
 - **Estados**: usa `sin-confirmar` si no estás seguro. La web muestra la advertencia.
 
 ## Cómo ayudar sin código
@@ -40,8 +41,9 @@ La validación automática (`npm run validate:data`) corre en cada PR y **bloque
 ## Estructura del repositorio
 
 ```
-data/          Datos verificados (acopios, albergues, salud, contactos, canales de ayuda)
-scripts/       Validación automática de datos
+data/          Datos verificados (acopios, albergues, donación de sangre, salud, contactos, canales de ayuda)
+scripts/       Validación de datos, verificación de coordenadas y lectura de redes
+capturas/      Intake de redes (GITIGNORADA, nunca se publica)
 web/           Frontend (Astro, Cloudflare Pages)
 worker/        API (Hono, Cloudflare Workers, D1)
 .github/       CI, despliegue automático y procesamiento de sugerencias

@@ -15,7 +15,8 @@
       "fuente": "https://www.huv.gov.co/",
       "verificado_por": "equipo-enlacesismo (verificación web 2026-08-11)",
       "fecha_verificacion": "2026-08-11",
-      "verificacion": "confirmado"
+      "verificacion": "confirmado",
+      "coordenadas_nivel": "premisa"
     },
     {
       "id": "valle-del-lili-cali",
@@ -31,7 +32,8 @@
       "fuente": "https://valledellili.org/",
       "verificado_por": "equipo-enlacesismo (verificación web 2026-08-11)",
       "fecha_verificacion": "2026-08-11",
-      "verificacion": "confirmado"
+      "verificacion": "confirmado",
+      "coordenadas_nivel": "premisa"
     },
     {
       "id": "san-jorge-pereira",
@@ -47,7 +49,8 @@
       "fuente": "https://husj.gov.co/",
       "verificado_por": "equipo-enlacesismo (verificación web 2026-08-11)",
       "fecha_verificacion": "2026-08-11",
-      "verificacion": "confirmado"
+      "verificacion": "confirmado",
+      "coordenadas_nivel": "premisa"
     },
     {
       "id": "hospital-de-caldas-manizales",
@@ -63,7 +66,8 @@
       "fuente": "https://www.santasofia.gov.co/",
       "verificado_por": "equipo-enlacesismo (verificación web 2026-08-11)",
       "fecha_verificacion": "2026-08-11",
-      "verificacion": "confirmado"
+      "verificacion": "confirmado",
+      "coordenadas_nivel": "premisa"
     },
     {
       "id": "san-juan-de-dios-armenia",
@@ -79,7 +83,8 @@
       "fuente": "https://hospitalquindio.gov.co/",
       "verificado_por": "equipo-enlacesismo (verificación web 2026-08-11)",
       "fecha_verificacion": "2026-08-11",
-      "verificacion": "confirmado"
+      "verificacion": "confirmado",
+      "coordenadas_nivel": "premisa"
     },
     {
       "id": "san-francisco-de-asis-quibdo",
@@ -95,7 +100,8 @@
       "fuente": "https://choco.gov.co/",
       "verificado_por": "equipo-enlacesismo (verificación web 2026-08-11)",
       "fecha_verificacion": "2026-08-11",
-      "verificacion": "sin-confirmar"
+      "verificacion": "sin-confirmar",
+      "coordenadas_nivel": "premisa"
     },
     {
       "id": "hospital-eduardo-santos-istmina",
@@ -111,7 +117,8 @@
       "fuente": "https://hospitaleduardosantos.gov.co/",
       "verificado_por": "equipo-enlacesismo (verificación web 2026-08-11)",
       "fecha_verificacion": "2026-08-11",
-      "verificacion": "sin-confirmar"
+      "verificacion": "sin-confirmar",
+      "coordenadas_nivel": "premisa"
     }
   ]
 }

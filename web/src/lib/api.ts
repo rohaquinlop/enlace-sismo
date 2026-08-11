@@ -5,7 +5,7 @@ export function apiUrl(path: string): string {
   const base =
     isLocal && !import.meta.env.PUBLIC_API_URL
       ? "http://localhost:8787"
-      : (import.meta.env.PUBLIC_API_URL as string) || "https://api.enlacesismo.app";
+      : (import.meta.env.PUBLIC_API_URL as string) || "https://api.enlacesismo.com";
   return `${base}${path}`;
 }
 

@@ -6,6 +6,8 @@ interface Props {
 // Mapea los estados operativos y de verificación a etiquetas visibles.
 const LABELS: Record<string, { texto: string; clase: string }> = {
   abierto: { texto: "Abierto", clase: "badge-confirmado" },
+  activa: { texto: "Activa", clase: "badge-confirmado" },
+  finalizada: { texto: "Finalizada", clase: "badge-cerrado" },
   operativo: { texto: "Operativo", clase: "badge-confirmado" },
   limitado: { texto: "Limitado", clase: "badge-limitado" },
   cerrado: { texto: "Cerrado", clase: "badge-cerrado" },

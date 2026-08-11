@@ -1,6 +1,6 @@
 # Enlace Sismo
 
-> Plataforma open-source de información verificada para el sismo M7.4 del 10 de agosto de 2026 en Colombia: acopios, albergues, centros de salud, personas desaparecidas, zonas afectadas y canales oficiales de ayuda.
+> Plataforma open-source de información verificada para el sismo M7.4 del 10 de agosto de 2026 en Colombia: acopios, albergues, donación de sangre, centros de salud, personas desaparecidas, zonas afectadas y canales oficiales de ayuda.
 
 ## Regla de oro (no negociable)
 
@@ -20,8 +20,9 @@
 ```
 enlace-sismo/
 ├── data/                    # Datos verificados (fuente obligatoria)
-│   ├── acopios.json         # Puntos de acopio (vía PRs; aún vacío)
-│   ├── albergues.json       # Refugios (vía PRs; aún vacío)
+│   ├── acopios.json         # 36 puntos de acopio verificados (18 oficiales)
+│   ├── albergues.json       # 6 refugios de Pereira (oficiales)
+│   ├── donacion-sangre.json # Jornadas de donación de sangre (fechas + horario + grupos)
 │   ├── centros-salud.json   # Red hospitalaria: 7 hospitales verificados (OSM + portales), estado sin-confirmar
 │   ├── contactos.json       # Líneas oficiales de emergencia
 │   ├── canales-ayuda.json   # Canales de donación/voluntariado
@@ -29,15 +30,19 @@ enlace-sismo/
 │   ├── evento.json          # Boletín oficial SGC (evento en curso)
 │   └── schema/              # JSON Schemas (draft 2020-12) por catálogo
 ├── scripts/
-│   └── validate-data.mjs    # Validación con Ajv + reglas de seguridad
+│   ├── validate-data.mjs    # Validación con Ajv + reglas de seguridad
+│   ├── verificar-coordenadas.mjs  # Doble geocodificación (Google embed + ArcGIS) contra data/*.json
+│   ├── leer-redes.mjs       # Lectura de posts de X (texto + fotos) vía fxtwitter/oEmbed
+│   └── geocodificar.mjs     # Geocodificador Nominatim (1 req/s, borrador)
+├── capturas/                # Intake de redes sociales (GITIGNORADA, nunca se publica; README con el flujo)
 ├── web/                     # Frontend Astro
 │   ├── src/pages/           # index (dashboard mapa-primero), acopios, albergues,
-│   │                        # salud, desaparecidos (referencia a ColombiaTeBusca),
-│   │                        # ayuda, alertas, contactos
+│   │                        # donar-sangre, salud (+ sugerir-centro-salud), desaparecidos
+│   │                        # (referencia a ColombiaTeBusca), ayuda, alertas, contactos
 │   │                        # (NOTA: /mapa fue eliminado → 301 a /#mapa)
 │   ├── src/components/      # Map, MapLegend (tira de chips), DatosEvento (barra
 │   │                        # de estado), IndiceSecciones, ZonasLista, CatalogCard,
-│   │                        # StatusBadge
+│   │                        # JornadaSangreCard, StatusBadge
 │   ├── src/lib/             # catalogs.ts, zonas.ts, geo.ts (haversine),
 │   │                        # color.ts (oklch→hex para MapLibre), api.ts
 │   ├── src/styles/global.css
@@ -101,8 +106,12 @@ cd worker && npx wrangler d1 migrations apply enlace-sismo --local|--remote
 
 - `design.md` — sistema de diseño bloqueado (modern-minimal · Cobalt · Workbench); leer antes de tocar UI; solo él y `tokens.css` definen color/tipografía
 - `data/schema/verificado.schema.json` — campos obligatorios de toda entrada (`fuente`, `verificado_por`, `fecha_verificacion`, `verificacion`); `fuente_secundaria` opcional (URL adicional que respalda el dato)
+- `data/schema/jornada-sangre.schema.json` — jornadas de donación: `fecha_inicio` obligatoria, `fecha_fin` opcional, `horario`, `grupos`, `estado: activa|finalizada|sin-confirmar`
 - `scripts/validate-data.mjs` — validador; incluye regla de seguridad: cuentas bancarias solo con `estado: oficial`
-- `web/src/components/Map.astro` — mapa MapLibre progresivo: capas por intensidad Mercalli, anillo del epicentro (rAF + IntersectionObserver), "Cerca de mí", popups con estilo del sistema y texto escapado (`escapar()`), sincronización lista↔mapa por `CustomEvent` (`enlace:mapa:volar-zona|zona-activa|posicion|reiniciar`), deep-link `/?ciudad=<id>#mapa`; sin WebGL o con CDN bloqueado, el contenido base (lista) queda visible; nunca pantalla en blanco
+- `scripts/verificar-coordenadas.mjs` — verifica `lat/lng` de `data/*.json` contra Google Maps embed (el MISMO geocoder de los enlaces "Cómo llegar") + ArcGIS; veredicto CONFIRMADA (<150 m) / DISCREPANCIA / SIN-GEOCODIFICAR; correrlo antes de publicar coordenadas nuevas
+- `scripts/leer-redes.mjs` — lee posts de X (fxtwitter + oEmbed) con texto, fecha, autor y fotos; `--descargar` baja las fotos a `capturas/redes/` para OCR (Swift/Vision local); Instagram/Facebook/WhatsApp requieren screenshot + URL en `capturas/`
+- `web/src/pages/donar-sangre.astro` — jornadas de donación con filtro por ciudad; tarjeta `JornadaSangreCard` con fechas ("11 ago → 12 ago"), horario, grupos y "Cómo llegar"
+- `web/src/components/Map.astro` — mapa MapLibre progresivo: capas por intensidad Mercalli, anillo del epicentro (rAF + IntersectionObserver), "Cerca de mí", popups con estilo del sistema y texto escapado (`escapar()`), sincronización lista↔mapa por `CustomEvent` (`enlace:mapa:volar-zona|zona-activa|posicion|reiniciar`), deep-link `/?ciudad=<id>#mapa`, capa de jornadas de sangre (token `--color-sangre`); sin WebGL o con CDN bloqueado, el contenido base (lista) queda visible; nunca pantalla en blanco
 - `web/src/lib/geo.ts` — haversine + formateo de distancia (build y cliente)
 - `web/src/lib/color.ts` — conversión oklch→hex (MapLibre no soporta oklch)
 - `web/src/pages/index.astro` — dashboard mapa-primero: barra de estado superior, rail derecho con pestañas Zonas · Secciones (tabs accesibles: roving tabindex; sin JS ambos paneles visibles) y tira de leyenda (una sola instancia en el DOM); `.dash` base = contenido en flujo, `.con-mapa` = superposición; ancla `id="mapa"`; script de tabs con sync a `enlace:mapa:zona-activa|posicion`
@@ -125,7 +134,9 @@ cd worker && npx wrangler d1 migrations apply enlace-sismo --local|--remote
 - **Enlaces "Cómo llegar"** (Google Maps `dir/?api=1&destination=lat,lng`) en popups y tarjetas: no eliminar
 - **Cuentas bancarias / enlaces de pago:** solo con `"verificacion": "oficial"` (publicados por la entidad) y 2 aprobaciones de mantenedores
 - **Desaparecidos:** el registro se referencia a ColombiaTeBusca (https://colombiatebusca.com); no hay registro propio ni API de reportes en este proyecto
-- **Estados operativos:** `abierto | cerrado | sin-confirmar` (acopios/albergues), `operativo | limitado | cerrado | sin-confirmar` (salud)
+- **Estados operativos:** `abierto | cerrado | sin-confirmar` (acopios/albergues), `operativo | limitado | cerrado | sin-confirmar` (salud), `activa | finalizada | sin-confirmar` (jornadas de sangre)
+- **Coordenadas:** toda entrada lleva `coordenadas_nivel` (`premisa` = edificio/POI · `via` = calle · `barrio` = centroide); antes de publicar una coordenada nueva, correr `scripts/verificar-coordenadas.mjs` y publicar solo donde coinciden ≥2 fuentes independientes (Google embed + ArcGIS + POI OSM); un pin equivocado es peor que ningún pin
+- **Redes sociales:** los posts oficiales de X se leen con `scripts/leer-redes.mjs`; Instagram/Facebook/WhatsApp requieren screenshot en `capturas/` con la URL en un `.txt`; las cuentas personales NO son fuente publicable (el gráfico oficial que difunden sí, verificado contra el original)
 - **Etiquetas de verificación:** `oficial` (entidad oficial) · `confirmado` (2+ revisores) · `sin-confirmar` (cautela)
 - El mapa es mejora progresiva: el contenido siempre se lee primero; nunca romper el fallback a lista
 

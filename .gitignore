@@ -7,3 +7,7 @@ dist/
 bun.lock
 .astro/
 .atl/
+
+# Capturas sin verificar (nunca publicar)
+capturas/*
+!capturas/README.md

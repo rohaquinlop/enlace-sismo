@@ -5,7 +5,7 @@ import MapLegend from "../components/MapLegend.astro";
 import DatosEvento from "../components/DatosEvento.astro";
 import ZonasLista from "../components/ZonasLista.astro";
 import IndiceSecciones from "../components/IndiceSecciones.astro";
-import { acopios, albergues, centrosSalud, todasLasCiudades } from "../lib/catalogs";
+import { acopios, albergues, centrosSalud, jornadasSangre, todasLasCiudades } from "../lib/catalogs";
 import { zonas } from "../lib/zonas";
 
 // Ciudades del filtro = unión de las que tienen puntos de datos y las zonas
@@ -29,7 +29,7 @@ const ciudadesFiltro = Array.from(
          (evento → zonas → secciones → leyenda). Solo cuando el mapa carga,
          .con-mapa posiciona esos bloques como overlays sobre el mapa. -->
     <section class="dash" id="mapa" aria-label="Mapa de ayuda">
-      <Map acopios={acopios} albergues={albergues} centros={centrosSalud} zonas={zonas} />
+      <Map acopios={acopios} albergues={albergues} centros={centrosSalud} jornadas={jornadasSangre} zonas={zonas} />
 
       <DatosEvento />
 
