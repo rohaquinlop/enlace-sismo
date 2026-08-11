@@ -13,7 +13,8 @@ app.post("/", async (c) => {
 
     if (contentType.includes("multipart/form-data")) {
       const formData = await c.req.formData();
-      const file = formData.get("imagen");
+      // workers-types declara get() como string | null; en runtime es File.
+      const file = formData.get("imagen") as unknown as File | null;
       if (!file || !(file instanceof File)) return c.json({ error: "No se envió imagen" }, 400);
       fileBuffer = await file.arrayBuffer();
       fileType = file.type;

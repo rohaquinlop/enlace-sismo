@@ -75,8 +75,8 @@ function base64Encode(s: string): string {
 }
 
 async function apiGithub(c: Context<Bindings>, path: string, init?: RequestInit): Promise<Response> {
-  const token = c.env.GITHUB_BOT_TOKEN;
-  if (!token) throw new RegistroError("GITHUB_BOT_TOKEN no configurado", 503);
+  const token = c.env.GITHUB_TOKEN;
+  if (!token) throw new RegistroError("GITHUB_TOKEN no configurado", 503);
   return fetch(`https://api.github.com${path}`, {    ...init,
     headers: {
       Authorization: `Bearer ${token}`,
