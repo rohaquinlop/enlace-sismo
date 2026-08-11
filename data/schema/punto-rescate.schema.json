@@ -32,5 +32,5 @@
     "reporte_id": { "type": "string", "pattern": "^p-[a-z0-9-]{6,20}$" },
     "created_at": { "type": "string", "minLength": 10 }
   },
-  "required": ["id", "nombre", "tipo", "ciudad", "lat", "lng", "direccion", "estado", "reporte_id"]
+  "required": ["id", "nombre", "tipo", "ciudad", "lat", "lng", "direccion", "coordenadas_nivel", "estado", "reporte_id"]
 }

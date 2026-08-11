@@ -8,7 +8,7 @@ import type { Bindings } from "./index";
 // Schema compartido con el repo (data/schema/reporte-punto.schema.json).
 import reportePuntoSchema from "../../data/schema/reporte-punto.schema.json";
 
-const REPO = "rohaquinlop/enlace-sismo";
+const REPO_DEFAULT = "rohaquinlop/enlace-sismo";
 const RUTA = "web/public/datos/reportes-puntos.json";
 const UA = "enlace-sismo/1.0 (https://enlacesismo.com)";
 const MAX_INTENTOS = 3;
@@ -77,8 +77,7 @@ function base64Encode(s: string): string {
 async function apiGithub(c: Context<Bindings>, path: string, init?: RequestInit): Promise<Response> {
   const token = c.env.GITHUB_BOT_TOKEN;
   if (!token) throw new RegistroError("GITHUB_BOT_TOKEN no configurado", 503);
-  return fetch(`https://api.github.com${path}`, {
-    ...init,
+  return fetch(`https://api.github.com${path}`, {    ...init,
     headers: {
       Authorization: `Bearer ${token}`,
       Accept: "application/vnd.github+json",
@@ -90,9 +89,12 @@ async function apiGithub(c: Context<Bindings>, path: string, init?: RequestInit)
   });
 }
 
+/** Repositorio destino del registro (env para deploys desde fork). */
+const repoDe = (c: Context<Bindings>): string => c.env.GITHUB_REPO ?? REPO_DEFAULT;
+
 /** Lee el registro en vivo (contenido + sha para el commit optimista). */
 export async function leerRegistro(c: Context<Bindings>): Promise<{ entradas: EntradaPunto[]; sha: string }> {
-  const res = await apiGithub(c, `/repos/${REPO}/contents/${RUTA}`);
+  const res = await apiGithub(c, `/repos/${repoDe(c)}/contents/${RUTA}`);
   if (!res.ok) throw new RegistroError(`No se pudo leer el registro (${res.status})`, 503);
   const data = (await res.json()) as { content: string; sha: string };
   let entradas: unknown;
@@ -118,14 +120,18 @@ export async function escribirRegistro(
   for (let intento = 0; intento < MAX_INTENTOS; intento++) {
     const { entradas, sha } = await leerRegistro(c);
     const nuevas = mutar(entradas);
-    if (!valida(nuevas)) {
-      const err = valida.errors?.[0];
-      throw new RegistroError(
-        `El registro resultante no valida: ${err?.instancePath ?? "/"} ${err?.message ?? "desconocido"}`,
-        503
-      );
+    // El schema es por entrada (type: object): se valida cada una, no el
+    // arreglo (espejo de validate-data.mjs).
+    for (const e of nuevas) {
+      if (!valida(e)) {
+        const err = valida.errors?.[0];
+        throw new RegistroError(
+          `El registro resultante no valida: ${err?.instancePath ?? "/"} ${err?.message ?? "desconocido"}`,
+          503
+        );
+      }
     }
-    const res = await apiGithub(c, `/repos/${REPO}/contents/${RUTA}`, {
+    const res = await apiGithub(c, `/repos/${repoDe(c)}/contents/${RUTA}`, {
       method: "PUT",
       body: JSON.stringify({
         message: "reporte: actualizar puntos de rescate en vivo",

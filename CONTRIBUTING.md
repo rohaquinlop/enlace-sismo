@@ -67,6 +67,10 @@ corregirlo o archivarlo por PR.
   verifica cercanía ≤1 km con la geolocalización del navegador; 1 confirmación por IP por
   punto). Un punto sin reconfirmación en **72 h** deja de mostrarse (la degradación se calcula
   en el cliente; el archivo conserva todo).
+- **Peso orientativo de las confirmaciones:** la API verifica la distancia entre la posición
+  DECLARADA por el cliente y el punto — no es una verificación criptográfica; cualquiera
+  puede declarar estar a ≤1 km. El conteo es un indicio, no una certificación: el estado
+  `confirmado` real lo fija un mantenedor tras verificar contra fuente.
 - **3 reportes de falso** (`flags` en la entrada) ocultan el punto del mapa; sigue visible en
   el archivo para auditoría. Un admin puede marcarlo `falso`, `resuelto` o `promovido`.
 - **Promoción a catálogo verificado:** cuando un punto se confirma contra fuente oficial,

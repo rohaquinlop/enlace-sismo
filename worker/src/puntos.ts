@@ -111,7 +111,11 @@ app.post("/", async (c) => {
   }
 
   try {
-    await escribirRegistro(c, (entradas) => [...entradas, entrada]);
+    await escribirRegistro(c, (entradas) =>
+      // Idempotente: si el PUT aplicó pero la respuesta se perdió, el retry
+      // relee el archivo con la entrada ya presente — no duplicar.
+      entradas.some((e) => e.id === entrada.id) ? entradas : [...entradas, entrada]
+    );
   } catch (e) {
     return manejarRegistroError(c, e);
   }
@@ -179,6 +183,10 @@ app.post("/:id/flag", async (c) => {
     await escribirRegistro(c, (entradas) => {
       const punto = entradas.find((p) => p.id === id);
       if (!punto) throw new RegistroError("Punto no encontrado", 404);
+      // Coherente con confirmar: los puntos cerrados no se flaggean.
+      if (!ESTADOS_ACTIVOS.includes(punto.estado)) {
+        throw new RegistroError("Este punto ya no está activo");
+      }
       if (punto.flags.some((f) => f.ip_hash === ipHash)) {
         throw new RegistroError("Ya reportaste este punto");
       }

@@ -13,6 +13,8 @@ type Env = {
   // PAT con scope contents:write — commitea el registro en vivo de puntos de
   // rescate (web/public/datos/reportes-puntos.json). Documentado en AGENTS.md.
   GITHUB_BOT_TOKEN: string;
+  // Repo destino del registro (solo para deploys desde fork; default abajo).
+  GITHUB_REPO?: string;
 };
 
 export type Bindings = { Bindings: Env };
