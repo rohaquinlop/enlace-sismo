@@ -24,20 +24,28 @@ import { acopios, todasLasCiudades } from "../lib/catalogs";
           Los acopios oficiales están siendo confirmados por alcaldías y UNGRD.
           Este es un proyecto open-source: si tienes un dato verificado, súbelo y publícalo.
         </p>
-        <a class="btn btn-primary" href="https://github.com/rohaquinlop/enlace-sismo/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener">Agregar el primer acopio (guía)</a>
+        <a class="btn btn-primary" href="/acopios/sugerir-acopio">Sugerir un punto de acopio</a>
+        <a class="btn" href="https://github.com/rohaquinlop/enlace-sismo/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener" style="margin-top:var(--space-xs)">Agregar un acopio (guía)</a>
       </div>
     ) : (
       <>
         <div class="filtros">
-          <label for="filtro-ciudad">Filtrar por ciudad:</label>
-          <select id="filtro-ciudad">
-            <option value="">Todas</option>
-            {todasLasCiudades.map((c) => <option value={c}>{c}</option>)}
-          </select>
+          <div class="filtros-controls">
+            <label for="filtro-ciudad">Filtrar por ciudad:</label>
+            <select id="filtro-ciudad">
+              <option value="">Todas</option>
+              {todasLasCiudades.map((c) => <option value={c}>{c}</option>)}
+            </select>
+            <label class="filtro-check">
+              <input type="checkbox" id="filtro-oficiales" />
+              Solo oficiales
+            </label>
+          </div>
+          <a class="btn btn-primary" href="/acopios/sugerir-acopio">Sugerir un punto de acopio</a>
         </div>
         <div class="grid" id="lista">
           {acopios.map((a) => (
-            <div class="card-item" data-ciudad={a.ciudad}>
+            <div class="card-item" data-ciudad={a.ciudad} data-verificacion={a.verificacion}>
               <CatalogCard entrada={a} tipo="acopio" />
             </div>
           ))}
@@ -49,13 +57,19 @@ import { acopios, todasLasCiudades } from "../lib/catalogs";
 
 <script>
   const select = document.getElementById("filtro-ciudad") as HTMLSelectElement | null;
-  if (select) {
-    select.addEventListener("change", () => {
-      const ciudad = select.value;
-      document.querySelectorAll<HTMLElement>(".card-item").forEach((card) => {
-        const coincide = !ciudad || card.dataset.ciudad === ciudad;
-        card.style.display = coincide ? "" : "none";
-      });
+  const checkOficiales = document.getElementById("filtro-oficiales") as HTMLInputElement | null;
+
+  function filtrar() {
+    const ciudad = select?.value ?? "";
+    const soloOficiales = checkOficiales?.checked ?? false;
+    document.querySelectorAll<HTMLElement>(".card-item").forEach((card) => {
+      const coincideCiudad = !ciudad || card.dataset.ciudad === ciudad;
+      const esOficial = card.dataset.verificacion === "oficial";
+      const coincideOficial = !soloOficiales || esOficial;
+      card.style.display = coincideCiudad && coincideOficial ? "" : "none";
     });
   }
+
+  select?.addEventListener("change", filtrar);
+  checkOficiales?.addEventListener("change", filtrar);
 </script>

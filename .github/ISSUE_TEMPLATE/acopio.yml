@@ -1,0 +1,139 @@
+name: Sugerir punto de acopio
+description: Sugiere un punto de acopio para incluir en la plataforma.
+labels:
+  - sugerencia-acopio
+  - sin-verificar
+body:
+  - type: input
+    id: nombre
+    attributes:
+      label: Nombre
+      description: Nombre del punto de acopio
+      placeholder: "Acopio Plaza Central"
+    validations:
+      required: true
+
+  - type: input
+    id: ciudad
+    attributes:
+      label: Ciudad
+      placeholder: "Bogotá"
+    validations:
+      required: true
+
+  - type: input
+    id: departamento
+    attributes:
+      label: Departamento
+      placeholder: "Cundinamarca"
+    validations:
+      required: true
+
+  - type: input
+    id: direccion
+    attributes:
+      label: Dirección
+      placeholder: "Calle 100 #15-20"
+    validations:
+      required: true
+
+  - type: input
+    id: lat
+    attributes:
+      label: Latitud
+      description: "Coordenada latitud (-90 a 90) — se detecta automáticamente"
+      placeholder: "4.6875"
+    validations:
+      required: false
+
+  - type: input
+    id: lng
+    attributes:
+      label: Longitud
+      description: "Coordenada longitud (-180 a 180) — se detecta automáticamente"
+      placeholder: "-74.0458"
+    validations:
+      required: false
+
+  - type: dropdown
+    id: tipo
+    attributes:
+      label: Tipo de acopio
+      options:
+        - no-oficial
+        - oficial-comunal
+        - oficial-gobierno
+    validations:
+      required: true
+
+  - type: input
+    id: horario
+    attributes:
+      label: Horario
+      description: "Horario de atención (opcional)"
+      placeholder: "Lunes a sábado 8am - 6pm"
+    validations:
+      required: false
+
+  - type: input
+    id: necesidades
+    attributes:
+      label: Necesidades
+      description: "Qué se necesita recibir (separar con comas)"
+      placeholder: "alimentos-no-perecederos, agua, ropa"
+    validations:
+      required: false
+
+  - type: textarea
+    id: detalles
+    attributes:
+      label: Detalles
+      description: "Información adicional: tipo de medicamentos, restricciones, instrucciones especiales"
+      placeholder: "Se reciben analgésicos y antiinflamatorios. No se reciben medicamentos controlados."
+    validations:
+      required: false
+
+  - type: input
+    id: fecha_limite
+    attributes:
+      label: Fecha límite de recolección
+      description: "Fecha hasta la cual se reciben donaciones"
+      placeholder: "2026-08-30"
+    validations:
+      required: false
+
+  - type: input
+    id: evidencia_links
+    attributes:
+      label: Links de evidencia
+      description: "URLs que verifican la autenticidad (separar con comas)"
+      placeholder: "https://twitter.com/alcaldia/status/..."
+    validations:
+      required: false
+
+  - type: input
+    id: imagen_url
+    attributes:
+      label: URL de imagen
+      description: "Link a una foto del punto de acopio"
+      placeholder: "https://..."
+    validations:
+      required: false
+
+  - type: input
+    id: contacto
+    attributes:
+      label: Contacto
+      description: "Teléfono, email o ambos (opcional)"
+      placeholder: "(601) 555-1234"
+    validations:
+      required: false
+
+  - type: input
+    id: fuente
+    attributes:
+      label: Fuente
+      description: "URL de la fuente oficial que confirma este acopio (opcional)"
+      placeholder: "https://www.alcaldia.gov.co/comunicado"
+    validations:
+      required: false
