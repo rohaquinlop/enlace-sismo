@@ -35,6 +35,11 @@ datos legibles en segundos, cero metáforas editoriales.
 - `--color-focus`     oklch(54%   0.19  256)
 - `--color-graphite`  oklch(22%   0.016 260)  (la única franja oscura por página)
 
+Semánticos de datos (viven en `tokens.css`, nunca como acento — el acento es
+solo cobalto): `--color-error` · `--color-ok` · `--color-sangre` ·
+`--color-rescate` (violeta 290, fuera de la rama Mercalli) · rama `--mercalli-*`
+(intensidad sísmica I–XII).
+
 Sin `#fff` puro, sin `#000`. Sin serif en ninguna parte.
 
 ## Typography

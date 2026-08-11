@@ -49,6 +49,57 @@ worker/        API (Hono, Cloudflare Workers, D1)
 .github/       CI, despliegue automático y procesamiento de sugerencias
 ```
 
+## Puntos de rescate (registro en vivo)
+
+La plataforma permite al público reportar puntos donde se necesita ayuda (derrumbe,
+deslizamiento, rescate en curso) con **ubicación exacta** y **necesidades**, desde `/reportar`.
+
+**Cómo funciona:** el formulario envía a `POST /api/puntos`; el worker valida, geocodifica
+(Nominatim con caché KV) y commitea la entrada a `web/public/datos/reportes-puntos.json` con
+un token de bot (`GITHUB_BOT_TOKEN`, PAT con scope `contents:write`). El push a main dispara
+el deploy Pages (~1-3 min) y el punto aparece en el mapa y en la pestaña Rescates del
+dashboard. No hay D1 nuevo: el archivo ES el registro, y cualquier contribuidor puede verlo,
+corregirlo o archivarlo por PR.
+
+**Estados y ciclo de vida:**
+
+- Un reporte nace `sin-confirmar`. Cualquiera puede **confirmarlo desde el lugar** (la API
+  verifica cercanía ≤1 km con la geolocalización del navegador; 1 confirmación por IP por
+  punto). Un punto sin reconfirmación en **72 h** deja de mostrarse (la degradación se calcula
+  en el cliente; el archivo conserva todo).
+- **3 reportes de falso** (`flags` en la entrada) ocultan el punto del mapa; sigue visible en
+  el archivo para auditoría. Un admin puede marcarlo `falso`, `resuelto` o `promovido`.
+- **Promoción a catálogo verificado:** cuando un punto se confirma contra fuente oficial,
+  cópialo a `data/puntos-rescate.json` con `fuente`, `verificado_por`, `fecha_verificacion`
+  y `reporte_id` (regla de oro; CI lo exige), abre el PR y, al fusionar, marca la entrada
+  original `promovido` (deja de mostrarse en vivo). El punto verificado sobrevive a una API
+  caída porque se renderiza desde el build.
+
+**Secreto requerido:** `GITHUB_BOT_TOKEN` (PAT con scope `contents:write` sobre el repo) como
+secreto del worker:
+
+```bash
+cd worker && npx wrangler secret put GITHUB_BOT_TOKEN
+```
+
+Nota: si `main` tiene branch protection, el token necesita bypass para pushear.
+
+### Ciudades con reportes ciudadanos
+
+Cada reporte guarda la `ciudad` derivada del geocoder (normalizada: "Cali ciudad" → "Cali").
+Las ciudades sin presencia en `zonas-afectadas.json` aparecen al instante en el select de
+ciudad, en el mapa como marcador neutral ("Sin reporte de intensidad") y en la sección
+"Ciudades con reportes ciudadanos" del panel Zonas — **sin tocar el catálogo SGC**.
+
+Cuando una ciudad reportada se confirma contra fuente oficial (SGC, UNGRD, alcaldía):
+
+1. Añádela a `data/zonas-afectadas.json` con `fuente`, `verificado_por` y
+   `fecha_verificacion` (regla de oro) y `detalle: "Sismo sentido"`.
+2. `intensidad` Mercalli SOLO si la fuente la reporta (spec `zonas-intensidad.md`);
+   sin ella, la ciudad se dibuja neutral como las demás sin reporte.
+3. Abre el PR; al fusionar, el dashboard deduplica por nombre normalizado y la ciudad
+   deja de listarse como "reportada" para pasar a zona SGC.
+
 ## Sugerencias de centros de salud
 
 La plataforma permite al público sugerir centros de salud mediante un formulario web.

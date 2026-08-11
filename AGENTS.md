@@ -49,7 +49,11 @@ enlace-sismo/
 │   └── public/              # sw.js (PWA offline, cache v3), _redirects
 ├── worker/                  # API Hono
 │   ├── src/index.ts         # alertas, reportes + rate limits
-│   └── migrations/001_init.sql
+│   ├── src/puntos.ts        # Puntos de rescate (registro en vivo): crear/confirmar/flag/estado
+│   ├── src/github.ts        # Escritura del registro en vivo (GitHub como almacén, retry 409)
+│   ├── src/geocodificar.ts  # Nominatim forward/reverse con caché KV
+│   ├── src/geo.ts           # Haversine (copia de web/src/lib/geo.ts)
+│   └── migrations/          # 001_init.sql, 002_eliminar_desaparecidos.sql
 ├── .sdd/                   # Cambios spec-driven
 │   ├── changes/             # Activos (propose → apply)
 │   ├── archive/             # Completados (proposal + design + tasks como registro)
@@ -89,6 +93,9 @@ npm run validate:data   # Ajv contra data/schema/* + reglas especiales
 ```bash
 # Una vez: crear D1 y KV, copiar ids a worker/wrangler.toml
 cd worker && npx wrangler d1 migrations apply enlace-sismo --local|--remote
+# Secretos del worker: ADMIN_TOKEN, GITHUB_TOKEN (issues) y GITHUB_BOT_TOKEN
+# (PAT contents:write — commitea el registro en vivo de puntos de rescate)
+cd worker && npx wrangler secret put GITHUB_BOT_TOKEN
 # Luego: push a main → GitHub Actions despliega
 ```
 
@@ -120,7 +127,7 @@ cd worker && npx wrangler d1 migrations apply enlace-sismo --local|--remote
 - `web/src/components/ZonasLista.astro` — filas con dot de intensidad Mercalli real, escala I–XII de referencia, chevron, `aria-pressed`; el rail filtra por las casillas de la tira y ordena por distancia con "Cerca de mí"
 - `web/public/_redirects` — `/mapa` → `/#mapa` (301, Cloudflare Pages)
 - `web/public/sw.js` — PWA offline; el `APP_SHELL` NO debe listar páginas borradas (rompe el install)
-- `worker/src/index.ts` — API; `ADMIN_TOKEN` (secreto) para publicar alertas oficiales
+- `worker/src/index.ts` — API; `ADMIN_TOKEN` (secreto) para publicar alertas oficiales; `GITHUB_BOT_TOKEN` (PAT `contents:write`) commitea `web/public/datos/reportes-puntos.json`
 - `CONTRIBUTING.md` — protocolo completo de verificación por PRs
 
 ## Conventions
