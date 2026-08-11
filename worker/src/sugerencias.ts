@@ -3,13 +3,20 @@ import { rateLimit, type Bindings } from "./index";
 
 const app = new Hono<Bindings>();
 
+// Valores de usuario dentro de la tabla Markdown del issue: escapar pipes y
+// saltos de línea para no romper filas ni secciones (GitHub no sanea el
+// Markdown de la tabla, solo el HTML).
+const md = (s: string) => s.replace(/\|/g, "\\|").replace(/\r?\n/g, " ").trim();
+
+
 interface SugerenciaSaludBody {
   nombre: string;
   ciudad: string;
   departamento: string;
   direccion: string;
-  lat?: number;
-  lng?: number;
+  lat: number;
+  lng: number;
+  coordenadas_nivel: "premisa" | "via" | "barrio";
   tipo: "hospital" | "clinica" | "punto-primeros-auxilios" | "puesto-vacunacion";
   estado: "operativo" | "limitado" | "cerrado" | "sin-confirmar";
   urgencias_24h?: boolean;
@@ -28,15 +35,17 @@ app.post("/salud", async (c) => {
     return c.json({ error: "Demasiadas sugerencias. Intenta en una hora." }, 429);
   }
 
-  const { nombre, ciudad, departamento, direccion, lat, lng, tipo, estado, urgencias_24h, contacto, fuente } =
+  const { nombre, ciudad, departamento, direccion, lat, lng, coordenadas_nivel, tipo, estado, urgencias_24h, contacto, fuente } =
     body as SugerenciaSaludBody;
 
   if (!nombre || String(nombre).length < 3) return c.json({ error: "nombre es obligatorio (mínimo 3 caracteres)" }, 400);
   if (!ciudad || String(ciudad).length < 2) return c.json({ error: "ciudad es obligatoria (mínimo 2 caracteres)" }, 400);
   if (!departamento || String(departamento).length < 2) return c.json({ error: "departamento es obligatorio (mínimo 2 caracteres)" }, 400);
   if (!direccion || String(direccion).length < 5) return c.json({ error: "dirección es obligatoria (mínimo 5 caracteres)" }, 400);
-  if (lat != null && (typeof lat !== "number" || lat < -90 || lat > 90)) return c.json({ error: "lat debe estar entre -90 y 90" }, 400);
-  if (lng != null && (typeof lng !== "number" || lng < -180 || lng > 180)) return c.json({ error: "lng debe estar entre -180 y 180" }, 400);
+  if (lat == null || typeof lat !== "number" || lat < -90 || lat > 90) return c.json({ error: "lat es obligatoria (entre -90 y 90)" }, 400);
+  if (lng == null || typeof lng !== "number" || lng < -180 || lng > 180) return c.json({ error: "lng es obligatoria (entre -180 y 180)" }, 400);
+  const NIVELES = ["premisa", "via", "barrio"];
+  if (!coordenadas_nivel || !NIVELES.includes(coordenadas_nivel)) return c.json({ error: "coordenadas_nivel es obligatorio (premisa/via/barrio)" }, 400);
 
   const TIPOS = ["hospital", "clinica", "punto-primeros-auxilios", "puesto-vacunacion"];
   if (!tipo || !TIPOS.includes(tipo)) return c.json({ error: "tipo inválido" }, 400);
@@ -45,13 +54,14 @@ app.post("/salud", async (c) => {
   if (estado && !ESTADOS.includes(estado)) return c.json({ error: "estado inválido" }, 400);
   if (!fuente || !/^https?:\/\//.test(fuente)) return c.json({ error: "fuente debe ser una URL válida" }, 400);
 
-  const sNombre = String(nombre).slice(0, 200);
-  const sCiudad = String(ciudad).slice(0, 80);
-  const sDepto = String(departamento).slice(0, 80);
-  const sDir = String(direccion).slice(0, 300);
-  const sContacto = contacto ? String(contacto).slice(0, 200) : undefined;
-  const sFuente = String(fuente).slice(0, 500);
+  const sNombre = md(String(nombre).slice(0, 200));
+  const sCiudad = md(String(ciudad).slice(0, 80));
+  const sDepto = md(String(departamento).slice(0, 80));
+  const sDir = md(String(direccion).slice(0, 300));
+  const sContacto = contacto ? md(String(contacto).slice(0, 200)) : undefined;
+  const sFuente = md(String(fuente).slice(0, 500));
   const sEstado = estado && ESTADOS.includes(estado) ? estado : "sin-confirmar";
+  const sNivel = String(coordenadas_nivel);
   const ip = c.req.header("cf-connecting-ip") ?? "local-dev";
   const ahora = new Date().toISOString();
 
@@ -68,13 +78,14 @@ app.post("/salud", async (c) => {
     `| **Ciudad** | ${sCiudad} |`,
     `| **Departamento** | ${sDepto} |`,
     `| **Dirección** | ${sDir} |`,
-    `| **Latitud** | ${lat ?? "no proporcionada"} |`,
-    `| **Longitud** | ${lng ?? "no proporcionada"} |`,
+    `| **Latitud** | ${lat} |`,
+    `| **Longitud** | ${lng} |`,
+    `| **Nivel de precisión** | ${sNivel} |`,
     `| **Tipo** | ${tipo} |`,
     `| **Estado** | ${sEstado} |`,
     `| **Urgencias 24h** | ${urgencias_24h ? "Sí" : "No"} |`,
     `| **Contacto** | ${sContacto || "no proporcionado"} |`,
-    `| **Fuente** | [${sFuente}](${sFuente}) |`,
+    `| **Fuente** | [${sFuente}](<${sFuente}>) |`,
     ``,
     `---`,
     `*Enviado por: ${ip} — ${ahora}*`,
@@ -122,8 +133,9 @@ interface SugerenciaAlbergueBody {
   ciudad: string;
   departamento: string;
   direccion: string;
-  lat?: number;
-  lng?: number;
+  lat: number;
+  lng: number;
+  coordenadas_nivel: "premisa" | "via" | "barrio";
   capacidad?: number;
   ocupacion?: number;
   admite_mascotas?: boolean;
@@ -144,15 +156,17 @@ app.post("/albergues", async (c) => {
     return c.json({ error: "Demasiadas sugerencias. Intenta en una hora." }, 429);
   }
 
-  const { nombre, ciudad, departamento, direccion, lat, lng, capacidad, ocupacion, admite_mascotas, servicios, estado, contacto, fuente } =
+  const { nombre, ciudad, departamento, direccion, lat, lng, coordenadas_nivel, capacidad, ocupacion, admite_mascotas, servicios, estado, contacto, fuente } =
     body as SugerenciaAlbergueBody;
 
   if (!nombre || String(nombre).length < 3) return c.json({ error: "nombre es obligatorio (mínimo 3 caracteres)" }, 400);
   if (!ciudad || String(ciudad).length < 2) return c.json({ error: "ciudad es obligatoria (mínimo 2 caracteres)" }, 400);
   if (!departamento || String(departamento).length < 2) return c.json({ error: "departamento es obligatorio (mínimo 2 caracteres)" }, 400);
   if (!direccion || String(direccion).length < 5) return c.json({ error: "dirección es obligatoria (mínimo 5 caracteres)" }, 400);
-  if (lat != null && (typeof lat !== "number" || lat < -90 || lat > 90)) return c.json({ error: "lat debe estar entre -90 y 90" }, 400);
-  if (lng != null && (typeof lng !== "number" || lng < -180 || lng > 180)) return c.json({ error: "lng debe estar entre -180 y 180" }, 400);
+  if (lat == null || typeof lat !== "number" || lat < -90 || lat > 90) return c.json({ error: "lat es obligatoria (entre -90 y 90)" }, 400);
+  if (lng == null || typeof lng !== "number" || lng < -180 || lng > 180) return c.json({ error: "lng es obligatoria (entre -180 y 180)" }, 400);
+  const NIVELES = ["premisa", "via", "barrio"];
+  if (!coordenadas_nivel || !NIVELES.includes(coordenadas_nivel)) return c.json({ error: "coordenadas_nivel es obligatorio (premisa/via/barrio)" }, 400);
   if (capacidad != null && (typeof capacidad !== "number" || capacidad < 1 || !Number.isInteger(capacidad))) return c.json({ error: "capacidad debe ser un entero mayor a 0" }, 400);
   if (ocupacion != null && (typeof ocupacion !== "number" || ocupacion < 0 || !Number.isInteger(ocupacion))) return c.json({ error: "ocupación debe ser un entero mayor o igual a 0" }, 400);
   if (servicios != null && !Array.isArray(servicios)) return c.json({ error: "servicios debe ser un arreglo" }, 400);
@@ -161,14 +175,15 @@ app.post("/albergues", async (c) => {
   if (estado && !ESTADOS.includes(estado)) return c.json({ error: "estado inválido" }, 400);
   if (!fuente || !/^https?:\/\//.test(fuente)) return c.json({ error: "fuente debe ser una URL válida" }, 400);
 
-  const sNombre = String(nombre).slice(0, 200);
-  const sCiudad = String(ciudad).slice(0, 80);
-  const sDepto = String(departamento).slice(0, 80);
-  const sDir = String(direccion).slice(0, 300);
-  const sContacto = contacto ? String(contacto).slice(0, 200) : undefined;
-  const sFuente = String(fuente).slice(0, 500);
+  const sNombre = md(String(nombre).slice(0, 200));
+  const sCiudad = md(String(ciudad).slice(0, 80));
+  const sDepto = md(String(departamento).slice(0, 80));
+  const sDir = md(String(direccion).slice(0, 300));
+  const sContacto = contacto ? md(String(contacto).slice(0, 200)) : undefined;
+  const sFuente = md(String(fuente).slice(0, 500));
   const sEstado = estado && ESTADOS.includes(estado) ? estado : "sin-confirmar";
-  const sServicios = servicios ? servicios.map((s) => String(s).slice(0, 100)).slice(0, 20) : [];
+  const sNivel = String(coordenadas_nivel);
+  const sServicios = servicios ? servicios.map((s) => md(String(s).slice(0, 100))).slice(0, 20) : [];
   const ip = c.req.header("cf-connecting-ip") ?? "local-dev";
   const ahora = new Date().toISOString();
 
@@ -185,15 +200,16 @@ app.post("/albergues", async (c) => {
     `| **Ciudad** | ${sCiudad} |`,
     `| **Departamento** | ${sDepto} |`,
     `| **Dirección** | ${sDir} |`,
-    `| **Latitud** | ${lat ?? "no proporcionada"} |`,
-    `| **Longitud** | ${lng ?? "no proporcionada"} |`,
+    `| **Latitud** | ${lat} |`,
+    `| **Longitud** | ${lng} |`,
+    `| **Nivel de precisión** | ${sNivel} |`,
     `| **Capacidad** | ${capacidad ?? "no proporcionada"} |`,
     `| **Ocupación** | ${ocupacion ?? "no proporcionada"} |`,
     `| **Admite mascotas** | ${admite_mascotas == null ? "no indicado" : admite_mascotas ? "Sí" : "No"} |`,
     `| **Servicios** | ${sServicios.length ? sServicios.join(", ") : "no indicados"} |`,
     `| **Estado** | ${sEstado} |`,
     `| **Contacto** | ${sContacto || "no proporcionado"} |`,
-    `| **Fuente** | [${sFuente}](${sFuente}) |`,
+    `| **Fuente** | [${sFuente}](<${sFuente}>) |`,
     ``,
     `---`,
     `*Enviado por: ${ip} — ${ahora}*`,
@@ -241,8 +257,9 @@ interface SugerenciaAcopioBody {
   ciudad: string;
   departamento: string;
   direccion: string;
-  lat?: number;
-  lng?: number;
+  lat: number;
+  lng: number;
+  coordenadas_nivel: "premisa" | "via" | "barrio";
   tipo?: "oficial-comunal" | "oficial-gobierno" | "no-oficial";
   horario?: string;
   necesidades?: string[];
@@ -267,7 +284,7 @@ app.post("/acopio", async (c) => {
   }
 
   const {
-    nombre, ciudad, departamento, direccion, lat, lng, tipo,
+    nombre, ciudad, departamento, direccion, lat, lng, coordenadas_nivel, tipo,
     horario, necesidades, detalles, estado, contacto, fecha_limite,
     evidencia_links, imagen_url, fuente,
   } = body as SugerenciaAcopioBody;
@@ -276,18 +293,21 @@ app.post("/acopio", async (c) => {
   if (!ciudad || String(ciudad).length < 2) return c.json({ error: "ciudad es obligatoria (mínimo 2 caracteres)" }, 400);
   if (!departamento || String(departamento).length < 2) return c.json({ error: "departamento es obligatorio (mínimo 2 caracteres)" }, 400);
   if (!direccion || String(direccion).length < 5) return c.json({ error: "dirección es obligatoria (mínimo 5 caracteres)" }, 400);
-  if (lat != null && (typeof lat !== "number" || lat < -90 || lat > 90)) return c.json({ error: "lat debe estar entre -90 y 90" }, 400);
-  if (lng != null && (typeof lng !== "number" || lng < -180 || lng > 180)) return c.json({ error: "lng debe estar entre -180 y 180" }, 400);
+  if (lat == null || typeof lat !== "number" || lat < -90 || lat > 90) return c.json({ error: "lat es obligatoria (entre -90 y 90)" }, 400);
+  if (lng == null || typeof lng !== "number" || lng < -180 || lng > 180) return c.json({ error: "lng es obligatoria (entre -180 y 180)" }, 400);
+  const NIVELES = ["premisa", "via", "barrio"];
+  if (!coordenadas_nivel || !NIVELES.includes(coordenadas_nivel)) return c.json({ error: "coordenadas_nivel es obligatorio (premisa/via/barrio)" }, 400);
   if (fuente && !/^https?:\/\//.test(fuente)) return c.json({ error: "fuente debe ser una URL válida" }, 400);
 
-  const sNombre = String(nombre).slice(0, 200);
-  const sCiudad = String(ciudad).slice(0, 80);
-  const sDepto = String(departamento).slice(0, 80);
-  const sDir = String(direccion).slice(0, 300);
-  const sContacto = contacto ? String(contacto).slice(0, 200) : undefined;
-  const sHorario = horario ? String(horario).slice(0, 200) : undefined;
-  const sDetalles = detalles ? String(detalles).slice(0, 1000) : undefined;
-  const sFuente = fuente ? String(fuente).slice(0, 500) : undefined;
+  const sNombre = md(String(nombre).slice(0, 200));
+  const sCiudad = md(String(ciudad).slice(0, 80));
+  const sDepto = md(String(departamento).slice(0, 80));
+  const sDir = md(String(direccion).slice(0, 300));
+  const sContacto = contacto ? md(String(contacto).slice(0, 200)) : undefined;
+  const sNivel = String(coordenadas_nivel);
+  const sHorario = horario ? md(String(horario).slice(0, 200)) : undefined;
+  const sDetalles = detalles ? md(String(detalles).slice(0, 1000)) : undefined;
+  const sFuente = fuente ? md(String(fuente).slice(0, 500)) : undefined;
   const sEstado = estado || "sin-confirmar";
   const sTipo = tipo || "no-oficial";
   const ip = c.req.header("cf-connecting-ip") ?? "local-dev";
@@ -306,7 +326,7 @@ app.post("/acopio", async (c) => {
     : "no especificadas";
 
   const evidenciaStr = evidencia_links?.length
-    ? evidencia_links.map((l) => `[${l}](${l})`).join(", ")
+    ? evidencia_links.map((l) => `[${l}](<${l}>)`).join(", ")
     : "no proporcionada";
 
   const issueBody = [
@@ -322,8 +342,9 @@ app.post("/acopio", async (c) => {
     `| **Ciudad** | ${sCiudad} |`,
     `| **Departamento** | ${sDepto} |`,
     `| **Dirección** | ${sDir} |`,
-    `| **Latitud** | ${lat ?? "no proporcionada"} |`,
-    `| **Longitud** | ${lng ?? "no proporcionada"} |`,
+    `| **Latitud** | ${lat} |`,
+    `| **Longitud** | ${lng} |`,
+    `| **Nivel de precisión** | ${sNivel} |`,
     `| **Tipo** | ${sTipo} |`,
     `| **Estado** | ${sEstado} |`,
     `| **Horario** | ${sHorario || "no especificado"} |`,
@@ -333,7 +354,7 @@ app.post("/acopio", async (c) => {
     `| **Fecha límite** | ${fecha_limite || "no especificada"} |`,
     `| **Evidencia** | ${evidenciaStr} |`,
     `| **Imagen** | ${imagen_url ? `[Ver imagen](${imagen_url})` : "no proporcionada"} |`,
-    `| **Fuente** | ${sFuente ? `[${sFuente}](${sFuente})` : "no proporcionada"} |`,
+    `| **Fuente** | ${sFuente ? `[${sFuente}](<${sFuente}>)` : "no proporcionada"} |`,
     ``,
     `---`,
     `*Enviado por: ${ip} — ${ahora}*`,

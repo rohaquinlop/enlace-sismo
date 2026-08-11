@@ -62,10 +62,18 @@ app.post("/", async (c) => {
   }
   const nivelPin = coordenadasNivel as "premisa" | "via" | "barrio";
 
-  const lat = Number(body.lat);
-  const lng = Number(body.lng);
-  if (!Number.isFinite(lat) || lat < -90 || lat > 90) return c.json({ error: "lat debe estar entre -90 y 90" }, 400);
-  if (!Number.isFinite(lng) || lng < -180 || lng > 180) return c.json({ error: "lng debe estar entre -180 y 180" }, 400);
+  const latRaw = body.lat;
+  const lngRaw = body.lng;
+  // Estricto: rechaza "", null y no-números (Number("") === 0 habría
+  // aceptado un punto en el Atlántico). El formulario siempre envía números.
+  if (typeof latRaw !== "number" || !Number.isFinite(latRaw) || latRaw < -90 || latRaw > 90) {
+    return c.json({ error: "lat debe ser un número entre -90 y 90" }, 400);
+  }
+  if (typeof lngRaw !== "number" || !Number.isFinite(lngRaw) || lngRaw < -180 || lngRaw > 180) {
+    return c.json({ error: "lng debe ser un número entre -180 y 180" }, 400);
+  }
+  const lat = latRaw;
+  const lng = lngRaw;
 
   const necesidades = Array.isArray(body.necesidades) ? body.necesidades.map(String) : [];
   for (const n of necesidades) {
@@ -76,6 +84,9 @@ app.post("/", async (c) => {
   }
 
   const descripcion = String(body.descripcion ?? "").slice(0, MAX_DESCRIPCION);
+  // Dirección exacta del reportante (respaldo del pin, editable). Si no viene,
+  // la pone el reverse geocode del servidor.
+  const direccion = body.direccion ? String(body.direccion).slice(0, 300) : undefined;
   const otrasNecesidades = String(body.otras_necesidades ?? "").slice(0, 300);
   const contacto = body.contacto ? String(body.contacto).slice(0, 200) : undefined;
 
@@ -100,11 +111,13 @@ app.post("/", async (c) => {
   };
   if (otrasNecesidades) entrada.otras_necesidades = otrasNecesidades;
   if (contacto) entrada.contacto = contacto;
-  // Reverse geocode con fallback: lat/lng son la fuente de verdad. La ciudad
-  // se guarda normalizada y es opcional (el filtro la usa; sin ella, el punto
-  // se oculta bajo un filtro de ciudad activo).
+  // Reverse geocode con fallback: lat/lng son la fuente de verdad. La dirección
+  // del reportante (si la envió) tiene prioridad; la ciudad se guarda normalizada
+  // y es opcional (el filtro la usa; sin ella, el punto se oculta bajo un filtro
+  // de ciudad activo).
   const rev = await reverseGeocode(c, lat, lng);
-  if (rev.direccion) entrada.direccion = rev.direccion;
+  const dir = direccion ?? rev.direccion ?? undefined;
+  if (dir) entrada.direccion = dir;
   if (rev.ciudad) {
     const ciudad = normalizarCiudad(rev.ciudad);
     if (ciudad) entrada.ciudad = ciudad;
