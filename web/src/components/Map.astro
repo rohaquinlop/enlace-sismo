@@ -1,8 +1,10 @@
 ---
 import type { Acopio, Albergue, CentroSalud, JornadaSangre } from "../lib/catalogs";
 import type { Zona } from "../lib/zonas";
+import type { PuntoVerificado } from "../lib/puntos-rescate";
+import type { CiudadReportada } from "../lib/ciudades";
 import evento from "../../../data/evento.json";
-import { haversineKm, formatearDistancia } from "../lib/geo";
+import { haversineKm } from "../lib/geo";
 
 interface Props {
   acopios: Acopio[];
@@ -10,9 +12,11 @@ interface Props {
   centros: CentroSalud[];
   jornadas?: JornadaSangre[];
   zonas?: Zona[];
+  puntosRescate?: PuntoVerificado[];
+  ciudadesReportadas?: CiudadReportada[];
 }
 
-const { acopios, albergues, centros, jornadas = [], zonas = [] } = Astro.props;
+const { acopios, albergues, centros, jornadas = [], zonas = [], puntosRescate = [], ciudadesReportadas = [] } = Astro.props;
 
 type Punto = {
   id: string;
@@ -65,12 +69,17 @@ const zonasJson = JSON.stringify(zonasConDistancia);
 const eventoJson = JSON.stringify({ fecha: evento.fecha.slice(0, 10) });
 ---
 
-<div class="mapa-full" id="mapa-libre" data-puntos={puntosJson} data-zonas={zonasJson} data-evento={eventoJson}></div>
+<div class="mapa-full" id="mapa-libre" data-puntos={puntosJson} data-zonas={zonasJson} data-evento={eventoJson} data-rescates={JSON.stringify(puntosRescate)} data-ciudades-reportadas={JSON.stringify(ciudadesReportadas)}></div>
 
 <script>
   import maplibre from "maplibre-gl";
   import "maplibre-gl/dist/maplibre-gl.css";
   import { oklchAHex } from "../lib/color";
+  import { haversineKm, formatearDistancia } from "../lib/geo";
+  import { puntoActivo, type PuntoVivo } from "../lib/puntos-rescate";
+  import { agruparCiudades, type CiudadReportada } from "../lib/ciudades";
+  import { etiquetaTipo, etiquetaNecesidad, ESTADOS_PUNTO, PRECISION_CORTA, type PrecisionPin } from "../lib/necesidades";
+  import type { PuntoVerificado } from "../lib/puntos-rescate";
 
   type Punto = {
     id: string;
@@ -97,8 +106,59 @@ const eventoJson = JSON.stringify({ fecha: evento.fecha.slice(0, 10) });
     distEpicentroKm: number;
   };
 
+  // Ciudades reportadas (marcador neutral agrupado, familia de zonas)
+  type PuntoCiudadMap = {
+    id: string;
+    etiqueta: string;
+    lat: number;
+    lng: number;
+    necesidades: string[];
+    confirmaciones: number;
+    estado: string;
+  };
+  type CiudadReportadaMap = {
+    nombre: string;
+    lat: number;
+    lng: number;
+    puntos: PuntoCiudadMap[];
+  };
+
+  const aCiudadMap = (c: CiudadReportada): CiudadReportadaMap => ({
+    nombre: c.nombre,
+    lat: c.lat,
+    lng: c.lng,
+    puntos: c.puntos.map((p) => ({
+      id: p.id,
+      etiqueta: `${etiquetaTipo(p.tipo)}${p.direccion ? ` — ${p.direccion}` : ""}`,
+      lat: p.lat,
+      lng: p.lng,
+      necesidades: p.necesidades,
+      confirmaciones: p.confirmaciones.length,
+      estado: p.estado,
+    })),
+  });
+  type PuntoRescateMap = {
+    id: string;
+    nombre: string;
+    lat: number;
+    lng: number;
+    estado: string;
+    coordenadas_nivel?: PrecisionPin;
+    ciudad: string;
+    direccion: string;
+    descripcion: string;
+    necesidades: string[];
+    otras_necesidades: string;
+    contacto: string;
+    confirmaciones: number;
+    flags: number;
+    creado: string;
+    fuente: string;
+    reporte_id: string;
+  };
+
   const el = document.getElementById("mapa-libre") as HTMLDivElement;
-  const contenedor = el.closest(".dash");
+  const contenedor = el.closest<HTMLElement>(".dash");
 
   // El rail se posiciona bajo la barra de evento. Se mide en runtime para no
   // depender de cálculos frágiles (zoom de fuente, contenido dinámico como
@@ -174,6 +234,7 @@ const eventoJson = JSON.stringify({ fecha: evento.fecha.slice(0, 10) });
       albergue: cssVar("--color-ok", "#2f7d4f"),
       salud: cssVar("--color-error", "#9e2a1d"),
       sangre: cssVar("--color-sangre", "#e40095"),
+      rescate: cssVar("--color-rescate", "#6647c0"),
       neutral: cssVar("--color-neutral", "#6b7280"),
       geo: cssVar("--color-geo", "#2563eb"),
     };
@@ -200,6 +261,40 @@ const eventoJson = JSON.stringify({ fecha: evento.fecha.slice(0, 10) });
     const zonas: Zona[] = JSON.parse(el.dataset.zonas ?? "[]");
     const { fecha } = JSON.parse(el.dataset.evento ?? "{}") as { fecha?: string };
     const epicentro = zonas.find((z) => z.tipo === "epicentro") ?? null;
+
+    // Puntos de rescate verificados (catálogo, SSG). Los resueltos no se
+    // dibujan: el mapa muestra ayuda activa.
+    const rescatesVerificados: PuntoRescateMap[] = (
+      JSON.parse(el.dataset.rescates ?? "[]") as PuntoVerificado[]
+    )
+      .filter((v) => v.estado !== "resuelto")
+      .map((v) => ({
+        id: v.id,
+        nombre: v.nombre,
+        lat: v.lat,
+        lng: v.lng,
+        estado: v.estado,
+        coordenadas_nivel: v.coordenadas_nivel ?? "via",
+        ciudad: v.ciudad ?? "",
+        direccion: v.direccion,
+        descripcion: v.descripcion ?? "",
+        necesidades: v.necesidades ?? [],
+        otras_necesidades: v.otras_necesidades ?? "",
+        contacto: v.contacto ?? "",
+        confirmaciones: 0,
+        flags: 0,
+        creado: v.created_at ?? "",
+        fuente: v.fuente,
+        reporte_id: v.reporte_id ?? "",
+      }));
+    let rescates: PuntoRescateMap[] = rescatesVerificados;
+
+    // Ciudades reportadas: dataset SSG (dedupe contra el catálogo ya hecho en
+    // el build); el fetch del archivo en vivo las regenera en runtime.
+    const ciudadesReportadasIniciales: CiudadReportadaMap[] = (
+      JSON.parse(el.dataset.ciudadesReportadas ?? "[]") as CiudadReportada[]
+    ).map(aCiudadMap);
+    let ciudadesReportadasMap: CiudadReportadaMap[] = ciudadesReportadasIniciales;
 
     // Rama Mercalli desde tokens; sin intensidad → neutral.
     const colorIntensidad = (i: number | undefined) =>
@@ -253,6 +348,28 @@ const eventoJson = JSON.stringify({ fecha: evento.fecha.slice(0, 10) });
             color: colorIntensidad(z.intensidad),
             radio: radioIntensidad(z.intensidad),
           },
+        })),
+      };
+    }
+
+    function featureCollectionRescates(lista: PuntoRescateMap[]) {
+      return {
+        type: "FeatureCollection" as const,
+        features: lista.map((p) => ({
+          type: "Feature" as const,
+          geometry: { type: "Point" as const, coordinates: [p.lng, p.lat] },
+          properties: { ...p, color: COLORS.rescate },
+        })),
+      };
+    }
+
+    function featureCollectionCiudades(lista: CiudadReportadaMap[]) {
+      return {
+        type: "FeatureCollection" as const,
+        features: lista.map((c) => ({
+          type: "Feature" as const,
+          geometry: { type: "Point" as const, coordinates: [c.lng, c.lat] },
+          properties: { ...c, color: COLORS.neutral },
         })),
       };
     }
@@ -360,7 +477,78 @@ const eventoJson = JSON.stringify({ fecha: evento.fecha.slice(0, 10) });
       }
       if (visibles.has("epicentro")) arrancarOnda();
       else detenerOnda();
+      // Puntos de rescate: la capa sigue SOLO al chip (el filtro de ciudad no
+      // aplica: los reportes en vivo no tienen ciudad).
+      const rescatesVisibles = visibles.has("rescates");
+      for (const idLayer of ["rescates-circulo", "rescates-texto"]) {
+        if (map.getLayer(idLayer)) {
+          map.setLayoutProperty(idLayer, "visibility", rescatesVisibles ? "visible" : "none");
+        }
+      }
+      // Ciudades reportadas: familia de zonas (chip "Zonas")
+      for (const idLayer of ["ciudades-reportadas-circulo", "ciudades-reportadas-texto"]) {
+        if (map.getLayer(idLayer)) {
+          map.setLayoutProperty(idLayer, "visibility", visibles.has("zona") ? "visible" : "none");
+        }
+      }
+      // El filtro de ciudad SÍ aplica a los puntos de rescate: cada reporte
+      // lleva su ciudad (derivada del reverse geocode); sin ciudad se oculta
+      // bajo un filtro activo (información honesta).
+      const rescatesFiltrados = rescates.filter((p) => !ciudad || p.ciudad === ciudad);
+      const srcR = map.getSource("rescates");
+      if (srcR && "setData" in srcR) {
+        (srcR as maplibre.GeoJSONSource).setData(featureCollectionRescates(rescatesFiltrados));
+      }
     }
+
+    // ---- Registro en vivo: fetch del archivo commiteado por el worker ----
+    fetch("/datos/reportes-puntos.json")
+      .then((r) => (r.ok ? r.json() : []))
+      .then((vivos: unknown) => {
+        if (!Array.isArray(vivos)) return;
+        const promovidos = new Set(
+          rescatesVerificados.filter((v) => v.reporte_id).map((v) => v.reporte_id)
+        );
+        const enVivo = (vivos as PuntoVivo[])
+          .filter((p) => puntoActivo(p) && !promovidos.has(p.id))
+          .map((p) => ({
+            id: p.id,
+            nombre: `${etiquetaTipo(p.tipo)}${p.direccion ? ` — ${p.direccion}` : ""}`,
+            lat: p.lat,
+            lng: p.lng,
+            estado: p.estado,
+            coordenadas_nivel: p.coordenadas_nivel ?? "via",
+            ciudad: p.ciudad ?? "",
+            direccion: p.direccion ?? "",
+            descripcion: p.descripcion,
+            necesidades: p.necesidades,
+            otras_necesidades: p.otras_necesidades ?? "",
+            contacto: p.contacto ?? "",
+            confirmaciones: p.confirmaciones.length,
+            flags: p.flags.length,
+            creado: p.created_at,
+            fuente: "",
+            reporte_id: "",
+          }));
+        rescates = [...rescatesVerificados, ...enVivo];
+        // Ciudades reportadas: se regeneran en runtime (dedupe contra el
+        // catálogo de puntos y zonas SGC).
+        const catalogadas = new Set([
+          ...puntos.map((p) => p.ciudad),
+          ...zonas.filter((z) => z.tipo === "ciudad").map((z) => z.nombre),
+        ]);
+        ciudadesReportadasMap = agruparCiudades(vivos as PuntoVivo[])
+          .filter((c) => !catalogadas.has(c.nombre))
+          .map(aCiudadMap);
+        const srcC = map.getSource("ciudades-reportadas");
+        if (srcC && "setData" in srcC) {
+          (srcC as maplibre.GeoJSONSource).setData(featureCollectionCiudades(ciudadesReportadasMap));
+        }
+        if (cargado) aplicarFiltros();
+      })
+      .catch(() => {
+        // Sin archivo o red caída: quedan los verificados (SSG).
+      });
 
     // ---- Anillo expansivo del epicentro (rAF, pausa fuera del viewport) ----
     let ondaFrame = 0;
@@ -570,6 +758,42 @@ const eventoJson = JSON.stringify({ fecha: evento.fecha.slice(0, 10) });
         },
       });
 
+      // Ciudades reportadas: marcador neutral agrupado (familia de zonas,
+      // chip "Zonas"). Sin intensidad: nunca se estima Mercalli sin fuente.
+      map.addSource("ciudades-reportadas", {
+        type: "geojson",
+        data: featureCollectionCiudades(ciudadesReportadasMap),
+      });
+      map.addLayer({
+        id: "ciudades-reportadas-circulo",
+        type: "circle",
+        source: "ciudades-reportadas",
+        paint: {
+          "circle-radius": 8,
+          "circle-color": ["get", "color"],
+          "circle-stroke-width": 2.5,
+          "circle-stroke-color": PAPER,
+        },
+      });
+      map.addLayer({
+        id: "ciudades-reportadas-texto",
+        type: "symbol",
+        source: "ciudades-reportadas",
+        minzoom: 7,
+        layout: {
+          "text-field": ["get", "nombre"],
+          "text-size": 10,
+          "text-offset": [0, 1.6],
+          "text-anchor": "top",
+          "text-max-width": 10,
+        },
+        paint: {
+          "text-color": INK,
+          "text-halo-color": PAPER,
+          "text-halo-width": 1.5,
+        },
+      });
+
       map.addLayer({
         id: "puntos-circulo",
         type: "circle",
@@ -604,6 +828,38 @@ const eventoJson = JSON.stringify({ fecha: evento.fecha.slice(0, 10) });
           "text-offset": [0, 1.4],
           "text-anchor": "top",
           "text-max-width": 9,
+        },
+        paint: {
+          "text-color": INK,
+          "text-halo-color": PAPER,
+          "text-halo-width": 1.5,
+        },
+      });
+
+      // Puntos de rescate (reportes ciudadanos en vivo + verificados)
+      map.addSource("rescates", { type: "geojson", data: featureCollectionRescates(rescates) });
+      map.addLayer({
+        id: "rescates-circulo",
+        type: "circle",
+        source: "rescates",
+        paint: {
+          "circle-radius": 9,
+          "circle-color": ["get", "color"],
+          "circle-stroke-width": 2.5,
+          "circle-stroke-color": PAPER,
+        },
+      });
+      map.addLayer({
+        id: "rescates-texto",
+        type: "symbol",
+        source: "rescates",
+        minzoom: 10,
+        layout: {
+          "text-field": ["get", "nombre"],
+          "text-size": 9,
+          "text-offset": [0, 1.4],
+          "text-anchor": "top",
+          "text-max-width": 12,
         },
         paint: {
           "text-color": INK,
@@ -661,6 +917,84 @@ const eventoJson = JSON.stringify({ fecha: evento.fecha.slice(0, 10) });
         map.getCanvas().style.cursor = "pointer";
       });
       map.on("mouseleave", "puntos-circulo", () => {
+        map.getCanvas().style.cursor = "";
+      });
+
+      // Popup de puntos de rescate: tipo, necesidades, contacto, estado
+      map.on("click", "rescates-circulo", (e) => {
+        const f = e.features?.[0];
+        if (!f) return;
+        const p = f.properties as unknown as PuntoRescateMap;
+        const coords = (f.geometry as { type: "Point"; coordinates: [number, number] }).coordinates;
+        popupActivo?.remove();
+        const needs = p.necesidades.length
+          ? `<span class="popup-rescate-ns">${p.necesidades
+              .map((n) => `<span>${escapar(etiquetaNecesidad(n))}</span>`)
+              .join("")}</span>`
+          : "";
+        const otras = p.otras_necesidades ? `<p class="popup-linea">${escapar(p.otras_necesidades)}</p>` : "";
+        const contacto = p.contacto ? `<p class="popup-linea">Contacto: ${escapar(p.contacto)}</p>` : "";
+        const flags = p.flags > 0 ? `<p class="popup-linea">${p.flags} reporte(s) de falso</p>` : "";
+        const precision = `<p class="popup-linea">Precisión: ${escapar(PRECISION_CORTA[p.coordenadas_nivel ?? "via"])}</p>`;
+        popupActivo = new maplibre.Popup({ offset: 16 })
+          .setLngLat(coords)
+          .setHTML(
+            `<div class="popup popup-punto">` +
+              `<strong class="popup-titulo">${escapar(p.nombre)}</strong>` +
+              `<p class="popup-meta"><span class="popup-badge popup-badge-rescate">${escapar(ESTADOS_PUNTO[p.estado] ?? p.estado)}</span> ${p.confirmaciones} confirmación(es)</p>` +
+              `${p.descripcion ? `<p class="popup-linea">${escapar(p.descripcion)}</p>` : ""}` +
+              `${needs}${otras}${contacto}${flags}${precision}` +
+              `<p class="popup-fuente">${p.fuente ? `Fuente: <a href="${escapar(p.fuente)}" target="_blank" rel="noopener">ver fuente</a> · ` : "Reporte ciudadano · "}` +
+              `<a href="https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}" target="_blank" rel="noopener">Cómo llegar</a></p>` +
+              `</div>`
+          )
+          .addTo(map);
+      });
+
+      map.on("mouseenter", "rescates-circulo", () => {
+        map.getCanvas().style.cursor = "pointer";
+      });
+      map.on("mouseleave", "rescates-circulo", () => {
+        map.getCanvas().style.cursor = "";
+      });
+
+      // Popup de ciudad reportada: lista los puntos ciudadanos de esa ciudad
+      map.on("click", "ciudades-reportadas-circulo", (e) => {
+        const f = e.features?.[0];
+        if (!f) return;
+        const c = f.properties as unknown as CiudadReportadaMap;
+        const coords = (f.geometry as { type: "Point"; coordinates: [number, number] }).coordinates;
+        popupActivo?.remove();
+        const puntosHtml = c.puntos
+          .map((p) => {
+            const needs = p.necesidades.length
+              ? `<span class="popup-rescate-ns">${p.necesidades
+                  .map((n) => `<span>${escapar(etiquetaNecesidad(n))}</span>`)
+                  .join("")}</span>`
+              : "";
+            return (
+              `<div class="popup-linea"><strong>${escapar(p.etiqueta)}</strong> · ${p.confirmaciones} conf. · ${escapar(ESTADOS_PUNTO[p.estado] ?? p.estado)}</div>` +
+              needs +
+              `<p class="popup-fuente"><a href="https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}" target="_blank" rel="noopener">Cómo llegar</a></p>`
+            );
+          })
+          .join("");
+        popupActivo = new maplibre.Popup({ offset: 16 })
+          .setLngLat(coords)
+          .setHTML(
+            `<div class="popup popup-punto">` +
+              `<strong class="popup-titulo">${escapar(c.nombre)}</strong>` +
+              `<p class="popup-meta">Sin reporte de intensidad · ${c.puntos.length} punto${c.puntos.length === 1 ? "" : "s"} ciudadano${c.puntos.length === 1 ? "" : "s"}</p>` +
+              puntosHtml +
+              `</div>`
+          )
+          .addTo(map);
+      });
+
+      map.on("mouseenter", "ciudades-reportadas-circulo", () => {
+        map.getCanvas().style.cursor = "pointer";
+      });
+      map.on("mouseleave", "ciudades-reportadas-circulo", () => {
         map.getCanvas().style.cursor = "";
       });
 
@@ -740,15 +1074,44 @@ const eventoJson = JSON.stringify({ fecha: evento.fecha.slice(0, 10) });
     }, 8000);
 
     document.querySelectorAll<HTMLInputElement>(".leyenda-tira input[type='checkbox']").forEach((input) => {
-      input.addEventListener("change", aplicarFiltros);
+      input.addEventListener("change", () => aplicarFiltros());
     });
     document.querySelectorAll<HTMLSelectElement>(".leyenda-tira select").forEach((select) => {
       select.addEventListener("change", () => {
         aplicarFiltros();
-        // Conexión filtro ↔ zonas: resaltar la fila de la ciudad elegida
+        // Conexión filtro ↔ zonas: resaltar la fila de la ciudad elegida.
+        // Si la ciudad es reportada (sin zona en el catálogo), volar al
+        // centroide y resaltar su fila ciudadana.
         const z = zonas.find((x) => x.nombre === select.value);
-        window.dispatchEvent(new CustomEvent("enlace:mapa:zona-activa", { detail: { id: z?.id ?? "" } }));
+        if (z) {
+          window.dispatchEvent(new CustomEvent("enlace:mapa:zona-activa", { detail: { id: z.id } }));
+          return;
+        }
+        const c = ciudadesReportadasMap.find((x) => x.nombre === select.value);
+        if (c) {
+          map.flyTo({ center: [c.lng, c.lat], zoom: 10, offset: offsetCentro(), essential: true });
+          window.dispatchEvent(
+            new CustomEvent("enlace:mapa:ciudad-reportada", { detail: { nombre: c.nombre } })
+          );
+          return;
+        }
+        window.dispatchEvent(new CustomEvent("enlace:mapa:zona-activa", { detail: { id: "" } }));
       });
     });
+
+    // Fila ciudadana del rail → volar al centroide + filtrar por esa ciudad
+    window.addEventListener(
+      "enlace:mapa:ciudad-reportada",
+      ((e: CustomEvent<{ nombre: string }>) => {
+        const c = ciudadesReportadasMap.find((x) => x.nombre === e.detail?.nombre);
+        if (!c) return;
+        const select = document.querySelector<HTMLSelectElement>(".leyenda-tira select");
+        if (select && Array.from(select.options).some((o) => o.value === c.nombre)) {
+          select.value = c.nombre;
+          aplicarFiltros(false);
+        }
+        map.flyTo({ center: [c.lng, c.lat], zoom: 10, offset: offsetCentro(), essential: true });
+      }) as EventListener
+    );
   }
 </script>

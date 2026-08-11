@@ -1,4 +1,5 @@
 ---
+import { readFileSync } from "node:fs";
 import BaseLayout from "../layouts/BaseLayout.astro";
 import Map from "../components/Map.astro";
 import MapLegend from "../components/MapLegend.astro";
@@ -8,16 +9,49 @@ import IndiceSecciones from "../components/IndiceSecciones.astro";
 import StatusBadge from "../components/StatusBadge.astro";
 import { acopios, albergues, centrosSalud, jornadasSangre, todasLasCiudades } from "../lib/catalogs";
 import { zonas } from "../lib/zonas";
+import puntosRescateData from "../../../data/puntos-rescate.json";
+import { puntoActivo, agregarNecesidades, type PuntoVivo } from "../lib/puntos-rescate";
+import { agruparCiudades, fusionarCiudadesSelect, type CiudadReportada } from "../lib/ciudades";
+import { etiquetaTipo, etiquetaNecesidad, ESTADOS_PUNTO, etiquetaPrecision } from "../lib/necesidades";
 
-// Ciudades del filtro = unión de las que tienen puntos de datos y las zonas
-// afectadas: clic en una zona sin puntos registrados filtra a "0 puntos"
-// (información honesta) en vez de quedarse en "todas".
-const ciudadesFiltro = Array.from(
+// Ciudades del filtro = unión de las que tienen puntos de datos, las zonas
+// afectadas y las ciudades derivadas de los reportes ciudadanos en vivo:
+// clic en una zona sin puntos registrados filtra a "0 puntos" (información
+// honesta) en vez de quedarse en "todas".
+const catalogadas = Array.from(
   new Set([
     ...todasLasCiudades,
     ...zonas.filter((z) => z.tipo === "ciudad").map((z) => z.nombre),
   ])
-).sort((a, b) => a.localeCompare(b, "es"));
+);
+
+// Registro en vivo de puntos de rescate: el archivo lo commitea el worker;
+// el build lo lee para la lista SSG (fallback sin JS/API).
+let vivos: PuntoVivo[] = [];
+try {
+  const raw = readFileSync(new URL("../../public/datos/reportes-puntos.json", import.meta.url), "utf8");
+  const parsed = JSON.parse(raw);
+  if (Array.isArray(parsed)) vivos = parsed as PuntoVivo[];
+} catch {
+  // Sin registro en vivo todavía (primer clon o antes del primer reporte).
+}
+const activos = vivos
+  .filter((p) => puntoActivo(p))
+  .sort((a, b) => b.created_at.localeCompare(a.created_at));
+const agregado = agregarNecesidades(activos);
+
+// Ciudades con reportes ciudadanos: agrupadas desde el registro en vivo y
+// deduplicadas contra el catálogo (una ciudad oficial no se lista como
+// reportada). El select las incorpora; un PR verificado las promueve a zona SGC.
+const ciudadesReportadas: CiudadReportada[] = agruparCiudades(vivos).filter(
+  (c) => !catalogadas.includes(c.nombre)
+);
+const ciudadesFiltro = fusionarCiudadesSelect(
+  catalogadas,
+  ciudadesReportadas.map((c) => c.nombre)
+);
+const enlaceMaps = (lat: number, lng: number) =>
+  `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
 ---
 
 <BaseLayout
@@ -30,7 +64,7 @@ const ciudadesFiltro = Array.from(
          (evento → zonas → secciones → leyenda). Solo cuando el mapa carga,
          .con-mapa posiciona esos bloques como overlays sobre el mapa. -->
     <section class="dash" id="mapa" aria-label="Mapa de ayuda">
-      <Map acopios={acopios} albergues={albergues} centros={centrosSalud} jornadas={jornadasSangre} zonas={zonas} />
+      <Map acopios={acopios} albergues={albergues} centros={centrosSalud} jornadas={jornadasSangre} zonas={zonas} puntosRescate={puntosRescateData} ciudadesReportadas={ciudadesReportadas} />
 
       <DatosEvento />
 
@@ -43,12 +77,88 @@ const ciudadesFiltro = Array.from(
             <button type="button" class="rail-tab" role="tab" id="tab-secciones" aria-controls="panel-secciones" aria-selected="false" tabindex="-1">
               Secciones
             </button>
+            <button type="button" class="rail-tab" role="tab" id="tab-rescates" aria-controls="panel-rescates" aria-selected="false" tabindex="-1">
+              Rescates
+            </button>
           </div>
           <div class="rail-panel" role="tabpanel" id="panel-zonas" aria-labelledby="tab-zonas">
-            <ZonasLista zonas={zonas} />
+            <ZonasLista zonas={zonas} ciudadesReportadas={ciudadesReportadas} />
           </div>
           <div class="rail-panel" role="tabpanel" id="panel-secciones" aria-labelledby="tab-secciones">
             <IndiceSecciones />
+          </div>
+          <!-- Puntos de rescate: reportes ciudadanos en vivo (registro
+               commiteado por el worker; la lista es SSG, el script la
+               refresca tras confirmar desde el lugar). -->
+          <div class="rail-panel" role="tabpanel" id="panel-rescates" aria-labelledby="tab-rescates">
+            <div class="dash-index">
+              <div class="dash-index-head">
+                <h3>Puntos de rescate</h3>
+                <span class="zonas-count" aria-label={`${activos.length} puntos activos`}>{activos.length}</span>
+              </div>
+              {
+                activos.length === 0 ? (
+                  <p class="rescate-vacio">
+                    Sin puntos activos ahora.
+                    {vivos.filter((p) => !puntoActivo(p)).length > 0 ? ` Hay ${vivos.filter((p) => !puntoActivo(p)).length} en el histórico.` : ""}{" "}
+                    <a href="/reportar">Reportar un punto</a>
+                  </p>
+                ) : (
+                  <>
+                    {
+                      agregado.length > 0 && (
+                        <span class="rescate-agregado" id="rescate-agregado">
+                          {activos.length} punto{activos.length === 1 ? "" : "s"} necesitan:{" "}
+                          {agregado
+                            .slice(0, 4)
+                            .map((a) => `${etiquetaNecesidad(a.id)} ×${a.cuenta}`)
+                            .join(", ")}
+                        </span>
+                      )
+                    }
+                    <div id="rescate-lista">
+                      {activos.map((p) => (
+                        <article class="rescate-fila" data-id={p.id}>
+                          <div class="dash-row-top">
+                            <span class="dash-row-nombre">
+                              {etiquetaTipo(p.tipo)}{p.direccion ? ` — ${p.direccion}` : ""}
+                            </span>
+                            <span class="dash-row-meta">
+                              {ESTADOS_PUNTO[p.estado] ?? p.estado} · {p.confirmaciones.length}{" "}
+                              conf.
+                              {p.coordenadas_nivel ? ` · ${etiquetaPrecision(p.coordenadas_nivel)}` : ""}
+                            </span>
+                          </div>
+                          {p.descripcion && <p>{p.descripcion}</p>}
+                          {
+                            p.necesidades.length > 0 && (
+                              <span class="popup-rescate-ns">
+                                {p.necesidades.map((n) => (
+                                  <span>{etiquetaNecesidad(n)}</span>
+                                ))}
+                              </span>
+                            )
+                          }
+                          <div class="rescate-acciones">
+                            <a class="rescate-btn" href={enlaceMaps(p.lat, p.lng)} target="_blank" rel="noopener">Cómo llegar</a>
+                            <button type="button" class="rescate-btn" data-confirmar={p.id}>
+                              Confirmar con mi ubicación
+                            </button>
+                          </div>
+                        </article>
+                      ))}
+                    </div>
+                  </>
+                )
+              }
+              <a class="dash-row" href="/reportar">
+                <span class="dash-row-top">
+                  <span class="dash-row-nombre">Reportar un punto</span>
+                  <span class="dash-row-meta">en vivo</span>
+                </span>
+                <p>¿Ves un lugar donde se necesita ayuda? Publícalo con ubicación exacta y necesidades.</p>
+              </a>
+            </div>
           </div>
           <!-- Pie del panel: cómo leer la verificación de cada dato (fuera de
                las pestañas, visible siempre) -->
@@ -60,12 +170,19 @@ const ciudadesFiltro = Array.from(
           </div>
         </aside>
 
-        <MapLegend ciudades={ciudadesFiltro} mostrarZonas />
+        <MapLegend ciudades={ciudadesFiltro} mostrarZonas mostrarRescates rescatesActivos={activos.length} />
       </div>
     </section>
   </main>
 
 <script>
+  import { apiUrl } from "../lib/api";
+  import { puntoActivo, agregarNecesidades, type PuntoVivo } from "../lib/puntos-rescate";
+  import { agruparCiudades } from "../lib/ciudades";
+  import { etiquetaTipo, etiquetaNecesidad, ESTADOS_PUNTO, etiquetaPrecision } from "../lib/necesidades";
+  import { todasLasCiudades } from "../lib/catalogs";
+  import { zonas } from "../lib/zonas";
+
   // Tabs del rail (mejora progresiva): sin JS, ambos paneles quedan visibles
   // y el tablist es inerte. Con JS, solo el panel activo se muestra.
   const tabs = Array.from(document.querySelectorAll<HTMLButtonElement>(".rail-tab"));
@@ -84,8 +201,8 @@ const ciudadesFiltro = Array.from(
 
   tabs.forEach((t) => t.addEventListener("click", () => activar(t)));
 
-  const tablist = document.querySelector(".rail-tabs");
-  tablist?.addEventListener("keydown", (e) => {
+  const tablist = document.querySelector<HTMLElement>(".rail-tabs");
+  tablist?.addEventListener("keydown", (e: KeyboardEvent) => {
     const actual = tabs.indexOf(document.activeElement as HTMLButtonElement);
     if (actual === -1) return;
     let siguiente = actual;
@@ -105,6 +222,156 @@ const ciudadesFiltro = Array.from(
     if ((e as CustomEvent<{ id: string }>).detail?.id) tabZonas && activar(tabZonas);
   });
   window.addEventListener("enlace:mapa:posicion", () => tabZonas && activar(tabZonas));
+
+  // Chip "Rescates" ↔ pestaña del rail: marcado muestra el panel, desmarcado
+  // vuelve a Zonas si la pestaña activa era Rescates.
+  const chipRescates = document.querySelector<HTMLInputElement>(".leyenda-tira input[value='rescates']");
+  const tabRescates = tabs.find((t) => t.id === "tab-rescates");
+  chipRescates?.addEventListener("change", () => {
+    if (chipRescates.checked) {
+      if (tabRescates) activar(tabRescates);
+    } else if (tabRescates?.getAttribute("aria-selected") === "true") {
+      if (tabZonas) activar(tabZonas);
+    }
+  });
+
+  // Confirmar un punto desde la lista: geolocalización → POST → refrescar.
+  const panelRescates = document.getElementById("panel-rescates");
+
+  const escapar = (s: string) =>
+    s.replace(/[&<>"']/g, (c) =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!
+    );
+
+  panelRescates?.addEventListener("click", (e) => {
+    const btn = (e.target as HTMLElement).closest<HTMLButtonElement>("[data-confirmar]");
+    if (!btn) return;
+    const id = btn.dataset.confirmar;
+    if (!id) return;
+    if (!("geolocation" in navigator)) {
+      btn.textContent = "Sin geolocalización";
+      return;
+    }
+    btn.setAttribute("aria-busy", "true");
+    btn.textContent = "Confirmando…";
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        try {
+          const res = await fetch(apiUrl(`/api/puntos/${id}/confirmar`), {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+          });
+          const data = (await res.json().catch(() => null)) as { ok?: boolean; error?: string } | null;
+          if (res.ok && data?.ok) {
+            btn.textContent = "Confirmado";
+            await refrescarRescates();
+          } else {
+            btn.textContent = data?.error ?? "No se pudo confirmar";
+          }
+        } catch {
+          btn.textContent = "No se pudo confirmar";
+        }
+        btn.removeAttribute("aria-busy");
+        window.setTimeout(() => {
+          btn.textContent = "Confirmar con mi ubicación";
+        }, 4000);
+      },
+      () => {
+        btn.removeAttribute("aria-busy");
+        btn.textContent = "Permiso denegado";
+        window.setTimeout(() => {
+          btn.textContent = "Confirmar con mi ubicación";
+        }, 4000);
+      },
+      { enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 }
+    );
+  });
+
+  // Refresca la lista del rail y el conteo del chip desde el archivo en vivo.
+  async function refrescarRescates() {
+    if (!panelRescates) return;
+    try {
+      const res = await fetch("/datos/reportes-puntos.json");
+      if (!res.ok) return;
+      const vivos = (await res.json()) as PuntoVivo[];
+      if (!Array.isArray(vivos)) return;
+      const activos = vivos
+        .filter((p) => puntoActivo(p))
+        .sort((a, b) => b.created_at.localeCompare(a.created_at));
+      const agregado = agregarNecesidades(activos);
+      const lista = document.getElementById("rescate-lista");
+      if (lista) {
+        lista.innerHTML = activos
+          .map(
+            (p) =>
+              `<article class="rescate-fila" data-id="${escapar(p.id)}">` +
+              `<div class="dash-row-top"><span class="dash-row-nombre">${escapar(etiquetaTipo(p.tipo))}${p.direccion ? ` — ${escapar(p.direccion)}` : ""}</span>` +
+              `<span class="dash-row-meta">${escapar(ESTADOS_PUNTO[p.estado] ?? p.estado)} · ${p.confirmaciones.length} conf.${p.coordenadas_nivel ? ` · ${escapar(etiquetaPrecision(p.coordenadas_nivel))}` : ""}</span></div>` +
+              `${p.descripcion ? `<p>${escapar(p.descripcion)}</p>` : ""}` +
+              `${p.necesidades.length > 0 ? `<span class="popup-rescate-ns">${p.necesidades.map((n) => `<span>${escapar(etiquetaNecesidad(n))}</span>`).join("")}</span>` : ""}` +
+              `<div class="rescate-acciones"><a class="rescate-btn" href="https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}" target="_blank" rel="noopener">Cómo llegar</a>` +
+              `<button type="button" class="rescate-btn" data-confirmar="${escapar(p.id)}">Confirmar con mi ubicación</button></div>` +
+              `</article>`
+          )
+          .join("");
+      }
+      const agregadoEl = document.getElementById("rescate-agregado");
+      if (agregadoEl) {
+        agregadoEl.textContent =
+          agregado.length > 0
+            ? `${activos.length} punto${activos.length === 1 ? "" : "s"} necesitan: ${agregado.slice(0, 4).map((a) => `${etiquetaNecesidad(a.id)} ×${a.cuenta}`).join(", ")}`
+            : "";
+      }
+      const conteo = document.querySelector<HTMLSpanElement>(".leyenda-tira input[value='rescates'] ~ .tira-label");
+      if (conteo) conteo.textContent = `Rescates (${activos.length})`;
+
+      // Ciudades reportadas: sección del panel Zonas + opciones del select
+      const catalogadas = new Set([
+        ...todasLasCiudades,
+        ...zonas.filter((z) => z.tipo === "ciudad").map((z) => z.nombre),
+      ]);
+      const reportadas = agruparCiudades(vivos).filter((c) => !catalogadas.has(c.nombre));
+      const seccion = document.getElementById("zonas-ciudadanas");
+      if (seccion) {
+        seccion.hidden = reportadas.length === 0;
+        if (reportadas.length > 0) {
+          seccion.innerHTML =
+            `<div class="zonas-ciudadanas-head">` +
+            `<span class="zonas-ciudadanas-label">Ciudades con reportes ciudadanos</span>` +
+            `<span class="zonas-count">${reportadas.length}</span></div>` +
+            reportadas
+              .map(
+                (c) =>
+                  `<button type="button" class="dash-row zona-fila zona-fila-ciudadana" data-ciudad-nombre="${escapar(c.nombre)}" aria-pressed="false" title="Ciudad reportada por ciudadanos — sin intensidad hasta verificación oficial">` +
+                  `<span class="zona-fila-top"><span class="zona-dot zona-dot-ciudad" aria-hidden="true"></span>` +
+                  `<span class="zona-fila-nombre">${escapar(c.nombre)}</span>` +
+                  `<span class="zona-fila-meta">${c.puntos.length} punto${c.puntos.length === 1 ? "" : "s"} · sin confirmar</span>` +
+                  `<span class="dash-row-chevron" aria-hidden="true">›</span></span>` +
+                  `<span class="zona-fila-linea">Reportada por ciudadanos · sin intensidad (falta fuente oficial)</span>` +
+                  `</button>`
+              )
+              .join("");
+        }
+      }
+      const select = document.querySelector<HTMLSelectElement>(".leyenda-tira select");
+      if (select) {
+        const actual = select.value;
+        const opciones = Array.from(
+          new Set([...catalogadas, ...reportadas.map((c) => c.nombre)])
+        ).sort((a, b) => a.localeCompare(b, "es"));
+        const actuales = Array.from(select.options).map((o) => o.value);
+        if (opciones.length !== actuales.length - 1 || opciones.some((n) => !actuales.includes(n))) {
+          select.innerHTML =
+            `<option value="">Ciudad: Todas</option>` +
+            opciones.map((n) => `<option value="${escapar(n)}">${escapar(n)}</option>`).join("");
+          if (actual && opciones.includes(actual)) select.value = actual;
+        }
+      }
+    } catch {
+      // API o archivo caído: la lista SSG sigue visible.
+    }
+  }
 
   // Estado inicial con JS: solo Zonas visible
   if (tabZonas) activar(tabZonas);

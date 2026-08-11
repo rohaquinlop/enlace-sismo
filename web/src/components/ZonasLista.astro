@@ -1,13 +1,15 @@
 ---
 import type { Zona } from "../lib/zonas";
+import type { CiudadReportada } from "../lib/ciudades";
 import evento from "../../../data/evento.json";
 import { haversineKm, formatearDistancia } from "../lib/geo";
 
 interface Props {
   zonas: Zona[];
+  ciudadesReportadas?: CiudadReportada[];
 }
 
-const { zonas } = Astro.props;
+const { zonas, ciudadesReportadas = [] } = Astro.props;
 
 const ROMANOS = ["", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII"];
 const epicentro = zonas.find((z) => z.tipo === "epicentro");
@@ -67,12 +69,46 @@ const metaFila = (z: Zona, km: number) => {
       </button>
     ))
   }
+  {
+    ciudadesReportadas.length > 0 && (
+      <div class="zonas-ciudadanas" id="zonas-ciudadanas">
+        <div class="zonas-ciudadanas-head">
+          <span class="zonas-ciudadanas-label">Ciudades con reportes ciudadanos</span>
+          <span class="zonas-count" aria-label={`${ciudadesReportadas.length} ciudades reportadas`}>{ciudadesReportadas.length}</span>
+        </div>
+        {
+          ciudadesReportadas.map((c) => (
+            <button
+              type="button"
+              class="dash-row zona-fila zona-fila-ciudadana"
+              data-ciudad-nombre={c.nombre}
+              aria-pressed="false"
+              title="Ciudad reportada por ciudadanos — sin intensidad hasta verificación oficial"
+            >
+              <span class="zona-fila-top">
+                <span class="zona-dot zona-dot-ciudad" aria-hidden="true"></span>
+                <span class="zona-fila-nombre">{c.nombre}</span>
+                <span class="zona-fila-meta">{c.puntos.length} punto{c.puntos.length === 1 ? "" : "s"} · sin confirmar</span>
+                <span class="dash-row-chevron" aria-hidden="true">›</span>
+              </span>
+              <span class="zona-fila-linea">Reportada por ciudadanos · sin intensidad (falta fuente oficial)</span>
+            </button>
+          ))
+        }
+      </div>
+    )
+  }
 </div>
 
 <script>
   import { formatearDistancia } from "../lib/geo";
 
-  const filas = Array.from(document.querySelectorAll<HTMLButtonElement>(".zona-fila"));
+  // Las filas ciudadanas reusan el estilo zona-fila pero NO participan del
+  // flujo de zonas (volar/resaltar/ordenar por distancia): se excluyen aquí.
+  const filas = Array.from(
+    document.querySelectorAll<HTMLButtonElement>(".zona-fila")
+  ).filter((f) => !f.classList.contains("zona-fila-ciudadana"));
+  const contenedorZonas = document.querySelector(".zonas-overlay");
 
   function resaltar(id: string) {
     filas.forEach((f) => {
@@ -82,11 +118,29 @@ const metaFila = (z: Zona, km: number) => {
     });
   }
 
+  function resaltarCiudadana(nombre: string) {
+    document.querySelectorAll<HTMLButtonElement>(".zona-fila-ciudadana").forEach((f) => {
+      const activa = f.dataset.ciudadNombre === nombre;
+      f.classList.toggle("zona-activa", activa);
+      f.setAttribute("aria-pressed", String(activa));
+      if (activa) f.scrollIntoView({ block: "nearest" });
+    });
+  }
+
   // Fila → el mapa vuela a la zona y abre su popup
   filas.forEach((f) => {
     f.addEventListener("click", () => {
       window.dispatchEvent(new CustomEvent("enlace:mapa:volar-zona", { detail: { id: f.dataset.zonaId } }));
     });
+  });
+
+  // Fila ciudadana → el mapa vuela al centroide y filtra por esa ciudad
+  // (delegación: la sección se refresca en runtime sin perder el listener)
+  contenedorZonas?.addEventListener("click", (e) => {
+    const fila = (e.target as HTMLElement).closest<HTMLButtonElement>(".zona-fila-ciudadana");
+    const nombre = fila?.dataset.ciudadNombre;
+    if (!nombre) return;
+    window.dispatchEvent(new CustomEvent("enlace:mapa:ciudad-reportada", { detail: { nombre } }));
   });
 
   // Popup abierto en el mapa → fila resaltada
@@ -98,8 +152,19 @@ const metaFila = (z: Zona, km: number) => {
     }) as EventListener
   );
 
+  // Ciudad seleccionada en el mapa/select → fila ciudadana resaltada
+  window.addEventListener(
+    "enlace:mapa:ciudad-reportada",
+    ((e: CustomEvent<{ nombre: string }>) => {
+      if (e.detail?.nombre) resaltarCiudadana(e.detail.nombre);
+    }) as EventListener
+  );
+
   // Marca "Enlace Sismo": limpiar resaltado al reiniciar la vista del mapa
-  window.addEventListener("enlace:mapa:reiniciar", () => resaltar(""));
+  window.addEventListener("enlace:mapa:reiniciar", () => {
+    resaltar("");
+    resaltarCiudadana("");
+  });
 
   // Filtro por las casillas de la tira de leyenda (zonas / epicentro)
   function aplicarFiltroLista() {
@@ -111,6 +176,9 @@ const metaFila = (z: Zona, km: number) => {
     filas.forEach((f) => {
       const tipo = f.dataset.tipo;
       f.hidden = tipo === "epicentro" ? !visibles.has("epicentro") : !visibles.has("zona");
+    });
+    document.querySelectorAll<HTMLButtonElement>(".zona-fila-ciudadana").forEach((f) => {
+      f.hidden = !visibles.has("zona");
     });
   }
   document.querySelectorAll<HTMLInputElement>(".leyenda-tira input[type='checkbox']").forEach((i) => {
@@ -137,8 +205,7 @@ const metaFila = (z: Zona, km: number) => {
           f.classList.toggle("zona-cercana", i === 0);
         });
         const contenedor = document.querySelector(".zonas-overlay");
-        orden.forEach((f) => contenedor?.appendChild(f));
-      } catch (err) {
+        orden.forEach((f) => contenedor?.appendChild(f));      } catch (err) {
         console.error("enlace-sismo: error al ordenar zonas", err);
       }
     }) as EventListener

@@ -847,6 +847,7 @@ h2 {
 .punto-albergue { background: var(--color-ok); }
 .punto-salud { background: var(--color-error); }
 .punto-sangre { background: var(--color-sangre); }
+.punto-rescate { background: var(--color-rescate); }
 .punto-zona { background: var(--color-neutral); }
 .punto-epicentro { background: var(--color-error); }
 
@@ -860,6 +861,30 @@ h2 {
 
 .zona-dot-epicentro { background: var(--color-error); }
 .zona-dot-ciudad { background: var(--color-neutral); }
+
+/* Ciudades con reportes ciudadanos (sección del panel Zonas): divisor,
+   etiqueta de registro (mono) y filas con el patrón zona-fila. */
+.zonas-ciudadanas {
+  border-top: var(--rule-hair) solid var(--color-rule);
+  margin-top: var(--space-md);
+  padding-top: var(--space-sm);
+}
+.zonas-ciudadanas-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-xs);
+  margin-bottom: var(--space-2xs);
+}
+.zonas-ciudadanas-label {
+  font-family: var(--font-outlier);
+  font-size: var(--text-xs);
+  color: var(--color-muted);
+  letter-spacing: 0.02em;
+}
+.zona-fila-ciudadana .zona-fila-linea {
+  color: var(--color-muted);
+}
 
 /* Overlays: base en flujo (legible sin mapa) — orden: evento → zonas → secciones → leyenda */
 .mapa-overlays {
@@ -2051,6 +2076,146 @@ h2 {
 .popup-badge-sangre {
   color: var(--color-sangre);
   border-color: var(--color-sangre);
+}
+
+.popup-badge-rescate {
+  color: var(--color-rescate);
+  border-color: var(--color-rescate);
+}
+
+/* Puntos de rescate: chips de necesidades y acciones */
+.popup-rescate-ns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2xs);
+  margin-top: var(--space-2xs);
+}
+.popup-rescate-ns span {
+  font-family: var(--font-outlier);
+  font-size: var(--text-xs);
+  border: var(--rule-hair) solid var(--color-rule-2);
+  border-radius: var(--radius-xs);
+  padding: 0.1rem 0.4rem;
+  color: var(--color-muted);
+}
+
+.rescate-agregado {
+  display: block;
+  font-family: var(--font-outlier);
+  font-size: var(--text-xs);
+  color: var(--color-muted);
+  letter-spacing: 0.02em;
+  margin-top: var(--space-2xs);
+}
+.rescate-acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+  align-items: center;
+  margin-top: var(--space-xs);
+}
+.rescate-btn {
+  font-family: var(--font-outlier);
+  font-size: var(--text-xs);
+  min-height: 44px; /* targets táctiles ≥ 44 px (design.md) */
+  padding: 0.25rem 0.5rem;
+  border: var(--rule-hair) solid var(--color-rule-2);
+  border-radius: var(--radius-xs);
+  background: var(--color-paper);
+  color: var(--color-ink);
+  cursor: pointer;
+}
+.rescate-btn:hover,
+.rescate-btn:focus-visible {
+  border-color: var(--color-ink-2);
+}
+.rescate-btn[aria-busy="true"] {
+  opacity: 0.6;
+  cursor: progress;
+}
+.rescate-vacio {
+  color: var(--color-muted);
+  font-size: var(--text-sm);
+}
+.rescate-fila {
+  display: block;
+  padding: var(--space-sm) 0;
+  border-bottom: var(--rule-hair) solid var(--color-rule);
+}
+.rescate-fila:last-child {
+  border-bottom: 0;
+}
+
+/* ============================================================
+   Formulario de reporte — búsqueda de dirección (estilo Google Maps)
+   Los resultados se crean dinámicamente por JS: estos estilos son
+   GLOBALES a propósito (el scope de Astro no alcanza nodos nuevos).
+   ============================================================ */
+.resultados-busqueda {
+  list-style: none;
+  margin: var(--space-2xs) 0 0;
+  padding: 0;
+  border: 1px solid var(--color-rule);
+  border-radius: var(--radius-sm);
+  max-height: 220px;
+  overflow: auto;
+  background: var(--color-paper);
+}
+.resultados-busqueda button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: var(--space-xs) var(--space-sm);
+  min-height: 44px; /* targets táctiles ≥ 44 px (design.md) */
+  font: inherit;
+  font-size: var(--text-sm);
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+.resultados-busqueda button:hover,
+.resultados-busqueda button:focus-visible,
+.resultados-busqueda button.activo {
+  background: var(--color-paper-2);
+}
+.resultados-busqueda .res-label {
+  display: block;
+  color: var(--color-ink);
+}
+.resultados-busqueda .res-detalle {
+  display: block;
+  font-size: var(--text-xs);
+  color: var(--color-muted);
+  margin-top: 2px;
+}
+.resultados-busqueda .res-linea {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 8px;
+  align-items: baseline;
+}
+.resultados-busqueda .res-precision {
+  font-family: var(--font-outlier);
+  font-size: var(--text-xs);
+  border: var(--rule-hair) solid var(--color-rule-2);
+  border-radius: var(--radius-xs);
+  padding: 0 0.3rem;
+  color: var(--color-muted);
+  flex: none;
+}
+.resultados-busqueda mark {
+  background: var(--color-accent);
+  color: var(--color-accent-ink);
+  border-radius: 2px;
+}
+.busqueda-msj {
+  display: block;
+  font-size: var(--text-xs);
+  color: var(--color-muted);
+  margin-top: var(--space-2xs);
+}
+.busqueda-msj:empty {
+  display: none;
 }
 
 /* ============================================================
