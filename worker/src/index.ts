@@ -9,10 +9,10 @@ type Env = {
   KV: KVNamespace;
   ADMIN_TOKEN: string;
   PUBLIC_ORIGIN: string;
+  // Un solo fine-grained PAT sobre el repo: issues de sugerencias de salud
+  // (sugerencias.ts) y commit del registro en vivo de puntos de rescate
+  // (github.ts → web/public/datos/reportes-puntos.json). Documentado en AGENTS.md.
   GITHUB_TOKEN: string;
-  // PAT con scope contents:write — commitea el registro en vivo de puntos de
-  // rescate (web/public/datos/reportes-puntos.json). Documentado en AGENTS.md.
-  GITHUB_BOT_TOKEN: string;
   // Repo destino del registro (solo para deploys desde fork; default abajo).
   GITHUB_REPO?: string;
 };

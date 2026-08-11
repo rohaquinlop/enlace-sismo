@@ -100,9 +100,11 @@ cd worker && npx tsc --noEmit # typecheck del API
 ```bash
 # Una vez: crear D1 y KV, copiar ids a worker/wrangler.toml
 cd worker && npx wrangler d1 migrations apply enlace-sismo --local|--remote
-# Secretos del worker: ADMIN_TOKEN, GITHUB_TOKEN (issues) y GITHUB_BOT_TOKEN
-# (PAT contents:write — commitea el registro en vivo de puntos de rescate)
-cd worker && npx wrangler secret put GITHUB_BOT_TOKEN
+# Secretos del worker: ADMIN_TOKEN (alertas oficiales) y GITHUB_TOKEN
+# (un solo fine-grained PAT sobre el repo: issues:write + contents:write —
+# crea issues de sugerencias y commitea el registro en vivo de puntos de
+# rescate web/public/datos/reportes-puntos.json; rotación sugerida: 1 año)
+cd worker && npx wrangler secret put GITHUB_TOKEN
 # Luego: push a main → GitHub Actions despliega
 ```
 
@@ -137,7 +139,7 @@ cd worker && npx wrangler secret put GITHUB_BOT_TOKEN
 - `web/public/_redirects` — `/mapa` → `/#mapa` (301, Cloudflare Pages)
 - `web/public/sw.js` — PWA offline; el `APP_SHELL` NO debe listar páginas borradas (rompe el install)
 - `web/src/lib/geo.ts` — haversine + formateo de distancia (build y cliente)
-- `worker/src/index.ts` — API; `ADMIN_TOKEN` (secreto) para publicar alertas oficiales; `GITHUB_BOT_TOKEN` (PAT `contents:write`) commitea `web/public/datos/reportes-puntos.json`; `GITHUB_REPO` opcional (env, solo deploys desde fork)
+- `worker/src/index.ts` — API; `ADMIN_TOKEN` (secreto) para publicar alertas oficiales; `GITHUB_TOKEN` (un solo fine-grained PAT: `issues:write` + `contents:write`) crea issues de sugerencias y commitea `web/public/datos/reportes-puntos.json`; `GITHUB_REPO` opcional (env, solo deploys desde fork)
 - `CONTRIBUTING.md` — protocolo completo de verificación por PRs
 
 ## Conventions
@@ -169,5 +171,5 @@ cd worker && npx wrangler secret put GITHUB_BOT_TOKEN
 - **`git add .` / `git add -A`** — agrupar commits por preocupación lógica
 - **Commitear `bun.lock`** — el proyecto usa npm (hay `package-lock.json`)
 - **Valores de color/fuente sueltos** fuera de `tokens.css` en el frontend
-- **Commitear `.sdd/`** (salvo pedido explícito) ni `.dev.vars` (secretos locales: `GITHUB_BOT_TOKEN` de desarrollo)
+- **Commitear `.sdd/`** (salvo pedido explícito) ni `.dev.vars` (secretos locales: `GITHUB_TOKEN` de desarrollo)
 - **Editar `web/public/datos/reportes-puntos.json` a mano** sin validar contra `reporte-punto.schema.json` (el CI lo bloquea; el worker valida antes de cada commit)
