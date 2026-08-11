@@ -153,6 +153,7 @@ cd worker && npx wrangler secret put GITHUB_TOKEN
 - **Enlaces "Cómo llegar"** (Google Maps `dir/?api=1&destination=lat,lng`) en popups y tarjetas: no eliminar
 - **Cuentas bancarias / enlaces de pago:** solo con `"verificacion": "oficial"` (publicados por la entidad) y 2 aprobaciones de mantenedores
 - **Desaparecidos:** el registro se referencia a ColombiaTeBusca (https://colombiatebusca.com); no hay registro propio ni API de reportes en este proyecto
+- **Ingresos hospitalarios: prohibidos.** No hay registro de pacientes en ningún formato (nombres, iniciales, hospital, fecha/hora). Los nombres de pacientes son datos sensibles (Ley 1581/2012); un paciente inconsciente no puede consentir y su familia no siempre es localizable. No existe fuente pública verificable por paciente, así que la regla de oro no se puede cumplir. Los PR que propongan esta funcionalidad se rechazan; derivar a ColombiaTeBusca
 - **Estados operativos:** `abierto | cerrado | sin-confirmar` (acopios/albergues), `operativo | limitado | cerrado | sin-confirmar` (salud), `activa | finalizada | sin-confirmar` (jornadas de sangre), `sin-confirmar | confirmado | en-curso | resuelto | falso | promovido` (registro en vivo de rescates)
 - **Registro en vivo (puntos de rescate):** los reportes entran por `/reportar` → el worker valida (honeypot, rate limits, enums, `coordenadas_nivel`) y commitea a `web/public/datos/reportes-puntos.json` (GitHub como almacén, retry ante 409, validación Ajv por entrada). Confirmaciones con cercanía ≤1 km — peso ORIENTATIVO (la posición la declara el cliente): el estado `confirmado` real lo fija un mantenedor. 1 confirmación y 1 flag por IP por punto; 3+ flags ocultan el punto; degradación 72 h sin reconfirmación (calculada en cliente, el archivo conserva todo)
 - **Promoción de puntos:** mantenedor verifica contra fuente → copia a `data/puntos-rescate.json` con `fuente`/`verificado_por`/`fecha_verificacion` y `reporte_id` → PR → CI → merge → admin marca la entrada `promovido`
@@ -166,6 +167,7 @@ cd worker && npx wrangler secret put GITHUB_TOKEN
 ## Anti-Patterns
 
 - **Inventar datos** (acopios, coordenadas, métricas, testimonios) — es un proyecto humanitario; la desinformación mata
+- **Publicar datos personales de pacientes hospitalizados** (nombre, hospital, fecha/hora de ingreso) — dato sensible sin consentimiento posible; ver convención de ingresos hospitalarios
 - **Publicar fuentes no oficiales** como si fueran oficiales (cadenas de WhatsApp, cuentas personales)
 - **Dejar el mapa como única vía de acceso** a los datos — el fallback a lista es obligatorio
 - **`git add .` / `git add -A`** — agrupar commits por preocupación lógica
