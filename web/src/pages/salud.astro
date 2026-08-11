@@ -1,7 +1,9 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
 import CatalogCard from "../components/CatalogCard.astro";
-import { centrosSalud, todasLasCiudades } from "../lib/catalogs";
+import { centrosSalud, agruparPorCiudad } from "../lib/catalogs";
+
+const grupos = agruparPorCiudad(centrosSalud);
 ---
 
 <BaseLayout
@@ -34,32 +36,72 @@ import { centrosSalud, todasLasCiudades } from "../lib/catalogs";
             <label for="filtro-ciudad">Filtrar por ciudad:</label>
             <select id="filtro-ciudad">
               <option value="">Todas</option>
-              {todasLasCiudades.map((c) => <option value={c}>{c}</option>)}
+              {grupos.map((g) => <option value={g.ciudad}>{g.ciudad}</option>)}
             </select>
           </div>
           <a class="btn btn-primary" href="/salud/sugerir-centro-salud">Sugerir un centro de salud</a>
         </div>
-        <div class="grid" id="lista">
-          {centrosSalud.map((c) => (
-            <div class="card-item" data-ciudad={c.ciudad}>
-              <CatalogCard entrada={c} tipo="salud" />
+        {grupos.map((grupo) => (
+          <section class="ciudad-grupo" data-ciudad={grupo.ciudad} data-lat={grupo.lat} data-lng={grupo.lng}>
+            <h2 class="ciudad-titulo">{grupo.ciudad}</h2>
+            <div class="grid">
+              {grupo.items.map((c) => (
+                <div class="card-item" data-ciudad={c.ciudad}>
+                  <CatalogCard entrada={c} tipo="salud" />
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
+          </section>
+        ))}
       </>
     )
   }
 </BaseLayout>
 
 <script>
-  const select = document.getElementById("filtro-ciudad") as HTMLSelectElement | null;
-  if (select) {
-    select.addEventListener("change", () => {
-      const ciudad = select.value;
-      document.querySelectorAll<HTMLElement>(".card-item").forEach((card) => {
-        const coincide = !ciudad || card.dataset.ciudad === ciudad;
-        card.style.display = coincide ? "" : "none";
-      });
+  import { haversineKm } from "../lib/geo";
+
+  const selectCiudad = document.getElementById("filtro-ciudad") as HTMLSelectElement | null;
+
+  function filtrar() {
+    const ciudad = selectCiudad?.value ?? "";
+    document.querySelectorAll<HTMLElement>(".ciudad-grupo").forEach((grupo) => {
+      const coincideCiudad = !ciudad || grupo.dataset.ciudad === ciudad;
+      grupo.style.display = coincideCiudad ? "" : "none";
     });
+  }
+
+  selectCiudad?.addEventListener("change", filtrar);
+
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const { latitude, longitude } = pos.coords;
+        const secciones = Array.from(document.querySelectorAll<HTMLElement>(".ciudad-grupo"));
+        if (secciones.length < 2) return;
+
+        const distancias = secciones.map((s) => {
+          const lat = Number(s.dataset.lat);
+          const lng = Number(s.dataset.lng);
+          return { seccion: s, km: haversineKm(latitude, longitude, lat, lng) };
+        });
+
+        distancias.sort((a, b) => a.km - b.km);
+        const padre = secciones[0].parentNode;
+        const primera = distancias[0].seccion;
+
+        for (const d of distancias) {
+          padre?.appendChild(d.seccion);
+        }
+
+        const ciudad = primera.dataset.ciudad;
+        const indicador = document.createElement("p");
+        indicador.className = "geo-indicador";
+        indicador.textContent = `Mostrando ${ciudad} primero (más cercana a ti)`;
+        primera.insertBefore(indicador, primera.querySelector(".grid"));
+      },
+      () => {},
+      { enableHighAccuracy: false, timeout: 10000 }
+    );
   }
 </script>
