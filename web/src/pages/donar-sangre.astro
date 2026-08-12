@@ -18,6 +18,7 @@ const grupos = agruparPorCiudad(jornadasSangre);
     </p>
   </section>
 
+  <div id="contenido-sangre">
   {
     jornadasSangre.length === 0 ? (
       <div class="vacio">
@@ -45,40 +46,62 @@ const grupos = agruparPorCiudad(jornadasSangre);
       </>
     )
   }
+  </div>
 </BaseLayout>
 
 <script>
   import { haversineKm } from "../lib/geo";
+  import { fetchCatalogo } from "../lib/datos";
+  import { renderSangrePagina } from "../lib/render-catalogos";
+  import type { JornadaSangre } from "../lib/catalogs";
+
+  let ultimaPos: { latitude: number; longitude: number } | null = null;
+
+  function reordenarPorProximidad(latitude: number, longitude: number) {
+    const secciones = Array.from(document.querySelectorAll<HTMLElement>(".ciudad-grupo"));
+    if (secciones.length < 2) return;
+
+    const distancias = secciones.map((s) => {
+      const lat = Number(s.dataset.lat);
+      const lng = Number(s.dataset.lng);
+      return { seccion: s, km: haversineKm(latitude, longitude, lat, lng) };
+    });
+
+    distancias.sort((a, b) => a.km - b.km);
+    const padre = secciones[0].parentNode;
+    const primera = distancias[0].seccion;
+
+    for (const d of distancias) {
+      padre?.appendChild(d.seccion);
+    }
+
+    const ciudad = primera.dataset.ciudad;
+    const indicador = document.createElement("p");
+    indicador.className = "geo-indicador";
+    indicador.textContent = `Mostrando ${ciudad} primero (más cercana a ti)`;
+    primera.insertBefore(indicador, primera.querySelector(".grid"));
+  }
 
   if (navigator.geolocation) {
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        const { latitude, longitude } = pos.coords;
-        const secciones = Array.from(document.querySelectorAll<HTMLElement>(".ciudad-grupo"));
-        if (secciones.length < 2) return;
-
-        const distancias = secciones.map((s) => {
-          const lat = Number(s.dataset.lat);
-          const lng = Number(s.dataset.lng);
-          return { seccion: s, km: haversineKm(latitude, longitude, lat, lng) };
-        });
-
-        distancias.sort((a, b) => a.km - b.km);
-        const padre = secciones[0].parentNode;
-        const primera = distancias[0].seccion;
-
-        for (const d of distancias) {
-          padre?.appendChild(d.seccion);
-        }
-
-        const ciudad = primera.dataset.ciudad;
-        const indicador = document.createElement("p");
-        indicador.className = "geo-indicador";
-        indicador.textContent = `Mostrando ${ciudad} primero (más cercana a ti)`;
-        primera.insertBefore(indicador, primera.querySelector(".grid"));
+        ultimaPos = { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
+        reordenarPorProximidad(ultimaPos.latitude, ultimaPos.longitude);
       },
       () => {},
       { enableHighAccuracy: false, timeout: 10000 }
     );
   }
+
+  // Refresco runtime (desacoplar-datos-deploy): datos frescos del API con
+  // fallback al SSG. Si el API falla, la página queda como se renderizó.
+  async function refrescar() {
+    const data = await fetchCatalogo<{ jornadas: JornadaSangre[] }>("donacion-sangre");
+    if (!data || !Array.isArray(data.jornadas)) return;
+    const cont = document.getElementById("contenido-sangre");
+    if (!cont) return;
+    cont.innerHTML = renderSangrePagina(data.jornadas);
+    if (ultimaPos) reordenarPorProximidad(ultimaPos.latitude, ultimaPos.longitude);
+  }
+  void refrescar();
 </script>

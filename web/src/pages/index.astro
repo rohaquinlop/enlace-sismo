@@ -9,6 +9,7 @@ import IndiceSecciones from "../components/IndiceSecciones.astro";
 import StatusBadge from "../components/StatusBadge.astro";
 import { acopios, albergues, centrosSalud, jornadasSangre, todasLasCiudades } from "../lib/catalogs";
 import { zonas } from "../lib/zonas";
+import evento from "../../../data/evento.json";
 import puntosRescateData from "../../../data/puntos-rescate.json";
 import { puntoActivo, agregarNecesidades, type PuntoVivo } from "../lib/puntos-rescate";
 import { agruparCiudades, fusionarCiudadesSelect, nombreCiudadNormalizado, type CiudadReportada } from "../lib/ciudades";
@@ -87,7 +88,12 @@ const enlaceMaps = (lat: number, lng: number) =>
             </button>
           </div>
           <div class="rail-panel" role="tabpanel" id="panel-zonas" aria-labelledby="tab-zonas">
-            <ZonasLista zonas={zonas} ciudadesReportadas={ciudadesReportadas} />
+            <!-- Slot con el estado SSG (ciudades reportadas + fecha del evento):
+                 el refresco runtime re-renderiza el panel con datos frescos del
+                 API y conserva estos valores como respaldo (desacoplar-datos-deploy). -->
+            <div id="zonas-slot" data-ciudades-reportadas={JSON.stringify(ciudadesReportadas)} data-fecha-evento={evento.fecha.slice(0, 10)}>
+              <ZonasLista zonas={zonas} ciudadesReportadas={ciudadesReportadas} />
+            </div>
           </div>
           <div class="rail-panel" role="tabpanel" id="panel-secciones" aria-labelledby="tab-secciones">
             <IndiceSecciones />
@@ -99,63 +105,67 @@ const enlaceMaps = (lat: number, lng: number) =>
             <div class="dash-index">
               <div class="dash-index-head">
                 <h3>Puntos de rescate</h3>
-                <span class="zonas-count" aria-label={`${activos.length} puntos activos`}>{activos.length}</span>
+                <span class="zonas-count" id="rescate-conteo" aria-label={`${activos.length} puntos activos`}>{activos.length}</span>
               </div>
-              {
-                activos.length === 0 ? (
-                  <p class="rescate-vacio">
-                    Sin puntos activos ahora.
-                    {vivos.filter((p) => !puntoActivo(p)).length > 0 ? ` Hay ${vivos.filter((p) => !puntoActivo(p)).length} en el histórico.` : ""}{" "}
-                    <a href="/reportar">Reportar un punto</a>
-                  </p>
-                ) : (
-                  <>
-                    {
-                      agregado.length > 0 && (
-                        <span class="rescate-agregado" id="rescate-agregado">
-                          {activos.length} punto{activos.length === 1 ? "" : "s"} necesitan:{" "}
-                          {agregado
-                            .slice(0, 4)
-                            .map((a) => `${etiquetaNecesidad(a.id)} ×${a.cuenta}`)
-                            .join(", ")}
-                        </span>
-                      )
-                    }
-                    <div id="rescate-lista">
-                      {activos.map((p) => (
-                        <article class="rescate-fila" data-id={p.id}>
-                          <div class="dash-row-top">
-                            <span class="dash-row-nombre">
-                              {etiquetaTipo(p.tipo)}{p.direccion ? ` — ${p.direccion}` : ""}
-                            </span>
-                            <span class="dash-row-meta">
-                              {ESTADOS_PUNTO[p.estado] ?? p.estado} · {p.confirmaciones.length}{" "}
-                              conf.
-                              {p.coordenadas_nivel ? ` · ${etiquetaPrecision(p.coordenadas_nivel)}` : ""}
-                            </span>
-                          </div>
-                          {p.descripcion && <p>{p.descripcion}</p>}
-                          {
-                            p.necesidades.length > 0 && (
-                              <span class="popup-rescate-ns">
-                                {p.necesidades.map((n) => (
-                                  <span>{etiquetaNecesidad(n)}</span>
-                                ))}
+              <!-- Contenido re-renderizado por el refresco runtime y por el
+                   filtro de zona activa (clic en una zona → sus rescates). -->
+              <div id="rescate-panel">
+                {
+                  activos.length === 0 ? (
+                    <p class="rescate-vacio">
+                      Sin puntos activos ahora.
+                      {vivos.filter((p) => !puntoActivo(p)).length > 0 ? ` Hay ${vivos.filter((p) => !puntoActivo(p)).length} en el histórico.` : ""}{" "}
+                      <a href="/reportar">Reportar un punto</a>
+                    </p>
+                  ) : (
+                    <>
+                      {
+                        agregado.length > 0 && (
+                          <span class="rescate-agregado" id="rescate-agregado">
+                            {activos.length} punto{activos.length === 1 ? "" : "s"} necesitan:{" "}
+                            {agregado
+                              .slice(0, 4)
+                              .map((a) => `${etiquetaNecesidad(a.id)} ×${a.cuenta}`)
+                              .join(", ")}
+                          </span>
+                        )
+                      }
+                      <div id="rescate-lista">
+                        {activos.map((p) => (
+                          <article class="rescate-fila" data-id={p.id} data-volar-rescate={p.id} title="Ver en el mapa">
+                            <div class="dash-row-top">
+                              <span class="dash-row-nombre">
+                                {etiquetaTipo(p.tipo)}{p.direccion ? ` — ${p.direccion}` : ""}
                               </span>
-                            )
-                          }
-                          <div class="rescate-acciones">
-                            <a class="rescate-btn" href={enlaceMaps(p.lat, p.lng)} target="_blank" rel="noopener">Cómo llegar</a>
-                            <button type="button" class="rescate-btn" data-confirmar={p.id}>
-                              Confirmar con mi ubicación
-                            </button>
-                          </div>
-                        </article>
-                      ))}
-                    </div>
-                  </>
-                )
-              }
+                              <span class="dash-row-meta">
+                                {p.ciudad ? `${p.ciudad} · ` : ""}{ESTADOS_PUNTO[p.estado] ?? p.estado} · {p.confirmaciones.length}{" "}
+                                conf.
+                                {p.coordenadas_nivel ? ` · ${etiquetaPrecision(p.coordenadas_nivel)}` : ""}
+                              </span>
+                            </div>
+                            {p.descripcion && <p>{p.descripcion}</p>}
+                            {
+                              p.necesidades.length > 0 && (
+                                <span class="popup-rescate-ns">
+                                  {p.necesidades.map((n) => (
+                                    <span>{etiquetaNecesidad(n)}</span>
+                                  ))}
+                                </span>
+                              )
+                            }
+                            <div class="rescate-acciones">
+                              <a class="rescate-btn" href={enlaceMaps(p.lat, p.lng)} target="_blank" rel="noopener">Cómo llegar</a>
+                              <button type="button" class="rescate-btn" data-confirmar={p.id}>
+                                Confirmar con mi ubicación
+                              </button>
+                            </div>
+                          </article>
+                        ))}
+                      </div>
+                    </>
+                  )
+                }
+              </div>
               <a class="dash-row" href="/reportar">
                 <span class="dash-row-top">
                   <span class="dash-row-nombre">Reportar un punto</span>
@@ -182,11 +192,15 @@ const enlaceMaps = (lat: number, lng: number) =>
 
 <script>
   import { apiUrl } from "../lib/api";
+  import { fetchCatalogo } from "../lib/datos";
   import { puntoActivo, agregarNecesidades, type PuntoVivo } from "../lib/puntos-rescate";
-  import { agruparCiudades } from "../lib/ciudades";
+  import { agruparCiudades, nombreCiudadNormalizado, type CiudadReportada } from "../lib/ciudades";
   import { etiquetaTipo, etiquetaNecesidad, ESTADOS_PUNTO, etiquetaPrecision } from "../lib/necesidades";
-  import { todasLasCiudades } from "../lib/catalogs";
+  import { renderZonasListaHTML } from "../lib/render-catalogos";
+  import { acopios, albergues, centrosSalud, jornadasSangre } from "../lib/catalogs";
+  import type { Acopio, Albergue, CentroSalud, JornadaSangre } from "../lib/catalogs";
   import { zonas } from "../lib/zonas";
+  import type { Zona } from "../lib/zonas";
 
   // Tabs del rail (mejora progresiva): sin JS, ambos paneles quedan visibles
   // y el tablist es inerte. Con JS, solo el panel activo se muestra.
@@ -252,8 +266,25 @@ const enlaceMaps = (lat: number, lng: number) =>
 
   // Sync con el mapa: popup de zona o geolocalización → pestaña Zonas.
   // Un id vacío solo limpia el resaltado; no cambia de pestaña.
+  // La zona activa además filtra el panel Rescates (epicentro = todas).
+  function activarZonaRescates(nombre: string | null) {
+    if (zonaRescates === nombre) return;
+    zonaRescates = nombre;
+    if (ultimoRegistro) aplicarRegistro(ultimoRegistro);
+  }
   window.addEventListener("enlace:mapa:zona-activa", (e) => {
-    if ((e as CustomEvent<{ id: string }>).detail?.id) tabZonas && activar(tabZonas);
+    const id = (e as CustomEvent<{ id?: string }>).detail?.id;
+    if (!id) {
+      activarZonaRescates(null);
+      return;
+    }
+    const z = zonasActuales.find((x) => x.id === id);
+    activarZonaRescates(z && z.tipo !== "epicentro" ? z.nombre : null);
+    tabZonas && activar(tabZonas);
+  });
+  window.addEventListener("enlace:mapa:ciudad-reportada", (e) => {
+    const nombre = (e as CustomEvent<{ nombre?: string }>).detail?.nombre;
+    if (nombre) activarZonaRescates(nombre);
   });
   window.addEventListener("enlace:mapa:posicion", () => tabZonas && activar(tabZonas));
 
@@ -271,6 +302,33 @@ const enlaceMaps = (lat: number, lng: number) =>
 
   // Confirmar un punto desde la lista: geolocalización → POST → refrescar.
   const panelRescates = document.getElementById("panel-rescates");
+
+  // Navegación del panel Rescates: clic en la fila → el mapa vuela al punto
+  // y abre su popup (los botones Cómo llegar/Confirmar no disparan el vuelo).
+  panelRescates?.addEventListener("click", (e) => {
+    const target = e.target as HTMLElement;
+    if (target.closest("a, button")) return;
+    const fila = target.closest<HTMLElement>("[data-volar-rescate]");
+    if (fila?.dataset.volarRescate) {
+      window.dispatchEvent(
+        new CustomEvent("enlace:mapa:volar-rescate", { detail: { id: fila.dataset.volarRescate } })
+      );
+    }
+  });
+
+  // "Ver todos" del filtro de zona: limpia el panel y el select del mapa.
+  panelRescates?.addEventListener("click", (e) => {
+    const btn = (e.target as HTMLElement).closest<HTMLButtonElement>("[data-rescates-todos]");
+    if (!btn) return;
+    zonaRescates = null;
+    const select = document.querySelector<HTMLSelectElement>(".leyenda-tira select");
+    if (select && select.value !== "") {
+      select.value = "";
+      select.dispatchEvent(new Event("change")); // el mapa vuelve a "Ciudad: Todas"
+    }
+    if (ultimoRegistro) aplicarRegistro(ultimoRegistro);
+  });
+
 
   const escapar = (s: string) =>
     s.replace(/[&<>"']/g, (c) =>
@@ -325,97 +383,317 @@ const enlaceMaps = (lat: number, lng: number) =>
     );
   });
 
-  // Refresca la lista del rail y el conteo del chip desde el archivo en vivo.
+  // ---------- Refresco runtime de datos (desacoplar-datos-deploy) ----------
+  // Catálogos, zonas, evento y registro en vivo se leen del API
+  // (/api/datos/:catalogo; el worker sirve el repo con caché KV). Si el API
+  // falla o tarda, la página conserva lo renderizado en build (SSG).
+
+  interface EventoBoletin {
+    id?: string;
+    titulo?: string;
+    magnitud?: number;
+    profundidad_km?: number;
+    epicentro?: string;
+    ciudades_sentido?: string[];
+    replicas?: number | string;
+    fuente?: string;
+    fuente_url?: string;
+    fecha?: string;
+  }
+
+  interface DatosFrescos {
+    acopios?: Acopio[];
+    albergues?: Albergue[];
+    centros?: CentroSalud[];
+    jornadas?: JornadaSangre[];
+    zonas?: Zona[];
+    evento?: EventoBoletin;
+    registro?: PuntoVivo[];
+  }
+
+  // Estado actual: arranca en los datos del build y se actualiza con cada
+  // refresco que trae datos frescos (catálogos y zonas del API).
+  let catalogoActual: {
+    acopios: Acopio[];
+    albergues: Albergue[];
+    centros: CentroSalud[];
+    jornadas: JornadaSangre[];
+  } = { acopios, albergues, centros: centrosSalud, jornadas: jornadasSangre };
+  let zonasActuales: Zona[] = zonas;
+  let ultimoRegistro: PuntoVivo[] | null = null;
+
+  const slotZonas = document.getElementById("zonas-slot");
+  const ciudadesSSG: CiudadReportada[] = slotZonas
+    ? (JSON.parse(slotZonas.dataset.ciudadesReportadas ?? "[]") as CiudadReportada[])
+    : [];
+  let fechaZonas = slotZonas?.dataset.fechaEvento ?? "";
+
+  /** Ciudades con reportes ciudadanos vigentes (dedupe normalizado contra catálogo + zonas SGC). */
+  function ciudadesReportadasActuales(): CiudadReportada[] {
+    if (!ultimoRegistro) return ciudadesSSG;
+    const catalogadas = new Set(
+      [
+        ...catalogoActual.acopios.map((e) => e.ciudad),
+        ...catalogoActual.albergues.map((e) => e.ciudad),
+        ...catalogoActual.centros.map((e) => e.ciudad),
+        ...catalogoActual.jornadas.map((e) => e.ciudad),
+        ...zonasActuales.filter((z) => z.tipo === "ciudad").map((z) => z.nombre),
+      ].map(nombreCiudadNormalizado)
+    );
+    return agruparCiudades(ultimoRegistro).filter(
+      (c) => !catalogadas.has(nombreCiudadNormalizado(c.nombre))
+    );
+  }
+
+  /** Re-renderiza el panel Zonas (filas SGC + ciudades reportadas) con datos frescos. */
+  let ultimoRenderZonas = "";
+  function reRenderZonas() {
+    const slot = document.getElementById("zonas-slot");
+    if (!slot) return;
+    const ciudades = ciudadesReportadasActuales();
+    // Solo re-renderizar cuando algo cambió: el re-render resetea scroll y
+    // resaltado del panel (y reemplazaría el DOM en cada poll de 60 s).
+    const huella = JSON.stringify([zonasActuales, ciudades, fechaZonas]);
+    if (huella === ultimoRenderZonas) return;
+    ultimoRenderZonas = huella;
+    slot.innerHTML = renderZonasListaHTML(zonasActuales, ciudades, fechaZonas);
+    window.dispatchEvent(new CustomEvent("enlace:zonas:re-render"));
+  }
+
+  /** Zona activa que filtra el panel Rescates (null = todas). */
+  let zonaRescates: string | null = null;
+
+  /** Fila del panel Rescates (mismo markup SSG; clic en la fila = ver en el mapa). */
+  function filaRescateHTML(p: PuntoVivo): string {
+    return (
+      `<article class="rescate-fila" data-id="${escapar(p.id)}" data-volar-rescate="${escapar(p.id)}" title="Ver en el mapa">` +
+      `<div class="dash-row-top"><span class="dash-row-nombre">${escapar(etiquetaTipo(p.tipo))}${p.direccion ? ` — ${escapar(p.direccion)}` : ""}</span>` +
+      `<span class="dash-row-meta">${p.ciudad ? `${escapar(p.ciudad)} · ` : ""}${escapar(ESTADOS_PUNTO[p.estado] ?? p.estado)} · ${p.confirmaciones.length} conf.${p.coordenadas_nivel ? ` · ${escapar(etiquetaPrecision(p.coordenadas_nivel))}` : ""}</span></div>` +
+      `${p.descripcion ? `<p>${escapar(p.descripcion)}</p>` : ""}` +
+      `${p.necesidades.length > 0 ? `<span class="popup-rescate-ns">${p.necesidades.map((n) => `<span>${escapar(etiquetaNecesidad(n))}</span>`).join("")}</span>` : ""}` +
+      `<div class="rescate-acciones"><a class="rescate-btn" href="https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}" target="_blank" rel="noopener">Cómo llegar</a>` +
+      `<button type="button" class="rescate-btn" data-confirmar="${escapar(p.id)}">Confirmar con mi ubicación</button></div>` +
+      `</article>`
+    );
+  }
+
+  /** Contenido del panel Rescates: filtro de zona activa + lista o vacío. */
+  function htmlPanelRescates(vivos: PuntoVivo[]): string {
+    const enZona = (p: PuntoVivo) =>
+      !zonaRescates || nombreCiudadNormalizado(p.ciudad ?? "") === nombreCiudadNormalizado(zonaRescates);
+    const activos = vivos
+      .filter((p) => puntoActivo(p) && enZona(p))
+      .sort((a, b) => b.created_at.localeCompare(a.created_at));
+    const agregado = agregarNecesidades(activos);
+    const filtro = zonaRescates
+      ? `<div class="rescate-filtro"><span>Rescates en <strong>${escapar(zonaRescates)}</strong></span>` +
+        `<button type="button" class="rescate-btn" data-rescates-todos>Ver todos</button></div>`
+      : "";
+    if (activos.length === 0) {
+      const historico = vivos.filter((p) => !puntoActivo(p)).length;
+      return (
+        filtro +
+        `<p class="rescate-vacio">` +
+        `${zonaRescates ? `Sin puntos activos en ${escapar(zonaRescates)} ahora. ` : "Sin puntos activos ahora. "}` +
+        `${historico > 0 ? ` Hay ${historico} en el histórico.` : ""} ` +
+        `<a href="/reportar">Reportar un punto</a></p>`
+      );
+    }
+    return (
+      filtro +
+      `${agregado.length > 0 ? `<span class="rescate-agregado" id="rescate-agregado">${activos.length} punto${activos.length === 1 ? "" : "s"} necesitan: ${agregado.slice(0, 4).map((a) => `${etiquetaNecesidad(a.id)} ×${a.cuenta}`).join(", ")}</span>` : ""}` +
+      `<div id="rescate-lista">${activos.map(filaRescateHTML).join("")}</div>`
+    );
+  }
+
+  /** Aplica el registro en vivo al rail Rescates, chip, ciudades y select. */
+  function aplicarRegistro(vivos: PuntoVivo[], detalle: DatosFrescos = {}) {
+    if (!Array.isArray(vivos)) return;
+    ultimoRegistro = vivos;
+    detalle.registro = vivos;
+    const panel = document.getElementById("rescate-panel");
+    if (panel) panel.innerHTML = htmlPanelRescates(vivos);
+    const conteoPanel = document.getElementById("rescate-conteo");
+    if (conteoPanel) {
+      const n = vivos.filter(
+        (p) =>
+          puntoActivo(p) &&
+          (!zonaRescates || nombreCiudadNormalizado(p.ciudad ?? "") === nombreCiudadNormalizado(zonaRescates))
+      ).length;
+      conteoPanel.textContent = String(n);
+      conteoPanel.setAttribute("aria-label", `${n} puntos activos`);
+    }
+    const conteo = document.querySelector<HTMLSpanElement>(".leyenda-tira input[value='rescates'] ~ .tira-label");
+    if (conteo) conteo.textContent = `Rescates (${vivos.filter((p) => puntoActivo(p)).length})`;
+
+    // Ciudades reportadas: sección del panel Zonas + opciones del select
+    const reportadas = ciudadesReportadasActuales();
+    const seccion = document.getElementById("zonas-ciudadanas");
+    if (seccion) {
+      seccion.hidden = reportadas.length === 0;
+      if (reportadas.length > 0) {
+        seccion.innerHTML =
+          `<div class="zonas-ciudadanas-head">` +
+          `<span class="zonas-ciudadanas-label">Ciudades con reportes ciudadanos</span>` +
+          `<span class="zonas-count">${reportadas.length}</span></div>` +
+          reportadas
+            .map(
+              (c) =>
+                `<button type="button" class="dash-row zona-fila zona-fila-ciudadana" data-ciudad-nombre="${escapar(c.nombre)}" aria-pressed="false" title="Ciudad reportada por ciudadanos — sin intensidad hasta verificación oficial">` +
+                `<span class="zona-fila-top"><span class="zona-dot zona-dot-ciudad" aria-hidden="true"></span>` +
+                `<span class="zona-fila-nombre">${escapar(c.nombre)}</span>` +
+                `<span class="zona-fila-meta">${c.puntos.length} punto${c.puntos.length === 1 ? "" : "s"} · sin confirmar</span>` +
+                `<span class="dash-row-chevron" aria-hidden="true">›</span></span>` +
+                `<span class="zona-fila-linea">Reportada por ciudadanos · sin intensidad (falta fuente oficial)</span>` +
+                `</button>`
+            )
+            .join("");
+      }
+    }
+    const catalogadas = new Set([
+      ...catalogoActual.acopios.map((e) => e.ciudad),
+      ...catalogoActual.albergues.map((e) => e.ciudad),
+      ...catalogoActual.centros.map((e) => e.ciudad),
+      ...catalogoActual.jornadas.map((e) => e.ciudad),
+      ...zonasActuales.filter((z) => z.tipo === "ciudad").map((z) => z.nombre),
+    ]);
+    const select = document.querySelector<HTMLSelectElement>(".leyenda-tira select");
+    if (select) {
+      const actual = select.value;
+      const opciones = Array.from(new Set([...catalogadas, ...reportadas.map((c) => c.nombre)])).sort((a, b) =>
+        a.localeCompare(b, "es")
+      );
+      const actuales = Array.from(select.options).map((o) => o.value);
+      if (opciones.length !== actuales.length - 1 || opciones.some((n) => !actuales.includes(n))) {
+        select.innerHTML =
+          `<option value="">Ciudad: Todas</option>` +
+          opciones.map((n) => `<option value="${escapar(n)}">${escapar(n)}</option>`).join("");
+        if (actual && opciones.includes(actual)) select.value = actual;
+      }
+    }
+    // Las filas ciudadanas re-renderizadas ignoran el estado del chip "Zonas".
+    const chipZonas = Array.from(
+      document.querySelectorAll<HTMLInputElement>(".leyenda-tira input[type='checkbox']:checked")
+    ).some((i) => i.value === "zona");
+    document.querySelectorAll<HTMLButtonElement>(".zona-fila-ciudadana").forEach((f) => {
+      f.hidden = !chipZonas;
+    });
+  }
+
+  /** Refresco del registro tras confirmar un punto (fetch propio + evento al mapa). */
   async function refrescarRescates() {
     if (!panelRescates) return;
-    try {
-      const res = await fetch("/datos/reportes-puntos.json");
-      if (!res.ok) return;
-      const vivos = (await res.json()) as PuntoVivo[];
-      if (!Array.isArray(vivos)) return;
-      const activos = vivos
-        .filter((p) => puntoActivo(p))
-        .sort((a, b) => b.created_at.localeCompare(a.created_at));
-      const agregado = agregarNecesidades(activos);
-      const lista = document.getElementById("rescate-lista");
-      if (lista) {
-        lista.innerHTML = activos
-          .map(
-            (p) =>
-              `<article class="rescate-fila" data-id="${escapar(p.id)}">` +
-              `<div class="dash-row-top"><span class="dash-row-nombre">${escapar(etiquetaTipo(p.tipo))}${p.direccion ? ` — ${escapar(p.direccion)}` : ""}</span>` +
-              `<span class="dash-row-meta">${escapar(ESTADOS_PUNTO[p.estado] ?? p.estado)} · ${p.confirmaciones.length} conf.${p.coordenadas_nivel ? ` · ${escapar(etiquetaPrecision(p.coordenadas_nivel))}` : ""}</span></div>` +
-              `${p.descripcion ? `<p>${escapar(p.descripcion)}</p>` : ""}` +
-              `${p.necesidades.length > 0 ? `<span class="popup-rescate-ns">${p.necesidades.map((n) => `<span>${escapar(etiquetaNecesidad(n))}</span>`).join("")}</span>` : ""}` +
-              `<div class="rescate-acciones"><a class="rescate-btn" href="https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}" target="_blank" rel="noopener">Cómo llegar</a>` +
-              `<button type="button" class="rescate-btn" data-confirmar="${escapar(p.id)}">Confirmar con mi ubicación</button></div>` +
-              `</article>`
-          )
-          .join("");
-      }
-      const agregadoEl = document.getElementById("rescate-agregado");
-      if (agregadoEl) {
-        agregadoEl.textContent =
-          agregado.length > 0
-            ? `${activos.length} punto${activos.length === 1 ? "" : "s"} necesitan: ${agregado.slice(0, 4).map((a) => `${etiquetaNecesidad(a.id)} ×${a.cuenta}`).join(", ")}`
-            : "";
-      }
-      const conteo = document.querySelector<HTMLSpanElement>(".leyenda-tira input[value='rescates'] ~ .tira-label");
-      if (conteo) conteo.textContent = `Rescates (${activos.length})`;
+    const detalle: DatosFrescos = {};
+    const vivos = await fetchCatalogo<PuntoVivo[]>("registro");
+    if (!Array.isArray(vivos)) return;
+    aplicarRegistro(vivos, detalle);
+    window.dispatchEvent(new CustomEvent("enlace:mapa:datos-frescos", { detail: detalle }));
+  }
 
-      // Ciudades reportadas: sección del panel Zonas + opciones del select
-      const catalogadas = new Set([
-        ...todasLasCiudades,
-        ...zonas.filter((z) => z.tipo === "ciudad").map((z) => z.nombre),
-      ]);
-      const reportadas = agruparCiudades(vivos).filter((c) => !catalogadas.has(c.nombre));
-      const seccion = document.getElementById("zonas-ciudadanas");
-      if (seccion) {
-        seccion.hidden = reportadas.length === 0;
-        if (reportadas.length > 0) {
-          seccion.innerHTML =
-            `<div class="zonas-ciudadanas-head">` +
-            `<span class="zonas-ciudadanas-label">Ciudades con reportes ciudadanos</span>` +
-            `<span class="zonas-count">${reportadas.length}</span></div>` +
-            reportadas
-              .map(
-                (c) =>
-                  `<button type="button" class="dash-row zona-fila zona-fila-ciudadana" data-ciudad-nombre="${escapar(c.nombre)}" aria-pressed="false" title="Ciudad reportada por ciudadanos — sin intensidad hasta verificación oficial">` +
-                  `<span class="zona-fila-top"><span class="zona-dot zona-dot-ciudad" aria-hidden="true"></span>` +
-                  `<span class="zona-fila-nombre">${escapar(c.nombre)}</span>` +
-                  `<span class="zona-fila-meta">${c.puntos.length} punto${c.puntos.length === 1 ? "" : "s"} · sin confirmar</span>` +
-                  `<span class="dash-row-chevron" aria-hidden="true">›</span></span>` +
-                  `<span class="zona-fila-linea">Reportada por ciudadanos · sin intensidad (falta fuente oficial)</span>` +
-                  `</button>`
-              )
-              .join("");
-        }
-      }
-      const select = document.querySelector<HTMLSelectElement>(".leyenda-tira select");
-      if (select) {
-        const actual = select.value;
-        const opciones = Array.from(
-          new Set([...catalogadas, ...reportadas.map((c) => c.nombre)])
-        ).sort((a, b) => a.localeCompare(b, "es"));
-        const actuales = Array.from(select.options).map((o) => o.value);
-        if (opciones.length !== actuales.length - 1 || opciones.some((n) => !actuales.includes(n))) {
-          select.innerHTML =
-            `<option value="">Ciudad: Todas</option>` +
-            opciones.map((n) => `<option value="${escapar(n)}">${escapar(n)}</option>`).join("");
-          if (actual && opciones.includes(actual)) select.value = actual;
-        }
-      }
-      // Las filas ciudadanas re-renderizadas ignoran el estado del chip "Zonas".
-      const chipZonas = Array.from(
-        document.querySelectorAll<HTMLInputElement>(".leyenda-tira input[type='checkbox']:checked")
-      ).some((i) => i.value === "zona");
-      document.querySelectorAll<HTMLButtonElement>(".zona-fila-ciudadana").forEach((f) => {
-        f.hidden = !chipZonas;
-      });
-    } catch {
-      // API o archivo caído: la lista SSG sigue visible.
+  const CONTEOS_LEYENDA: Record<string, string> = {
+    acopio: "Acopios",
+    albergue: "Albergues",
+    salud: "Salud",
+    sangre: "Donar sangre",
+  };
+
+  function actualizarConteoLeyenda(tipo: string, n: number) {
+    const label = document.querySelector<HTMLSpanElement>(
+      `.leyenda-tira input[value='${tipo}'] ~ .tira-label`
+    );
+    if (label && CONTEOS_LEYENDA[tipo]) label.textContent = `${CONTEOS_LEYENDA[tipo]} (${n})`;
+  }
+
+  function actualizarPuntosConteo() {
+    const total =
+      catalogoActual.acopios.length +
+      catalogoActual.albergues.length +
+      catalogoActual.centros.length +
+      catalogoActual.jornadas.length;
+    const el = document.getElementById("puntos-conteo");
+    if (el) el.textContent = total === 1 ? "1 punto" : `${total} puntos`;
+  }
+
+  /** Barra de estado: lectura del boletín SGC con el evento fresco. */
+  function actualizarBarraEvento(ev: EventoBoletin) {
+    const l1 = document.getElementById("barra-linea1");
+    if (l1 && ev.magnitud != null && ev.epicentro) {
+      l1.textContent = `SISMO M${ev.magnitud} · EPICENTRO ${String(ev.epicentro).toUpperCase()}`;
+    }
+    const l2 = document.getElementById("barra-linea2");
+    if (l2 && ev.profundidad_km != null && Array.isArray(ev.ciudades_sentido)) {
+      l2.textContent = `PROFUNDIDAD ${ev.profundidad_km} KM · SENTIDO EN ${ev.ciudades_sentido.length} CIUDADES`;
+    }
+    const l3 = document.getElementById("barra-linea3");
+    if (l3 && ev.replicas != null) l3.textContent = `RÉPLICAS ${ev.replicas}`;
+    const enlace = document.getElementById("barra-fuente-enlace") as HTMLAnchorElement | null;
+    if (enlace && ev.fuente_url) {
+      enlace.href = ev.fuente_url;
+      enlace.textContent = ev.fuente ?? "";
+    }
+    const fec = document.getElementById("barra-fuente-fecha");
+    if (fec && ev.fecha) {
+      fec.textContent = ev.fecha.slice(0, 10);
+      fechaZonas = ev.fecha.slice(0, 10);
     }
   }
+
+  /** Ciclo completo: catálogos + zonas + evento + registro, una vez por poll. */
+  async function refrescarDatos() {
+    const [acopiosD, alberguesD, centrosD, jornadasD, zonasD, eventoD, registroD] = await Promise.all([
+      fetchCatalogo<{ acopios: Acopio[] }>("acopios"),
+      fetchCatalogo<{ albergues: Albergue[] }>("albergues"),
+      fetchCatalogo<{ centros: CentroSalud[] }>("centros-salud"),
+      fetchCatalogo<{ jornadas: JornadaSangre[] }>("donacion-sangre"),
+      fetchCatalogo<Zona[]>("zonas-afectadas"),
+      fetchCatalogo<EventoBoletin>("evento"),
+      fetchCatalogo<PuntoVivo[]>("registro"),
+    ]);
+    const detalle: DatosFrescos = {};
+    if (acopiosD?.acopios) {
+      catalogoActual.acopios = acopiosD.acopios;
+      detalle.acopios = acopiosD.acopios;
+      actualizarConteoLeyenda("acopio", acopiosD.acopios.length);
+    }
+    if (alberguesD?.albergues) {
+      catalogoActual.albergues = alberguesD.albergues;
+      detalle.albergues = alberguesD.albergues;
+      actualizarConteoLeyenda("albergue", alberguesD.albergues.length);
+    }
+    if (centrosD?.centros) {
+      catalogoActual.centros = centrosD.centros;
+      detalle.centros = centrosD.centros;
+      actualizarConteoLeyenda("salud", centrosD.centros.length);
+    }
+    if (jornadasD?.jornadas) {
+      catalogoActual.jornadas = jornadasD.jornadas;
+      detalle.jornadas = jornadasD.jornadas;
+      actualizarConteoLeyenda("sangre", jornadasD.jornadas.length);
+    }
+    if (zonasD) {
+      zonasActuales = zonasD;
+      detalle.zonas = zonasD;
+    }
+    if (eventoD) {
+      detalle.evento = eventoD;
+      actualizarBarraEvento(eventoD);
+    }
+    if (registroD) ultimoRegistro = registroD;
+    if (Object.keys(detalle).length === 0) return; // API caída: queda el SSG
+    if (zonasD || registroD) reRenderZonas();
+    if (registroD) aplicarRegistro(registroD, detalle);
+    actualizarPuntosConteo();
+    window.dispatchEvent(new CustomEvent("enlace:mapa:datos-frescos", { detail: detalle }));
+  }
+
+  // Primer refresco + poll cada 60 s mientras la pestaña está visible.
+  void refrescarDatos();
+  window.setInterval(() => {
+    if (!document.hidden) void refrescarDatos();
+  }, 60_000);
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) void refrescarDatos();
+  });
 
   // Estado inicial con JS: solo Zonas visible
   if (tabZonas) activar(tabZonas);

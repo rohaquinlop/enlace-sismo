@@ -18,6 +18,7 @@ const grupos = agruparPorCiudad(albergues);
     </p>
   </section>
 
+  <div id="contenido-albergues">
   {
     albergues.length === 0 ? (
       <div class="vacio">
@@ -55,52 +56,86 @@ const grupos = agruparPorCiudad(albergues);
       </>
     )
   }
+  </div>
 </BaseLayout>
 
 <script>
   import { haversineKm } from "../lib/geo";
+  import { fetchCatalogo } from "../lib/datos";
+  import { renderAlberguesPagina } from "../lib/render-catalogos";
+  import type { Albergue } from "../lib/catalogs";
 
-  const selectCiudad = document.getElementById("filtro-ciudad") as HTMLSelectElement | null;
+  let ultimaPos: { latitude: number; longitude: number } | null = null;
 
-  function filtrar() {
-    const ciudad = selectCiudad?.value ?? "";
-    document.querySelectorAll<HTMLElement>(".ciudad-grupo").forEach((grupo) => {
-      const coincideCiudad = !ciudad || grupo.dataset.ciudad === ciudad;
-      grupo.style.display = coincideCiudad ? "" : "none";
-    });
+  function bindFiltros() {
+    const selectCiudad = document.getElementById("filtro-ciudad") as HTMLSelectElement | null;
+
+    function filtrar() {
+      const ciudad = selectCiudad?.value ?? "";
+      document.querySelectorAll<HTMLElement>(".ciudad-grupo").forEach((grupo) => {
+        const coincideCiudad = !ciudad || grupo.dataset.ciudad === ciudad;
+        grupo.style.display = coincideCiudad ? "" : "none";
+      });
+    }
+
+    selectCiudad?.addEventListener("change", filtrar);
+    return filtrar;
   }
 
-  selectCiudad?.addEventListener("change", filtrar);
+  let filtrar = bindFiltros();
+
+  function reordenarPorProximidad(latitude: number, longitude: number) {
+    const secciones = Array.from(document.querySelectorAll<HTMLElement>(".ciudad-grupo"));
+    if (secciones.length < 2) return;
+
+    const distancias = secciones.map((s) => {
+      const lat = Number(s.dataset.lat);
+      const lng = Number(s.dataset.lng);
+      return { seccion: s, km: haversineKm(latitude, longitude, lat, lng) };
+    });
+
+    distancias.sort((a, b) => a.km - b.km);
+    const padre = secciones[0].parentNode;
+    const primera = distancias[0].seccion;
+
+    for (const d of distancias) {
+      padre?.appendChild(d.seccion);
+    }
+
+    const ciudad = primera.dataset.ciudad;
+    const indicador = document.createElement("p");
+    indicador.className = "geo-indicador";
+    indicador.textContent = `Mostrando ${ciudad} primero (más cercana a ti)`;
+    primera.insertBefore(indicador, primera.querySelector(".grid"));
+  }
 
   if (navigator.geolocation) {
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        const { latitude, longitude } = pos.coords;
-        const secciones = Array.from(document.querySelectorAll<HTMLElement>(".ciudad-grupo"));
-        if (secciones.length < 2) return;
-
-        const distancias = secciones.map((s) => {
-          const lat = Number(s.dataset.lat);
-          const lng = Number(s.dataset.lng);
-          return { seccion: s, km: haversineKm(latitude, longitude, lat, lng) };
-        });
-
-        distancias.sort((a, b) => a.km - b.km);
-        const padre = secciones[0].parentNode;
-        const primera = distancias[0].seccion;
-
-        for (const d of distancias) {
-          padre?.appendChild(d.seccion);
-        }
-
-        const ciudad = primera.dataset.ciudad;
-        const indicador = document.createElement("p");
-        indicador.className = "geo-indicador";
-        indicador.textContent = `Mostrando ${ciudad} primero (más cercana a ti)`;
-        primera.insertBefore(indicador, primera.querySelector(".grid"));
+        ultimaPos = { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
+        reordenarPorProximidad(ultimaPos.latitude, ultimaPos.longitude);
       },
       () => {},
       { enableHighAccuracy: false, timeout: 10000 }
     );
   }
+
+  // Refresco runtime (desacoplar-datos-deploy): datos frescos del API con
+  // fallback al SSG. Si el API falla, la página queda como se renderizó.
+  async function refrescar() {
+    const data = await fetchCatalogo<{ albergues: Albergue[] }>("albergues");
+    if (!data || !Array.isArray(data.albergues)) return;
+    const cont = document.getElementById("contenido-albergues");
+    if (!cont) return;
+    const previo = (document.getElementById("filtro-ciudad") as HTMLSelectElement | null)?.value ?? "";
+    cont.innerHTML = renderAlberguesPagina(data.albergues);
+    filtrar = bindFiltros();
+    const select = document.getElementById("filtro-ciudad") as HTMLSelectElement | null;
+    if (previo && select && Array.from(select.options).some((o) => o.value === previo)) {
+      select.value = previo;
+    }
+    filtrar();
+    if (ultimaPos) reordenarPorProximidad(ultimaPos.latitude, ultimaPos.longitude);
+  }
+  void refrescar();
 </script>

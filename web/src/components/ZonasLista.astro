@@ -105,13 +105,20 @@ const metaFila = (z: Zona, km: number) => {
 
   // Las filas ciudadanas reusan el estilo zona-fila pero NO participan del
   // flujo de zonas (volar/resaltar/ordenar por distancia): se excluyen aquí.
-  const filas = Array.from(
-    document.querySelectorAll<HTMLButtonElement>(".zona-fila")
-  ).filter((f) => !f.classList.contains("zona-fila-ciudadana"));
-  const contenedorZonas = document.querySelector(".zonas-overlay");
+  // Re-query en cada uso: el dashboard re-renderiza el panel con datos frescos
+  // del API (desacoplar-datos-deploy) y los listeners sobreviven por delegación.
+  function filasZona(): HTMLButtonElement[] {
+    return Array.from(document.querySelectorAll<HTMLButtonElement>(".zona-fila")).filter(
+      (f) => !f.classList.contains("zona-fila-ciudadana")
+    );
+  }
+  // El contenedor de delegación es el SLOT del dashboard (#zonas-slot), que
+  // el refresco runtime NUNCA reemplaza (solo su innerHTML). Anclarse al
+  // .zonas-overlay original rompe los clics tras el primer re-render.
+  const contenedorZonas = (document.getElementById("zonas-slot") ?? document.querySelector(".zonas-overlay")) as HTMLElement | null;
 
   function resaltar(id: string) {
-    filas.forEach((f) => {
+    filasZona().forEach((f) => {
       const activa = f.dataset.zonaId === id;
       f.classList.toggle("zona-activa", activa);
       f.setAttribute("aria-pressed", String(activa));
@@ -127,11 +134,12 @@ const metaFila = (z: Zona, km: number) => {
     });
   }
 
-  // Fila → el mapa vuela a la zona y abre su popup
-  filas.forEach((f) => {
-    f.addEventListener("click", () => {
-      window.dispatchEvent(new CustomEvent("enlace:mapa:volar-zona", { detail: { id: f.dataset.zonaId } }));
-    });
+  // Fila → el mapa vuela a la zona y abre su popup. Delegación en el contenedor:
+  // las filas re-renderizadas por el refresco runtime conservan el listener.
+  contenedorZonas?.addEventListener("click", (e) => {
+    const fila = (e.target as HTMLElement).closest<HTMLButtonElement>(".zona-fila");
+    if (!fila || fila.classList.contains("zona-fila-ciudadana")) return;
+    window.dispatchEvent(new CustomEvent("enlace:mapa:volar-zona", { detail: { id: fila.dataset.zonaId } }));
   });
 
   // Fila ciudadana → el mapa vuela al centroide y filtra por esa ciudad
@@ -148,7 +156,7 @@ const metaFila = (z: Zona, km: number) => {
     "enlace:mapa:zona-activa",
     ((e: CustomEvent<{ id: string }>) => {
       resaltar(e.detail.id);
-      filas.find((f) => f.dataset.zonaId === e.detail.id)?.scrollIntoView({ block: "nearest" });
+      filasZona().find((f) => f.dataset.zonaId === e.detail.id)?.scrollIntoView({ block: "nearest" });
     }) as EventListener
   );
 
@@ -173,7 +181,7 @@ const metaFila = (z: Zona, km: number) => {
         (i) => i.value
       )
     );
-    filas.forEach((f) => {
+    filasZona().forEach((f) => {
       const tipo = f.dataset.tipo;
       f.hidden = tipo === "epicentro" ? !visibles.has("epicentro") : !visibles.has("zona");
     });
@@ -191,6 +199,7 @@ const metaFila = (z: Zona, km: number) => {
     "enlace:mapa:posicion",
     ((e: CustomEvent<{ distancias: { id: string; km: number }[] }>) => {
       try {
+        const filas = filasZona();
         const porKm = new Map(e.detail.distancias.map((d) => [d.id, d.km]));
         const orden = [...filas].sort(
           (a, b) => (porKm.get(a.dataset.zonaId ?? "") ?? 0) - (porKm.get(b.dataset.zonaId ?? "") ?? 0)
@@ -213,4 +222,12 @@ const metaFila = (z: Zona, km: number) => {
       }
     }) as EventListener
   );
+
+  // El dashboard re-renderizó el panel con datos frescos: re-aplicar el filtro
+  // de las casillas y limpiar resaltados (los clicks ya son por delegación).
+  window.addEventListener("enlace:zonas:re-render", () => {
+    aplicarFiltroLista();
+    resaltar("");
+    resaltarCiudadana("");
+  });
 </script>

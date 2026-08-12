@@ -80,6 +80,8 @@ const eventoJson = JSON.stringify({ fecha: evento.fecha.slice(0, 10) });
   import { agruparCiudades, nombreCiudadNormalizado, type CiudadReportada } from "../lib/ciudades";
   import { etiquetaTipo, etiquetaNecesidad, ESTADOS_PUNTO, PRECISION_CORTA, type PrecisionPin } from "../lib/necesidades";
   import type { PuntoVerificado } from "../lib/puntos-rescate";
+  import type { Acopio, Albergue, CentroSalud, JornadaSangre } from "../lib/catalogs";
+  import type { Zona as ZonaCatalogo } from "../lib/zonas";
 
   type Punto = {
     id: string;
@@ -263,10 +265,10 @@ const eventoJson = JSON.stringify({ fecha: evento.fecha.slice(0, 10) });
     const escapar = (s: string) =>
       s.replace(/[&<>"']/g, (c) => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 
-    const puntos: Punto[] = JSON.parse(el.dataset.puntos ?? "[]");
-    const zonas: Zona[] = JSON.parse(el.dataset.zonas ?? "[]");
-    const { fecha } = JSON.parse(el.dataset.evento ?? "{}") as { fecha?: string };
-    const epicentro = zonas.find((z) => z.tipo === "epicentro") ?? null;
+    let puntos: Punto[] = JSON.parse(el.dataset.puntos ?? "[]");
+    let zonas: Zona[] = JSON.parse(el.dataset.zonas ?? "[]");
+    let { fecha } = JSON.parse(el.dataset.evento ?? "{}") as { fecha?: string };
+    let epicentro = zonas.find((z) => z.tipo === "epicentro") ?? null;
 
     // Puntos de rescate verificados (catálogo, SSG). Los resueltos no se
     // dibujan: el mapa muestra ayuda activa.
@@ -473,6 +475,38 @@ const eventoJson = JSON.stringify({ fecha: evento.fecha.slice(0, 10) });
       }
     }
 
+    // Popup de puntos de rescate: tipo, necesidades, contacto, estado.
+    // Compartido por el clic en el mapa y por el vuelo desde el panel Rescates.
+    function abrirPopupRescate(p: PuntoRescateMap, coords: [number, number]) {
+      window.dispatchEvent(new CustomEvent("enlace:mapa:punto-click"));
+      popupActivo?.remove();
+      // MapLibre serializa arrays/objetos en properties como strings JSON
+      const necesidades: string[] = typeof p.necesidades === "string" ? JSON.parse(p.necesidades) : (p.necesidades ?? []);
+      const needs = necesidades.length
+        ? `<span class="popup-rescate-ns">${necesidades
+            .map((n) => `<span>${escapar(etiquetaNecesidad(n))}</span>`)
+            .join("")}</span>`
+        : "";
+      const otras = p.otras_necesidades ? `<p class="popup-linea">${escapar(p.otras_necesidades)}</p>` : "";
+      const contacto = p.contacto ? `<p class="popup-linea">Contacto: ${escapar(p.contacto)}</p>` : "";
+      const flags = p.flags > 0 ? `<p class="popup-linea">${p.flags} reporte(s) de falso</p>` : "";
+      const precision = `<p class="popup-linea">Precisión: ${escapar(PRECISION_CORTA[p.coordenadas_nivel ?? "via"])}</p>`;
+      popupActivo = new maplibre.Popup({ offset: 16 })
+        .setLngLat(coords)
+        .setHTML(
+          `<div class="popup popup-punto">` +
+            `<strong class="popup-titulo">${escapar(p.nombre)}</strong>` +
+            `<p class="popup-meta"><span class="popup-badge popup-badge-rescate">${escapar(ESTADOS_PUNTO[p.estado] ?? p.estado)}</span> ${p.fuente ? "Verificado por fuente" : `${p.confirmaciones} confirmación(es)`}</p>` +
+            `${p.descripcion ? `<p class="popup-linea">${escapar(p.descripcion)}</p>` : ""}` +
+            `${needs}${otras}${contacto}${flags}${precision}` +
+            `<p class="popup-fuente">${p.fuente ? `Fuente: <a href="${escapar(p.fuente)}" target="_blank" rel="noopener">ver fuente</a> · ` : "Reporte ciudadano · "}` +
+            `<a href="https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}" target="_blank" rel="noopener">Cómo llegar</a></p>` +
+            `</div>`
+        )
+        .addTo(map);
+      centrarEnPopup(coords);
+    }
+
     // Última ciudad elegida: volar a la ciudad solo cuando cambia el filtro
     let ciudadFiltro = "";
 
@@ -542,54 +576,135 @@ const eventoJson = JSON.stringify({ fecha: evento.fecha.slice(0, 10) });
       }
     }
 
+    // ---- Datos frescos del dashboard (desacoplar-datos-deploy) ----
+    // El script de la página refresca catálogos, zonas, evento y registro
+    // desde /api/datos/:catalogo y los comparte con el mapa. Sin datos
+    // frescos, el mapa conserva los del build (SSG).
+    interface DatosFrescos {
+      acopios?: Acopio[];
+      albergues?: Albergue[];
+      centros?: CentroSalud[];
+      jornadas?: JornadaSangre[];
+      zonas?: ZonaCatalogo[];
+      evento?: { fecha?: string };
+      registro?: PuntoVivo[];
+    }
+
+    const MESES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
+    const fmtDia = (iso: string) => {
+      const [, m, d] = iso.split("-").map(Number);
+      return `${d} ${MESES[m - 1]}`;
+    };
+    const aPuntoAcopio = (e: Acopio): Punto => ({ id: e.id, nombre: e.nombre, lat: e.lat, lng: e.lng, tipo: "acopio", estado: e.estado, ciudad: e.ciudad, direccion: e.direccion, fuente: e.fuente });
+    const aPuntoAlbergue = (e: Albergue): Punto => ({ id: e.id, nombre: e.nombre, lat: e.lat, lng: e.lng, tipo: "albergue", estado: e.estado, ciudad: e.ciudad, direccion: e.direccion, fuente: e.fuente });
+    const aPuntoSalud = (e: CentroSalud): Punto => ({ id: e.id, nombre: e.nombre, lat: e.lat, lng: e.lng, tipo: "salud", estado: e.estado, ciudad: e.ciudad, direccion: e.direccion, fuente: e.fuente });
+    const aPuntoSangre = (e: JornadaSangre): Punto => ({
+      id: e.id,
+      nombre: e.punto,
+      lat: e.lat,
+      lng: e.lng,
+      tipo: "sangre",
+      estado: e.estado,
+      ciudad: e.ciudad,
+      direccion: e.direccion,
+      fuente: e.fuente,
+      detalle: `${e.fecha_fin ? `${fmtDia(e.fecha_inicio)} → ${fmtDia(e.fecha_fin)}` : `Desde ${fmtDia(e.fecha_inicio)}`} · ${e.horario}`,
+    });
+    const conDistancia = (zs: ZonaCatalogo[]): Zona[] => {
+      const epi = zs.find((z) => z.tipo === "epicentro");
+      return zs.map((z) => ({
+        ...z,
+        distEpicentroKm: epi && z.id !== epi.id ? haversineKm(z.lat, z.lng, epi.lat, epi.lng) : 0,
+      }));
+    };
+
     // ---- Registro en vivo: fetch del archivo commiteado por el worker ----
+    // Respaldo del refresco del dashboard: si el script de la página falla,
+    // el mapa igual carga los reportes activos desde la copia estática.
+    function aplicarRegistroMapa(vivos: PuntoVivo[]) {
+      if (!Array.isArray(vivos)) return;
+      const promovidos = new Set(
+        rescatesVerificados.filter((v) => v.reporte_id).map((v) => v.reporte_id)
+      );
+      const enVivo = vivos
+        .filter((p) => puntoActivo(p) && !promovidos.has(p.id))
+        .map((p) => ({
+          id: p.id,
+          nombre: `${etiquetaTipo(p.tipo)}${p.direccion ? ` — ${p.direccion}` : ""}`,
+          lat: p.lat,
+          lng: p.lng,
+          estado: p.estado,
+          coordenadas_nivel: p.coordenadas_nivel ?? "via",
+          ciudad: p.ciudad ?? "",
+          direccion: p.direccion ?? "",
+          descripcion: p.descripcion,
+          necesidades: p.necesidades,
+          otras_necesidades: p.otras_necesidades ?? "",
+          contacto: p.contacto ?? "",
+          confirmaciones: p.confirmaciones.length,
+          flags: p.flags.length,
+          creado: p.created_at,
+          fuente: "",
+          reporte_id: "",
+        }));
+      rescates = [...rescatesVerificados, ...enVivo];
+      // Ciudades reportadas: se regeneran en runtime (dedupe contra el
+      // catálogo de puntos y zonas SGC).
+      const catalogadas = new Set([
+        ...puntos.map((p) => nombreCiudadNormalizado(p.ciudad)),
+        ...zonas.filter((z) => z.tipo === "ciudad").map((z) => nombreCiudadNormalizado(z.nombre)),
+      ]);
+      ciudadesReportadasMap = agruparCiudades(vivos)
+        .filter((c) => !catalogadas.has(nombreCiudadNormalizado(c.nombre)))
+        .map(aCiudadMap);
+      const srcC = map.getSource("ciudades-reportadas");
+      if (srcC && "setData" in srcC) {
+        (srcC as maplibre.GeoJSONSource).setData(featureCollectionCiudades(ciudadesReportadasMap));
+      }
+      if (cargado) aplicarFiltros();
+    }
+
     fetch("/datos/reportes-puntos.json")
       .then((r) => (r.ok ? r.json() : []))
-      .then((vivos: unknown) => {
-        if (!Array.isArray(vivos)) return;
-        const promovidos = new Set(
-          rescatesVerificados.filter((v) => v.reporte_id).map((v) => v.reporte_id)
-        );
-        const enVivo = (vivos as PuntoVivo[])
-          .filter((p) => puntoActivo(p) && !promovidos.has(p.id))
-          .map((p) => ({
-            id: p.id,
-            nombre: `${etiquetaTipo(p.tipo)}${p.direccion ? ` — ${p.direccion}` : ""}`,
-            lat: p.lat,
-            lng: p.lng,
-            estado: p.estado,
-            coordenadas_nivel: p.coordenadas_nivel ?? "via",
-            ciudad: p.ciudad ?? "",
-            direccion: p.direccion ?? "",
-            descripcion: p.descripcion,
-            necesidades: p.necesidades,
-            otras_necesidades: p.otras_necesidades ?? "",
-            contacto: p.contacto ?? "",
-            confirmaciones: p.confirmaciones.length,
-            flags: p.flags.length,
-            creado: p.created_at,
-            fuente: "",
-            reporte_id: "",
-          }));
-        rescates = [...rescatesVerificados, ...enVivo];
-        // Ciudades reportadas: se regeneran en runtime (dedupe contra el
-        // catálogo de puntos y zonas SGC).
-        const catalogadas = new Set([
-          ...puntos.map((p) => nombreCiudadNormalizado(p.ciudad)),
-          ...zonas.filter((z) => z.tipo === "ciudad").map((z) => nombreCiudadNormalizado(z.nombre)),
-        ]);
-        ciudadesReportadasMap = agruparCiudades(vivos as PuntoVivo[])
-          .filter((c) => !catalogadas.has(nombreCiudadNormalizado(c.nombre)))
-          .map(aCiudadMap);
-        const srcC = map.getSource("ciudades-reportadas");
-        if (srcC && "setData" in srcC) {
-          (srcC as maplibre.GeoJSONSource).setData(featureCollectionCiudades(ciudadesReportadasMap));
-        }
-        if (cargado) aplicarFiltros();
-      })
+      .then((vivos: unknown) => aplicarRegistroMapa(vivos as PuntoVivo[]))
       .catch(() => {
         // Sin archivo o red caída: quedan los verificados (SSG).
       });
+
+    // Refresco del dashboard: catálogos, zonas, evento y registro frescos.
+    window.addEventListener(
+      "enlace:mapa:datos-frescos",
+      ((e: CustomEvent<DatosFrescos>) => {
+        const d = e.detail;
+        if (!d || typeof d !== "object") return;
+        if (d.acopios || d.albergues || d.centros || d.jornadas) {
+          const porTipo = (t: Punto["tipo"]) => puntos.filter((p) => p.tipo === t);
+          puntos = [
+            ...(d.acopios ? d.acopios.map(aPuntoAcopio) : porTipo("acopio")),
+            ...(d.albergues ? d.albergues.map(aPuntoAlbergue) : porTipo("albergue")),
+            ...(d.centros ? d.centros.map(aPuntoSalud) : porTipo("salud")),
+            ...(d.jornadas ? d.jornadas.map(aPuntoSangre) : porTipo("sangre")),
+          ];
+        }
+        if (d.zonas) {
+          zonas = conDistancia(d.zonas);
+          epicentro = zonas.find((z) => z.tipo === "epicentro") ?? null;
+        }
+        if (d.evento?.fecha) fecha = d.evento.fecha.slice(0, 10);
+        if (d.registro) aplicarRegistroMapa(d.registro);
+        if (cargado) {
+          const srcP = map.getSource("puntos");
+          if (srcP && "setData" in srcP) {
+            (srcP as maplibre.GeoJSONSource).setData(featureCollection(puntos));
+          }
+          const srcZ = map.getSource("zonas");
+          if (srcZ && "setData" in srcZ) {
+            (srcZ as maplibre.GeoJSONSource).setData(featureCollectionZonas(zonas));
+          }
+          aplicarFiltros();
+        }
+      }) as EventListener
+    );
 
     // ---- Anillo expansivo del epicentro (rAF, pausa fuera del viewport) ----
     let ondaFrame = 0;
@@ -969,33 +1084,7 @@ const eventoJson = JSON.stringify({ fecha: evento.fecha.slice(0, 10) });
         if (!f) return;
         const p = f.properties as unknown as PuntoRescateMap;
         const coords = (f.geometry as { type: "Point"; coordinates: [number, number] }).coordinates;
-        window.dispatchEvent(new CustomEvent("enlace:mapa:punto-click"));
-        popupActivo?.remove();
-        // MapLibre serializa arrays/objetos en properties como strings JSON
-        const necesidades: string[] = typeof p.necesidades === "string" ? JSON.parse(p.necesidades) : (p.necesidades ?? []);
-        const needs = necesidades.length
-          ? `<span class="popup-rescate-ns">${necesidades
-              .map((n) => `<span>${escapar(etiquetaNecesidad(n))}</span>`)
-              .join("")}</span>`
-          : "";
-        const otras = p.otras_necesidades ? `<p class="popup-linea">${escapar(p.otras_necesidades)}</p>` : "";
-        const contacto = p.contacto ? `<p class="popup-linea">Contacto: ${escapar(p.contacto)}</p>` : "";
-        const flags = p.flags > 0 ? `<p class="popup-linea">${p.flags} reporte(s) de falso</p>` : "";
-        const precision = `<p class="popup-linea">Precisión: ${escapar(PRECISION_CORTA[p.coordenadas_nivel ?? "via"])}</p>`;
-        popupActivo = new maplibre.Popup({ offset: 16 })
-          .setLngLat(coords)
-          .setHTML(
-            `<div class="popup popup-punto">` +
-              `<strong class="popup-titulo">${escapar(p.nombre)}</strong>` +
-              `<p class="popup-meta"><span class="popup-badge popup-badge-rescate">${escapar(ESTADOS_PUNTO[p.estado] ?? p.estado)}</span> ${p.fuente ? "Verificado por fuente" : `${p.confirmaciones} confirmación(es)`}</p>` +
-              `${p.descripcion ? `<p class="popup-linea">${escapar(p.descripcion)}</p>` : ""}` +
-              `${needs}${otras}${contacto}${flags}${precision}` +
-              `<p class="popup-fuente">${p.fuente ? `Fuente: <a href="${escapar(p.fuente)}" target="_blank" rel="noopener">ver fuente</a> · ` : "Reporte ciudadano · "}` +
-              `<a href="https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}" target="_blank" rel="noopener">Cómo llegar</a></p>` +
-              `</div>`
-          )
-          .addTo(map);
-        centrarEnPopup(coords);
+        abrirPopupRescate(p, coords);
       });
 
       map.on("mouseenter", "rescates-circulo", () => {
@@ -1091,6 +1180,23 @@ const eventoJson = JSON.stringify({ fecha: evento.fecha.slice(0, 10) });
         if (Array.from(select.options).some((o) => o.value === z.nombre)) {
           select.value = z.nombre;
           aplicarFiltros(false);
+        }
+      }) as EventListener
+    );
+
+    // Fila del panel Rescates → volar al punto y abrir su popup
+    window.addEventListener(
+      "enlace:mapa:volar-rescate",
+      ((e: CustomEvent<{ id: string }>) => {
+        const p = rescates.find((x) => x.id === e.detail?.id);
+        if (!p) return;
+        const coords: [number, number] = [p.lng, p.lat];
+        abrirPopupRescate(p, coords);
+        if (!esMovilMapa()) {
+          map.flyTo({ center: coords, zoom: 13, offset: offsetCentro(), essential: true });
+        } else {
+          map.flyTo({ center: coords, zoom: 13, essential: true });
+          map.once("moveend", () => centrarEnPopup(coords));
         }
       }) as EventListener
     );
