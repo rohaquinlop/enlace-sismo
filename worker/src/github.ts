@@ -13,6 +13,43 @@ const RUTA = "web/public/datos/reportes-puntos.json";
 const UA = "enlace-sismo/1.0 (https://enlacesismo.com)";
 const MAX_INTENTOS = 3;
 
+// ---------- Modo dev local (sin GITHUB_TOKEN) ----------
+// Lee el JSON desde el servidor Astro local y mantiene los cambios en memoria.
+// Aceptable para desarrollo: los cambios se pierden al reiniciar el worker.
+const DEV_ORIGIN = "http://localhost:4321";
+let devEntradas: EntradaPunto[] | null = null;
+
+async function leerRegistroDev(): Promise<{ entradas: EntradaPunto[]; sha: string }> {
+  if (devEntradas !== null) return { entradas: devEntradas, sha: "dev" };
+  const res = await fetch(`${DEV_ORIGIN}/datos/reportes-puntos.json`);
+  if (!res.ok) throw new RegistroError("No se pudo leer el registro local (dev). ¿Está corriendo el servidor web?", 503);
+  const data = (await res.json()) as unknown;
+  if (!Array.isArray(data)) throw new RegistroError("El registro local no es un arreglo", 503);
+  devEntradas = data as EntradaPunto[];
+  return { entradas: devEntradas, sha: "dev" };
+}
+
+async function escribirRegistroDev(
+  mutar: (entradas: EntradaPunto[]) => EntradaPunto[]
+): Promise<void> {
+  const { entradas } = await leerRegistroDev();
+  const nuevas = mutar(entradas);
+  for (const e of nuevas) {
+    if (!valida(e)) {
+      const err = valida.errors?.[0];
+      throw new RegistroError(
+        `El registro resultante no valida: ${err?.instancePath ?? "/"} ${err?.message ?? "desconocido"}`,
+        503
+      );
+    }
+  }
+  devEntradas = nuevas;
+}
+
+function esModoDev(c: Context<Bindings>): boolean {
+  return c.env.WORKER_ENV === "development";
+}
+
 export interface Confirmacion {
   bucket: string;
   ip_hash: string;
@@ -21,6 +58,11 @@ export interface Confirmacion {
 
 export interface Flag {
   detalle: string;
+  ip_hash: string;
+  created_at: string;
+}
+
+export interface Edicion {
   ip_hash: string;
   created_at: string;
 }
@@ -41,8 +83,15 @@ export interface EntradaPunto {
   confirmaciones: Confirmacion[];
   flags: Flag[];
   ultima_confirmacion?: string;
+  ediciones?: Edicion[];
   ip_hash: string;
   created_at: string;
+  // Campos de verificación (opcionales: se agregan al promover)
+  nombre?: string;
+  fuente?: string;
+  verificado_por?: string;
+  fecha_verificacion?: string;
+  verificacion?: "oficial" | "confirmado" | "sin-confirmar";
 }
 
 /** Error de dominio del registro; lleva el status HTTP que debe devolver la ruta. */
@@ -94,6 +143,7 @@ const repoDe = (c: Context<Bindings>): string => c.env.GITHUB_REPO ?? REPO_DEFAU
 
 /** Lee el registro en vivo (contenido + sha para el commit optimista). */
 export async function leerRegistro(c: Context<Bindings>): Promise<{ entradas: EntradaPunto[]; sha: string }> {
+  if (esModoDev(c)) return leerRegistroDev();
   const res = await apiGithub(c, `/repos/${repoDe(c)}/contents/${RUTA}`);
   if (!res.ok) throw new RegistroError(`No se pudo leer el registro (${res.status})`, 503);
   const data = (await res.json()) as { content: string; sha: string };
@@ -111,11 +161,15 @@ export async function leerRegistro(c: Context<Bindings>): Promise<{ entradas: En
  * Lee, muta, valida y commitea el registro en un solo paso.
  * La mutación lanza RegistroError para abortar sin escribir (no se reintenta);
  * un 409 del PUT (conflicto concurrente) se reintenta hasta MAX_INTENTOS.
+ *
+ * En modo dev (sin GITHUB_TOKEN) usa almacén en memoria — sin commit a GitHub.
  */
 export async function escribirRegistro(
   c: Context<Bindings>,
   mutar: (entradas: EntradaPunto[]) => EntradaPunto[]
 ): Promise<void> {
+  if (esModoDev(c)) return escribirRegistroDev(mutar);
+
   let ultimo: RegistroError | null = null;
   for (let intento = 0; intento < MAX_INTENTOS; intento++) {
     const { entradas, sha } = await leerRegistro(c);
