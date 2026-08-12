@@ -30,6 +30,7 @@ app.use(
     origin: (origin) => {
       const allowed = [
         "https://enlacesismo.com",
+        "https://enlace-sismo.pages.dev",
         "http://localhost:4321",
         "http://localhost:8787",
         "http://127.0.0.1:4321",
@@ -52,7 +53,7 @@ export async function rateLimit(c: Context<Bindings>, key: string, max: number):
   return true;
 }
 
-app.get("/api/health", (c) => c.json({ ok: true, servicio: "enlace-sismo-api" }));
+app.get("/api/health", (c) => c.json({ ok: true, servicio: "enlace-sismo-api", v: "cors-fix" }));
 
 app.route("/api/upload", upload);
 app.route("/api/imagen", upload);
