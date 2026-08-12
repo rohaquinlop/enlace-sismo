@@ -7,6 +7,10 @@ import { rateLimit, type Bindings } from "./index";
 const UA = "enlace-sismo/1.0 (https://enlacesismo.com)";
 const TTL_KV = 30 * 24 * 3600; // 30 días
 
+// Claves de caché (única fuente: lectura y escritura usan el mismo generador).
+const reverseKey = (lat: number, lng: number) => `geo:rev:v3:${lat.toFixed(2)},${lng.toFixed(2)}`;
+const forwardKey = (q: string) => `geo:fwd:v5:${q}`;
+
 /**
  * Normaliza un nombre de ciudad de Nominatim: "Cali ciudad" → "Cali",
  * "bogotá d.c." → "Bogotá". Sufijos comunes de Colombia; alias contra el
@@ -27,16 +31,8 @@ export function normalizarCiudad(raw: string): string {
  * Celda ~1.1 km cacheada en KV (v3: con ciudad).
  */
 export async function reverseGeocode(c: Context<Bindings>, lat: number, lng: number): Promise<ReverseResultado> {
-  const celda = `${lat.toFixed(2)},${lng.toFixed(2)}`;
-  const key = `geo:rev:v3:${celda}`;
-  const cacheado = await c.env.KV.get(key);
-  if (cacheado !== null) {
-    try {
-      return JSON.parse(cacheado) as ReverseResultado;
-    } catch {
-      // caché corrupta: sigue y regenera
-    }
-  }
+  const cacheado = await reverseCache(c, lat, lng);
+  if (cacheado) return cacheado;
   const vacio: ReverseResultado = { direccion: null, precision: "via" };
   try {
     const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=18&addressdetails=1&accept-language=es&lat=${lat}&lon=${lng}`;
@@ -64,10 +60,22 @@ export async function reverseGeocode(c: Context<Bindings>, lat: number, lng: num
       ...(barrio ? { barrio } : {}),
       ...(ciudad ? { ciudad } : {}),
     };
-    await c.env.KV.put(key, JSON.stringify(resultado), { expirationTtl: TTL_KV });
+    await c.env.KV.put(reverseKey(lat, lng), JSON.stringify(resultado), { expirationTtl: TTL_KV });
     return resultado;
   } catch {
     return vacio;
+  }
+}
+
+/** Lectura de la caché reverse (clave única; la usa el endpoint antes del rate limit). */
+export async function reverseCache(c: Context<Bindings>, lat: number, lng: number): Promise<ReverseResultado | null> {
+  const key = reverseKey(lat, lng);
+  const cacheado = await c.env.KV.get(key);
+  if (cacheado === null) return null;
+  try {
+    return JSON.parse(cacheado) as ReverseResultado;
+  } catch {
+    return null; // caché corrupta: sigue y regenera
   }
 }
 
@@ -206,16 +214,8 @@ async function consultaNominatim(params: string): Promise<ResultadoForward[]> {
  * Cada resultado lleva su nivel de precisión (premisa / via / barrio).
  */
 export async function forwardGeocode(c: Context<Bindings>, q: string): Promise<ResultadoForward[]> {
-  // v5: precisión por addresstype; la caché v4 se ignora.
-  const key = `geo:fwd:v5:${q}`;
-  const cacheado = await c.env.KV.get(key);
-  if (cacheado !== null) {
-    try {
-      return JSON.parse(cacheado) as ResultadoForward[];
-    } catch {
-      // caché corrupta: sigue y regenera
-    }
-  }
+  const cacheado = await forwardCache(c, q);
+  if (cacheado) return cacheado;
 
   const vistos = new Set<string>();
   const salida: ResultadoForward[] = [];
@@ -247,8 +247,21 @@ export async function forwardGeocode(c: Context<Bindings>, q: string): Promise<R
   }
 
   const resultados = salida.slice(0, 8);
-  await c.env.KV.put(key, JSON.stringify(resultados), { expirationTtl: TTL_KV });
+  await c.env.KV.put(forwardKey(q), JSON.stringify(resultados), { expirationTtl: TTL_KV });
   return resultados;
+}
+
+/** Lectura de la caché forward (clave única; la usa el endpoint antes del rate limit). */
+export async function forwardCache(c: Context<Bindings>, q: string): Promise<ResultadoForward[] | null> {
+  // v5: precisión por addresstype; la caché v4 se ignora.
+  const key = forwardKey(q);
+  const cacheado = await c.env.KV.get(key);
+  if (cacheado === null) return null;
+  try {
+    return JSON.parse(cacheado) as ResultadoForward[];
+  } catch {
+    return null; // caché corrupta: sigue y regenera
+  }
 }
 
 const app = new Hono<Bindings>();
@@ -258,12 +271,14 @@ app.get("/", async (c) => {
   const latRaw = c.req.query("lat");
   const lngRaw = c.req.query("lng");
 
-  if (!(await rateLimit(c, "rl:geocodificar", 30))) {
-    return c.json({ error: "Demasiadas búsquedas. Espera un momento." }, 429);
-  }
-
   if (q) {
     if (q.length < 3 || q.length > 200) return c.json({ error: "consulta inválida" }, 400);
+    // Caché primero: un hit no consume cuota (el límite protege a Nominatim).
+    const cacheado = await forwardCache(c, q);
+    if (cacheado) return c.json({ resultados: cacheado });
+    if (!(await rateLimit(c, "rl:geocodificar", 30))) {
+      return c.json({ error: "Demasiadas búsquedas. Espera un momento." }, 429);
+    }
     return c.json({ resultados: await forwardGeocode(c, q) });
   }
 
@@ -272,6 +287,12 @@ app.get("/", async (c) => {
     const lng = Number(lngRaw);
     if (!Number.isFinite(lat) || lat < -90 || lat > 90 || !Number.isFinite(lng) || lng < -180 || lng > 180) {
       return c.json({ error: "coordenadas inválidas" }, 400);
+    }
+    // Caché primero: mismo criterio que forward.
+    const cacheado = await reverseCache(c, lat, lng);
+    if (cacheado) return c.json(cacheado);
+    if (!(await rateLimit(c, "rl:geocodificar", 30))) {
+      return c.json({ error: "Demasiadas búsquedas. Espera un momento." }, 429);
     }
     return c.json(await reverseGeocode(c, lat, lng));
   }

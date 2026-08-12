@@ -1,5 +1,25 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
+import UbicacionPicker from "../../components/UbicacionPicker.astro";
+import type { DedupeItem } from "../../lib/ubicacion-picker";
+import centrosSaludData from "../../../../data/centros-salud.json";
+
+const TIPO_LABEL: Record<string, string> = {
+  hospital: "Hospital",
+  clinica: "Clínica",
+  "punto-primeros-auxilios": "Punto de primeros auxilios",
+  "puesto-vacunacion": "Puesto de vacunación",
+};
+
+const dedupeDatos: DedupeItem[] = centrosSaludData.centros.map((c) => ({
+  id: c.id,
+  nombre: c.nombre,
+  lat: c.lat,
+  lng: c.lng,
+  ciudad: c.ciudad,
+  tipo: TIPO_LABEL[c.tipo] ?? "Centro de salud",
+  url: `/salud#${c.id}`,
+}));
 ---
 
 <BaseLayout
@@ -46,23 +66,16 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
     <div class="form-group">
       <label for="direccion">Dirección *</label>
       <input type="text" id="direccion" name="direccion" required minlength="5" placeholder="Calle 100 #15-20" />
+      <span class="helper">Se completa con la dirección del pin; corrígela si no es la exacta.</span>
       <span class="helper" id="helper-direccion"></span>
     </div>
 
-    <div class="form-row">
-      <div class="form-group">
-        <label for="lat">Latitud</label>
-        <input type="number" id="lat" name="lat" step="any" min="-90" max="90" placeholder="4.6875" />
-        <span class="helper" id="helper-lat"></span>
-        <span class="geo-hint" id="geo-hint"></span>
-      </div>
-
-      <div class="form-group">
-        <label for="lng">Longitud</label>
-        <input type="number" id="lng" name="lng" step="any" min="-180" max="180" placeholder="-74.0458" />
-        <span class="helper" id="helper-lng"></span>
-      </div>
-    </div>
+    <h2>Ubicación exacta *</h2>
+    <UbicacionPicker
+      dedupeDatos={dedupeDatos}
+      mostrarPanelDedupe
+      tituloDedupe="Este centro de salud ya está en el catálogo"
+    />
 
     <div class="form-row">
       <div class="form-group">
@@ -133,6 +146,7 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
 
 <script>
   import { apiPost } from "../../lib/api";
+  import { EVENTO_FIJADA, EVENTO_REINICIAR, type UbicacionFijada } from "../../lib/ubicacion-picker";
 
   interface SugerenciaResponse {
     ok: boolean;
@@ -148,43 +162,30 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
     const modalTitulo = document.getElementById("modal-titulo") as HTMLDivElement | null;
     const modalMensaje = document.getElementById("modal-mensaje") as HTMLDivElement | null;
     const modalCerrar = document.getElementById("modal-cerrar") as HTMLButtonElement | null;
-    const geoHint = document.getElementById("geo-hint") as HTMLSpanElement | null;
 
-    // ---------- Geolocalización ----------
-    function detectarUbicacion() {
-      if (!navigator.geolocation || !geoHint) return;
-
-      geoHint.textContent = "Detectando ubicación...";
-      geoHint.classList.add("cargando");
-
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          const latEl = document.getElementById("lat") as HTMLInputElement | null;
-          const lngEl = document.getElementById("lng") as HTMLInputElement | null;
-          if (latEl && !latEl.value) latEl.value = pos.coords.latitude.toFixed(6);
-          if (lngEl && !lngEl.value) lngEl.value = pos.coords.longitude.toFixed(6);
-          if (geoHint) {
-            geoHint.textContent = "Ubicación detectada. Podés editar si es necesario.";
-            geoHint.classList.remove("cargando");
-          }
-        },
-        () => {
-          if (geoHint) {
-            geoHint.textContent = "No se pudo detectar la ubicación. Completá manualmente.";
-            geoHint.classList.remove("cargando");
-          }
-        },
-        { enableHighAccuracy: true, timeout: 10000 }
-      );
-    }
-
-    detectarUbicacion();
+    // ---------- Pre-relleno de la dirección desde el picker ----------
+    const direccionEl = document.getElementById("direccion") as HTMLInputElement | null;
+    let ultimaAutoDireccion = "";
+    document.addEventListener(EVENTO_FIJADA, ((e: Event) => {
+      const d = (e as CustomEvent<UbicacionFijada>).detail;
+      if (!direccionEl || !d.direccion) return;
+      // Pre-rellena solo si el campo está vacío o aún conserva el valor
+      // anterior del picker (el usuario no lo editó a mano).
+      if (direccionEl.value === "" || direccionEl.value === ultimaAutoDireccion) {
+        direccionEl.value = d.direccion;
+        ultimaAutoDireccion = d.direccion;
+      }
+    }) as EventListener);
 
     // ---------- Modal ----------
+    // Iconos SVG propios (design.md: sin emojis como iconos; los glifos ✓/✗
+    // pueden renderizar como emoji en móvil). El color lo da el CSS del modal.
+    const ICONO_OK = `<svg viewBox="0 0 16 16" width="22" height="22" aria-hidden="true" fill="none"><path d="M2.5 8.5 6 12l7.5-8" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+    const ICONO_ERROR = `<svg viewBox="0 0 16 16" width="22" height="22" aria-hidden="true" fill="none"><path d="m3.5 3.5 9 9m0-9-9 9" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>`;
     function mostrarModal(tipo: "ok" | "error", titulo: string, mensaje: string) {
       if (!modal || !modalIcono || !modalTitulo || !modalMensaje) return;
       modal.dataset.tipo = tipo;
-      modalIcono.textContent = tipo === "ok" ? "\u2713" : "\u2717";
+      modalIcono.innerHTML = tipo === "ok" ? ICONO_OK : ICONO_ERROR;
       modalTitulo.textContent = titulo;
       modalMensaje.textContent = mensaje;
       modal.dataset.open = "true";
@@ -211,6 +212,8 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
       direccion: { min: 5, label: "dirección" },
       tipo: { label: "tipo" },
       fuente: { label: "fuente" },
+      lat: { label: "latitud" },
+      lng: { label: "longitud" },
     };
 
     function clearErrors() {
@@ -265,6 +268,13 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
         }
       }
 
+      const nivelEl = document.getElementById("coordenadas_nivel") as HTMLInputElement | null;
+      const nivel = nivelEl?.value ?? "";
+      if (nivel !== "premisa" && nivel !== "via" && nivel !== "barrio") {
+        showFieldError("lat", "La ubicación no es válida: fija el pin en el mapa");
+        ok = false;
+      }
+
       const fuenteEl = document.getElementById("fuente") as HTMLInputElement | null;
       if (fuenteEl?.value && !/^https?:\/\//.test(fuenteEl.value)) {
         showFieldError("fuente", "debe ser una URL válida (https://...)");
@@ -298,8 +308,9 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
           ciudad: getVal("ciudad"),
           departamento: getVal("departamento"),
           direccion: getVal("direccion"),
-          lat: Number(getVal("lat")) || undefined,
-          lng: Number(getVal("lng")) || undefined,
+          lat: Number(getVal("lat")),
+          lng: Number(getVal("lng")),
+          coordenadas_nivel: getVal("coordenadas_nivel") || "via",
           tipo: (document.getElementById("tipo") as HTMLSelectElement | null)?.value ?? "",
           estado: (document.getElementById("estado") as HTMLSelectElement | null)?.value || "sin-confirmar",
           urgencias_24h: (document.getElementById("urgencias_24h") as HTMLSelectElement | null)?.value === "true",
@@ -319,7 +330,7 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
         if (data?.ok) {
           mostrarModal("ok", "Sugerencia enviada", "Un mantenedor revisará los datos y los publicará tras verificar la fuente.");
           form.reset();
-          detectarUbicacion();
+          document.dispatchEvent(new CustomEvent(EVENTO_REINICIAR));
         } else {
           mostrarModal("error", "No se pudo enviar", data?.error ?? "Intentá nuevamente más tarde.");
         }

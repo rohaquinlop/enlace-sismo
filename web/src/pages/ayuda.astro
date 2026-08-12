@@ -1,8 +1,13 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
 import StatusBadge from "../components/StatusBadge.astro";
-import canales from "../../../data/canales-ayuda.json";
+import { type CanalAyuda } from "../lib/catalogs";
+import canalesData from "../../../data/canales-ayuda.json";
 import contactos from "../../../data/contactos.json";
+
+// Tipado del JSON: el schema canal-ayuda.schema.json permite `cuenta_bancaria`
+// (solo con estado 'oficial' + 2 aprobaciones); hoy ninguna entrada la lleva.
+const canales = canalesData as CanalAyuda[];
 ---
 
 <BaseLayout
