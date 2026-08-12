@@ -680,7 +680,10 @@ const enlaceMaps = (lat: number, lng: number) =>
     }
     if (registroD) ultimoRegistro = registroD;
     if (Object.keys(detalle).length === 0) return; // API caída: queda el SSG
-    if (zonasD || registroD) reRenderZonas();
+    // eventoD también re-renderiza el panel Zonas: la fecha de las filas
+    // (fila-linea) debe seguir a la barra de estado (la huella evita
+    // re-renders inútiles).
+    if (zonasD || registroD || eventoD) reRenderZonas();
     if (registroD) aplicarRegistro(registroD, detalle);
     actualizarPuntosConteo();
     window.dispatchEvent(new CustomEvent("enlace:mapa:datos-frescos", { detail: detalle }));

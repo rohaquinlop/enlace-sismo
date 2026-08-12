@@ -568,8 +568,12 @@ const eventoJson = JSON.stringify({ fecha: evento.fecha.slice(0, 10) });
       }
       // El filtro de ciudad SÍ aplica a los puntos de rescate: cada reporte
       // lleva su ciudad (derivada del reverse geocode); sin ciudad se oculta
-      // bajo un filtro activo (información honesta).
-      const rescatesFiltrados = rescates.filter((p) => !ciudad || p.ciudad === ciudad);
+      // bajo un filtro activo (información honesta). Comparación normalizada,
+      // igual que el panel Rescates del rail: zona "Medellín" y reporte
+      // "Medellin" deben coincidir en mapa y panel.
+      const rescatesFiltrados = rescates.filter(
+        (p) => !ciudad || nombreCiudadNormalizado(p.ciudad ?? "") === nombreCiudadNormalizado(ciudad)
+      );
       const srcR = map.getSource("rescates");
       if (srcR && "setData" in srcR) {
         (srcR as maplibre.GeoJSONSource).setData(featureCollectionRescates(rescatesFiltrados));
