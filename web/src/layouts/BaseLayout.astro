@@ -161,55 +161,66 @@ const CIUDADES = [
         if (e.key === "Escape") colapsarNavApp();
       });
 
-      // Detección de desborde: si la fila de secciones no cabe junto a la
-      // marca, el CTA y la hamburguesa, se colapsa la barra. Se re-mide en
-      // cada cambio de tamaño del nav o de su contenido (fuentes incluidas).
-      // Medir con las secciones ocultas no sirve (scrollWidth = 0): se
-      // revelan sin pintar (visibility) durante la medición.
+      // Detección de desborde por clonado: se clona la fila de secciones
+      // fuera de pantalla y se mide su ancho real. Medir sobre el elemento
+      // vivo altera el layout del nav (revelar/ocultar) y provoca saltos
+      // de altura, parpadeos y el blur del modo app "mezclándose".
       const navSecciones = document.querySelector(".nav-secciones");
       const brandEl = document.querySelector(".brand");
       const navAcciones = document.querySelector(".nav-actions");
       const navCta = document.querySelector(".site-nav > .btn");
       if (siteNav && navSecciones) {
+        function anchoSecciones() {
+          const clone = navSecciones.cloneNode(true);
+          clone.style.cssText =
+            "position:fixed;left:-9999px;top:0;visibility:hidden;display:flex;flex-direction:row;flex-wrap:nowrap;width:max-content";
+          document.body.appendChild(clone);
+          const ancho = clone.scrollWidth;
+          clone.remove();
+          return ancho;
+        }
+        // El CTA puede estar oculto por el propio colapso (offsetWidth 0):
+        // medirlo en vivo haría que la barra "quepa" sin él y oscilaría.
+        function anchoCta() {
+          if (!navCta) return 0;
+          const clone = navCta.cloneNode(true);
+          clone.style.cssText = "position:fixed;left:-9999px;top:0;visibility:hidden;display:inline-flex";
+          document.body.appendChild(clone);
+          const ancho = clone.offsetWidth;
+          clone.remove();
+          return ancho;
+        }
         function seccionesCaben() {
-          const disp = navSecciones.style.display;
-          const vis = navSecciones.style.visibility;
-          const wrap = navSecciones.style.flexWrap;
-          // Forzar flex durante la medición: el CSS del colapso (display:none)
-          // haría scrollWidth = 0 y la barra nunca colapsaría.
-          navSecciones.style.display = "flex";
-          navSecciones.style.visibility = "hidden";
-          navSecciones.style.flexWrap = "nowrap";
-          // clientWidth incluye el padding del nav (mapa); el buffer 40px
-          // cubre padding + gaps entre marca, secciones, acciones y CTA.
           const disponible =
             siteNav.clientWidth -
             (brandEl?.offsetWidth ?? 0) -
             (navAcciones?.offsetWidth ?? 0) -
-            (navCta?.offsetWidth ?? 0) -
-            40;
-          const cabe = navSecciones.scrollWidth <= disponible;
-          navSecciones.style.display = disp;
-          navSecciones.style.visibility = vis;
-          navSecciones.style.flexWrap = wrap;
-          return cabe;
+            anchoCta() -
+            40; // padding del nav (modo mapa) + gaps
+          return anchoSecciones() <= disponible;
         }
-        function actualizarNav() {
-          if (seccionesCaben()) {
-            siteNav.classList.remove("nav-overflow");
-            colapsarNavApp(); // si ya cabe, cerrar el panel
-          } else {
-            siteNav.classList.add("nav-overflow");
-          }
+        let pendiente = false;
+        function programarActualizacion() {
+          if (pendiente) return;
+          pendiente = true;
+          requestAnimationFrame(() => {
+            pendiente = false;
+            if (seccionesCaben()) {
+              siteNav.classList.remove("nav-overflow");
+              colapsarNavApp(); // si ya cabe, cerrar el panel
+            } else {
+              siteNav.classList.add("nav-overflow");
+            }
+          });
         }
-        actualizarNav();
+        programarActualizacion();
         if ("ResizeObserver" in window) {
-          const obs = new ResizeObserver(actualizarNav);
+          const obs = new ResizeObserver(programarActualizacion);
           obs.observe(siteNav);
           obs.observe(navSecciones);
         }
-        window.addEventListener("resize", actualizarNav);
-        document.fonts?.ready?.then(actualizarNav).catch(() => {});
+        window.addEventListener("resize", programarActualizacion);
+        document.fonts?.ready?.then(programarActualizacion).catch(() => {});
       }
     </script>
   </body>
