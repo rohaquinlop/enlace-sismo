@@ -100,21 +100,6 @@ const CIUDADES = [
       </a>
     </header>
 
-    <aside class="nav-sidebar" id="nav-sidebar" aria-hidden="true">
-      <div class="nav-sidebar-header">
-        <span class="nav-sidebar-titulo">Secciones</span>
-        <button class="nav-sidebar-cerrar" id="nav-sidebar-cerrar" aria-label="Cerrar menú">&times;</button>
-      </div>
-      <nav class="nav-sidebar-links">
-        {SECCIONES.map((s) => (
-          <a href={s.href} class:list={{ active: Astro.url.pathname === new URL(s.href, Astro.url).pathname }}>
-            {s.label}
-          </a>
-        ))}
-      </nav>
-    </aside>
-    <div class="nav-sidebar-backdrop" id="nav-sidebar-backdrop"></div>
-
     <main>
       <slot />
     </main>
@@ -149,16 +134,12 @@ const CIUDADES = [
         (mapa ?? document.body).scrollIntoView({ behavior: "smooth", block: "start" });
       });
 
-      // Sidebar móvil (páginas normales) / header colapsable (modo app del mapa)
+      // Header colapsable por ajuste: la hamburguesa aparece cuando las
+      // secciones no caben en una sola fila (.nav-overflow) y despliega el
+      // panel en el mismo lugar — en todas las páginas y anchos.
       const btnHamburguesa = document.getElementById("nav-hamburguesa");
-      const sidebar = document.getElementById("nav-sidebar");
-      const backdrop = document.getElementById("nav-sidebar-backdrop");
-      const btnCerrar = document.getElementById("nav-sidebar-cerrar");
       const siteNav = document.querySelector(".site-nav");
 
-      function esModoApp() {
-        return document.querySelector(".dash")?.classList.contains("con-mapa") ?? false;
-      }
       function colapsarNavApp() {
         siteNav?.setAttribute("data-expandido", "false");
         btnHamburguesa?.setAttribute("aria-expanded", "false");
@@ -171,35 +152,65 @@ const CIUDADES = [
         btnHamburguesa?.setAttribute("aria-label", expandido ? "Abrir menú" : "Cerrar menú");
       }
 
-      function abrirSidebar() {
-        sidebar?.setAttribute("aria-hidden", "false");
-        backdrop?.setAttribute("data-open", "true");
-        btnHamburguesa?.setAttribute("aria-expanded", "true");
-        document.body.style.overflow = "hidden";
-      }
-      function cerrarSidebar() {
-        sidebar?.setAttribute("aria-hidden", "true");
-        backdrop?.setAttribute("data-open", "false");
-        btnHamburguesa?.setAttribute("aria-expanded", "false");
-        document.body.style.overflow = "";
-      }
-
-      btnHamburguesa?.addEventListener("click", () => {
-        if (esModoApp()) alternarNavApp();
-        else abrirSidebar();
-      });
-      btnCerrar?.addEventListener("click", cerrarSidebar);
-      backdrop?.addEventListener("click", cerrarSidebar);
-      // Clic en una sección del header expandido (modo app): colapsar
+      btnHamburguesa?.addEventListener("click", alternarNavApp);
+      // Clic en una sección del panel desplegado: colapsar
       siteNav?.addEventListener("click", (e) => {
-        if (esModoApp() && e.target instanceof Element && e.target.closest("a")) colapsarNavApp();
+        if (e.target instanceof Element && e.target.closest("a")) colapsarNavApp();
       });
       document.addEventListener("keydown", (e) => {
-        if (e.key === "Escape") {
-          if (esModoApp() && siteNav?.getAttribute("data-expandido") === "true") colapsarNavApp();
-          else cerrarSidebar();
-        }
+        if (e.key === "Escape") colapsarNavApp();
       });
+
+      // Detección de desborde: si la fila de secciones no cabe junto a la
+      // marca, el CTA y la hamburguesa, se colapsa la barra. Se re-mide en
+      // cada cambio de tamaño del nav o de su contenido (fuentes incluidas).
+      // Medir con las secciones ocultas no sirve (scrollWidth = 0): se
+      // revelan sin pintar (visibility) durante la medición.
+      const navSecciones = document.querySelector(".nav-secciones");
+      const brandEl = document.querySelector(".brand");
+      const navAcciones = document.querySelector(".nav-actions");
+      const navCta = document.querySelector(".site-nav > .btn");
+      if (siteNav && navSecciones) {
+        function seccionesCaben() {
+          const disp = navSecciones.style.display;
+          const vis = navSecciones.style.visibility;
+          const wrap = navSecciones.style.flexWrap;
+          // Forzar flex durante la medición: el CSS del colapso (display:none)
+          // haría scrollWidth = 0 y la barra nunca colapsaría.
+          navSecciones.style.display = "flex";
+          navSecciones.style.visibility = "hidden";
+          navSecciones.style.flexWrap = "nowrap";
+          // clientWidth incluye el padding del nav (mapa); el buffer 40px
+          // cubre padding + gaps entre marca, secciones, acciones y CTA.
+          const disponible =
+            siteNav.clientWidth -
+            (brandEl?.offsetWidth ?? 0) -
+            (navAcciones?.offsetWidth ?? 0) -
+            (navCta?.offsetWidth ?? 0) -
+            40;
+          const cabe = navSecciones.scrollWidth <= disponible;
+          navSecciones.style.display = disp;
+          navSecciones.style.visibility = vis;
+          navSecciones.style.flexWrap = wrap;
+          return cabe;
+        }
+        function actualizarNav() {
+          if (seccionesCaben()) {
+            siteNav.classList.remove("nav-overflow");
+            colapsarNavApp(); // si ya cabe, cerrar el panel
+          } else {
+            siteNav.classList.add("nav-overflow");
+          }
+        }
+        actualizarNav();
+        if ("ResizeObserver" in window) {
+          const obs = new ResizeObserver(actualizarNav);
+          obs.observe(siteNav);
+          obs.observe(navSecciones);
+        }
+        window.addEventListener("resize", actualizarNav);
+        document.fonts?.ready?.then(actualizarNav).catch(() => {});
+      }
     </script>
   </body>
 </html>

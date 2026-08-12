@@ -161,14 +161,20 @@ a:hover {
   border-color: var(--color-accent);
 }
 
-@media (hover: hover) and (pointer: fine) and (min-width: 60rem) {
-  .nav-secciones {
-    flex-wrap: wrap;
-    overflow-x: visible;
-  }
+/* Colapso por ajuste (JS añade .nav-overflow): cuando las secciones no
+   caben en una sola fila, la barra queda en marca + hamburguesa y las
+   secciones viven en el panel desplegable — mismo patrón en todas las
+   páginas y anchos (no envuelve a dos filas ni scrollea oculto). */
+.site-nav.nav-overflow .nav-secciones,
+.site-nav.nav-overflow > .btn {
+  display: none;
 }
 
-/* Hamburguesa — solo visible en móvil */
+.site-nav.nav-overflow .nav-hamburguesa {
+  display: flex;
+}
+
+/* Hamburguesa */
 .nav-hamburguesa {
   display: none;
   flex-direction: column;
@@ -188,112 +194,52 @@ a:hover {
   height: 2px;
   background: var(--color-ink);
   border-radius: 1px;
+  transition:
+    transform var(--dur-micro) var(--ease-out),
+    opacity var(--dur-micro) var(--ease-out);
 }
 
-@media (max-width: 60rem) {
-  .nav-hamburguesa {
-    display: flex;
-  }
-
-  .nav-secciones {
-    display: none;
-  }
+/* Panel desplegable: secciones en columna scrolleable + CTA a todo el ancho */
+.site-nav[data-expandido="true"] {
+  align-items: stretch;
+  flex-wrap: wrap;
 }
 
-/* Sidebar móvil */
-.nav-sidebar {
-  position: fixed;
-  top: 0;
-  left: 0;
-  bottom: 0;
-  width: min(85vw, 20rem);
-  z-index: var(--z-modal);
-  background: var(--color-paper);
-  border-right: var(--rule-hair) solid var(--color-rule-2);
-  transform: translateX(-100%);
-  transition: transform var(--dur-micro) var(--ease-out);
+.site-nav[data-expandido="true"] .nav-secciones {
   display: flex;
   flex-direction: column;
+  align-items: stretch;
+  flex: none;
+  flex-basis: 100%;
+  order: 2;
+  max-height: 40dvh;
   overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
 }
 
-.nav-sidebar[aria-hidden="false"] {
-  transform: translateX(0);
-}
-
-.nav-sidebar-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: var(--space-md);
-  border-bottom: var(--rule-hair) solid var(--color-rule);
-}
-
-.nav-sidebar-titulo {
-  font-family: var(--font-display);
-  font-weight: 600;
-  font-size: var(--text-md);
-}
-
-.nav-sidebar-cerrar {
-  width: 44px;
-  height: 44px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.5rem;
-  color: var(--color-muted);
-  background: none;
-  border: none;
-  cursor: pointer;
-}
-
-.nav-sidebar-cerrar:hover {
-  color: var(--color-ink);
-}
-
-.nav-sidebar-links {
-  display: flex;
-  flex-direction: column;
-  padding: var(--space-sm);
-}
-
-.nav-sidebar-links a {
-  font-family: var(--font-outlier);
-  font-size: var(--text-sm);
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-  color: var(--color-ink-2);
-  padding: var(--space-sm) var(--space-md);
-  border-radius: var(--radius-xs);
+.site-nav[data-expandido="true"] .nav-secciones a {
+  justify-content: flex-start;
   min-height: 44px;
-  display: flex;
-  align-items: center;
 }
 
-.nav-sidebar-links a:hover {
-  background: var(--color-paper-2);
-  text-decoration: none;
+.site-nav[data-expandido="true"] > .btn {
+  display: inline-flex;
+  order: 3;
+  width: 100%;
 }
 
-.nav-sidebar-links a.active {
-  color: var(--color-accent);
-  background: var(--color-paper-2);
+/* La hamburguesa pasa a X al expandir */
+.site-nav[data-expandido="true"] .hamburguesa-linea:nth-child(1) {
+  transform: translateY(6px) rotate(45deg);
 }
 
-.nav-sidebar-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: calc(var(--z-modal) - 1);
-  background: oklch(24% 0.02 258 / 0.4);
+.site-nav[data-expandido="true"] .hamburguesa-linea:nth-child(2) {
   opacity: 0;
-  pointer-events: none;
-  transition: opacity var(--dur-micro) var(--ease-out);
 }
 
-.nav-sidebar-backdrop[data-open="true"] {
-  opacity: 1;
-  pointer-events: auto;
+.site-nav[data-expandido="true"] .hamburguesa-linea:nth-child(3) {
+  transform: translateY(-6px) rotate(-45deg);
 }
 
 /* ============================================================
@@ -2615,9 +2561,10 @@ ul.picklist-list li:hover:not(.selected) {
     font-size: var(--text-sm);
   }
 
-  /* ---- Nav en modo app (móvil): píldora colapsable ----
-     La cabecera no intenta mostrar todo: colapsa a marca + toggle y
-     despliega secciones + CTA desde ahí, dejando el mapa libre. */
+  /* ---- Nav en modo app (móvil): píldora ----
+     El colapso (ocultar secciones + panel desplegable) lo decide el ajuste
+     de contenido vía .nav-overflow (JS), no el ancho de viewport: en modo
+     app solo queda el estilo de píldora flotante. */
   body:has(.dash.con-mapa) .site-nav {
     top: max(var(--space-sm), env(safe-area-inset-top));
     left: max(var(--space-sm), env(safe-area-inset-left));
@@ -2628,61 +2575,6 @@ ul.picklist-list li:hover:not(.selected) {
     border: var(--rule-hair) solid var(--color-rule-2);
     border-radius: var(--radius-sm);
     box-shadow: var(--shadow-lift);
-  }
-
-  /* Colapsado: solo marca + hamburguesa (secciones y CTA se despliegan
-     con el toggle) */
-  body:has(.dash.con-mapa) .nav-secciones,
-  body:has(.dash.con-mapa) .site-nav > .btn {
-    display: none;
-  }
-
-  /* Expandido: secciones en columna scrolleable + CTA a todo el ancho */
-  body:has(.dash.con-mapa) .site-nav[data-expandido="true"] {
-    align-items: stretch;
-  }
-
-  body:has(.dash.con-mapa) .site-nav[data-expandido="true"] .nav-secciones {
-    display: flex;
-    flex-direction: column;
-    align-items: stretch;
-    flex: none;
-    flex-basis: 100%;
-    order: 2;
-    max-height: 40dvh;
-    overflow-y: auto;
-    overflow-x: hidden;
-    overscroll-behavior: contain;
-  }
-
-  body:has(.dash.con-mapa) .site-nav[data-expandido="true"] .nav-secciones a {
-    justify-content: flex-start;
-    min-height: 44px;
-  }
-
-  body:has(.dash.con-mapa) .site-nav[data-expandido="true"] > .btn {
-    display: inline-flex;
-    order: 3;
-    width: 100%;
-  }
-
-  /* La hamburguesa pasa a X al expandir */
-  body:has(.dash.con-mapa) .site-nav .hamburguesa-linea {
-    transition:
-      transform var(--dur-micro) var(--ease-out),
-      opacity var(--dur-micro) var(--ease-out);
-  }
-
-  body:has(.dash.con-mapa) .site-nav[data-expandido="true"] .hamburguesa-linea:nth-child(1) {
-    transform: translateY(6px) rotate(45deg);
-  }
-
-  body:has(.dash.con-mapa) .site-nav[data-expandido="true"] .hamburguesa-linea:nth-child(2) {
-    opacity: 0;
-  }
-
-  body:has(.dash.con-mapa) .site-nav[data-expandido="true"] .hamburguesa-linea:nth-child(3) {
-    transform: translateY(-6px) rotate(-45deg);
   }
 
   .dash.con-mapa .leyenda-tira {
