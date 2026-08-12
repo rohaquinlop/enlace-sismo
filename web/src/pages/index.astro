@@ -11,7 +11,7 @@ import { zonas } from "../lib/zonas";
 import evento from "../../../data/evento.json";
 import { puntoActivo, agregarNecesidades, type PuntoVivo } from "../lib/puntos-rescate";
 import { agruparCiudades, fusionarCiudadesSelect, nombreCiudadNormalizado, type CiudadReportada } from "../lib/ciudades";
-import { etiquetaTipo, etiquetaNecesidad, ESTADOS_PUNTO, etiquetaPrecision } from "../lib/necesidades";
+import { etiquetaTipo, etiquetaNecesidad, etiquetaPrecision } from "../lib/necesidades";
 
 // Ciudades del filtro = unión de las que tienen puntos de datos, las zonas
 // afectadas y las ciudades derivadas de los reportes ciudadanos en vivo:
@@ -41,6 +41,16 @@ const activos = vivos
   .filter((p) => puntoActivo(p))
   .sort((a, b) => b.created_at.localeCompare(a.created_at));
 const agregado = agregarNecesidades(activos);
+
+// Badge de verificación de un punto (review de diseño): derivado de los
+// datos sin inventar — oficial si el mantenedor lo promovió; confirmado si
+// el estado o la verificación lo dicen; el resto, sin confirmar.
+const badgeVerificacion = (p: PuntoVivo): string =>
+  p.verificacion === "oficial"
+    ? "oficial"
+    : p.verificacion === "confirmado" || p.estado === "confirmado"
+      ? "confirmado"
+      : "sin-confirmar";
 
 // Ciudades con reportes ciudadanos: agrupadas desde el registro en vivo y
 // deduplicadas contra el catálogo (una ciudad oficial no se lista como
@@ -131,12 +141,15 @@ const enlaceMaps = (lat: number, lng: number) =>
                                 {etiquetaTipo(p.tipo)}{p.direccion ? ` — ${p.direccion}` : ""}
                               </span>
                               <span class="dash-row-meta">
-                                {p.ciudad ? `${p.ciudad} · ` : ""}{ESTADOS_PUNTO[p.estado] ?? p.estado} · {p.confirmaciones.length}{" "}
+                                {p.ciudad ? `${p.ciudad} · ` : ""}{p.confirmaciones.length}{" "}
                                 conf.
                                 {p.coordenadas_nivel ? ` · ${etiquetaPrecision(p.coordenadas_nivel)}` : ""}
                               </span>
                             </div>
-                            {p.descripcion && <p>{p.descripcion}</p>}
+                            <span class="rescate-badges">
+                              <StatusBadge estado={badgeVerificacion(p)} />
+                            </span>
+                            {p.descripcion && <p class="rescate-descripcion">{p.descripcion}</p>}
                             {
                               p.necesidades.length > 0 && (
                                 <span class="popup-rescate-ns">
@@ -147,8 +160,8 @@ const enlaceMaps = (lat: number, lng: number) =>
                               )
                             }
                             <div class="rescate-acciones">
-                              <a class="rescate-btn" href={enlaceMaps(p.lat, p.lng)} target="_blank" rel="noopener">Cómo llegar</a>
-                              <button type="button" class="rescate-btn" data-confirmar={p.id}>
+                              <a class="btn" href={enlaceMaps(p.lat, p.lng)} target="_blank" rel="noopener">Cómo llegar</a>
+                              <button type="button" class="btn btn-primary" data-confirmar={p.id}>
                                 Confirmar con mi ubicación
                               </button>
                             </div>
@@ -187,7 +200,7 @@ const enlaceMaps = (lat: number, lng: number) =>
   import { fetchCatalogo } from "../lib/datos";
   import { puntoActivo, agregarNecesidades, type PuntoVivo } from "../lib/puntos-rescate";
   import { agruparCiudades, nombreCiudadNormalizado, type CiudadReportada } from "../lib/ciudades";
-  import { etiquetaTipo, etiquetaNecesidad, ESTADOS_PUNTO, etiquetaPrecision } from "../lib/necesidades";
+  import { etiquetaTipo, etiquetaNecesidad, etiquetaPrecision } from "../lib/necesidades";
   import { renderZonasListaHTML } from "../lib/render-catalogos";
   import { acopios, albergues, centrosSalud, jornadasSangre } from "../lib/catalogs";
   import type { Acopio, Albergue, CentroSalud, JornadaSangre } from "../lib/catalogs";
@@ -456,15 +469,25 @@ const enlaceMaps = (lat: number, lng: number) =>
   let zonaRescates: string | null = null;
 
   /** Fila del panel Rescates (mismo markup SSG; clic en la fila = ver en el mapa). */
+  /** Badge de verificación en HTML (mismo mapeo que el SSG, sin inventar). */
+  function badgeVerificacionHTML(p: PuntoVivo): string {
+    const oficial = p.verificacion === "oficial";
+    const confirmado = p.verificacion === "confirmado" || p.estado === "confirmado";
+    const clase = oficial ? "badge-oficial" : confirmado ? "badge-confirmado" : "badge-sin-confirmar";
+    const texto = oficial ? "Oficial" : confirmado ? "Confirmado" : "Sin confirmar";
+    return `<span class="badge ${clase}">${texto}</span>`;
+  }
+
   function filaRescateHTML(p: PuntoVivo): string {
     return (
       `<article class="rescate-fila" data-id="${escapar(p.id)}" data-volar-rescate="${escapar(p.id)}" title="Ver en el mapa">` +
       `<div class="dash-row-top"><span class="dash-row-nombre">${escapar(etiquetaTipo(p.tipo))}${p.direccion ? ` — ${escapar(p.direccion)}` : ""}</span>` +
-      `<span class="dash-row-meta">${p.ciudad ? `${escapar(p.ciudad)} · ` : ""}${escapar(ESTADOS_PUNTO[p.estado] ?? p.estado)} · ${p.confirmaciones.length} conf.${p.coordenadas_nivel ? ` · ${escapar(etiquetaPrecision(p.coordenadas_nivel))}` : ""}</span></div>` +
-      `${p.descripcion ? `<p>${escapar(p.descripcion)}</p>` : ""}` +
+      `<span class="dash-row-meta">${p.ciudad ? `${escapar(p.ciudad)} · ` : ""}${p.confirmaciones.length} conf.${p.coordenadas_nivel ? ` · ${escapar(etiquetaPrecision(p.coordenadas_nivel))}` : ""}</span></div>` +
+      `<span class="rescate-badges">${badgeVerificacionHTML(p)}</span>` +
+      `${p.descripcion ? `<p class="rescate-descripcion">${escapar(p.descripcion)}</p>` : ""}` +
       `${p.necesidades.length > 0 ? `<span class="popup-rescate-ns">${p.necesidades.map((n) => `<span>${escapar(etiquetaNecesidad(n))}</span>`).join("")}</span>` : ""}` +
-      `<div class="rescate-acciones"><a class="rescate-btn" href="https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}" target="_blank" rel="noopener">Cómo llegar</a>` +
-      `<button type="button" class="rescate-btn" data-confirmar="${escapar(p.id)}">Confirmar con mi ubicación</button></div>` +
+      `<div class="rescate-acciones"><a class="btn" href="https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}" target="_blank" rel="noopener">Cómo llegar</a>` +
+      `<button type="button" class="btn btn-primary" data-confirmar="${escapar(p.id)}">Confirmar con mi ubicación</button></div>` +
       `</article>`
     );
   }
@@ -479,7 +502,7 @@ const enlaceMaps = (lat: number, lng: number) =>
     const agregado = agregarNecesidades(activos);
     const filtro = zonaRescates
       ? `<div class="rescate-filtro"><span>Rescates en <strong>${escapar(zonaRescates)}</strong></span>` +
-        `<button type="button" class="rescate-btn" data-rescates-todos>Ver todos</button></div>`
+        `<button type="button" class="btn" data-rescates-todos>Ver todos</button></div>`
       : "";
     if (activos.length === 0) {
       const historico = vivos.filter((p) => !puntoActivo(p)).length;

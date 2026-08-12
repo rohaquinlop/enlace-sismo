@@ -1,6 +1,7 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
 import UbicacionPicker from "../components/UbicacionPicker.astro";
+import Breadcrumb from "../components/Breadcrumb.astro";
 import { NECESIDADES, TIPOS_PUNTO } from "../lib/necesidades";
 ---
 
@@ -9,6 +10,7 @@ import { NECESIDADES, TIPOS_PUNTO } from "../lib/necesidades";
   description="Reporta un punto donde se necesita ayuda: derrumbe, deslizamiento o rescate en curso, con ubicación exacta y necesidades. Se publica como sin confirmar."
 >
   <section class="seccion-titulo">
+    <Breadcrumb items={[{ label: "Puntos de rescate", href: "/#mapa" }, { label: "Reportar punto de rescate" }]} />
     <h1>Reportar un punto de rescate</h1>
     <p>
       Si un edificio colapsó, hay gente atrapada o se necesita ayuda en un lugar concreto,
@@ -17,7 +19,7 @@ import { NECESIDADES, TIPOS_PUNTO } from "../lib/necesidades";
     </p>
   </section>
 
-  <div class="aviso">
+  <div class="aviso warning">
     <strong>Antes de enviar</strong>
     Verifica que la ubicación sea la correcta: un pin equivocado desvía ayuda.
     No publiques datos de terceros sin su consentimiento. Los reportes falsos se retiran
@@ -133,6 +135,7 @@ import { NECESIDADES, TIPOS_PUNTO } from "../lib/necesidades";
 
 <script>
   import { apiUrl } from "../lib/api";
+  import { compartirSeccion } from "../lib/compartir";
   import { fetchCatalogo } from "../lib/datos";
   import { haversineKm } from "../lib/geo";
   import { puntoActivo, type PuntoVivo } from "../lib/puntos-rescate";
@@ -304,6 +307,19 @@ import { NECESIDADES, TIPOS_PUNTO } from "../lib/necesidades";
   modal?.addEventListener("click", (e) => {
     if (e.target === modal) cerrarModal();
   });
+
+  // Compartir (review de diseño): acción secundaria del modal de éxito.
+  modal?.addEventListener("click", (e) => {
+    const btn = (e.target as HTMLElement).closest<HTMLButtonElement>("[data-compartir]");
+    if (!btn) return;
+    void compartirSeccion("/#mapa", "Mapa de ayuda").then((r) => {
+      if (r === "copiado") {
+        const previo = btn.textContent;
+        btn.textContent = "Enlace copiado";
+        setTimeout(() => (btn.textContent = previo), 2000);
+      }
+    });
+  });
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape" && modal?.dataset.open === "true") cerrarModal();
   });
@@ -421,7 +437,8 @@ import { NECESIDADES, TIPOS_PUNTO } from "../lib/necesidades";
             "ok",
             "Reporte publicado",
             "El punto ya quedó en la cola de publicación y aparece en el mapa en unos minutos como “sin confirmar”. Gracias por reportar.",
-            `<a class="btn btn-primary" href="/#mapa">Ver en el mapa</a>`
+            `<a class="btn btn-primary" href="/#mapa">Ver en el mapa</a>` +
+              `<button type="button" class="btn" data-compartir>Compartir</button>`
           );
         } else {
           mostrarModal("error", "No se pudo publicar", data?.error ?? "Intentá nuevamente más tarde.");
@@ -452,72 +469,4 @@ import { NECESIDADES, TIPOS_PUNTO } from "../lib/necesidades";
   }
 </script>
 
-<style>
-  /* Necesidades: chips del sistema (patrón tira-chip). Flex-wrap alinea las
-     filas por altura uniforme; nowrap evita textos partidos en dos líneas. */
-  .form-group.necesidades {
-    border: 0;
-    padding: 0;
-    margin: 0 0 var(--space-md);
-    min-width: 0; /* fieldset trae min-content por defecto: rompía la alineación */
-  }
-  .form-group.necesidades legend {
-    display: block;
-    font-weight: 500;
-    font-size: var(--text-sm);
-    margin-bottom: var(--space-2xs);
-  }
-  .necesidades-grid {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-xs);
-  }
-  .necesidad-chip {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--space-2xs);
-    min-height: 44px; /* targets táctiles ≥ 44 px (design.md) */
-    padding: var(--space-xs) var(--space-sm);
-    border: var(--rule-hair) solid var(--color-rule);
-    border-radius: var(--radius-sm);
-    background: var(--color-paper);
-    font-size: var(--text-sm);
-    white-space: nowrap;
-    cursor: pointer;
-    transition: border-color var(--dur-micro) var(--ease-out),
-      background-color var(--dur-micro) var(--ease-out);
-  }
-  /* Microinteracción del sistema: shift de color de borde en superficies. */
-  .necesidad-chip:hover {
-    border-color: var(--color-rule-2);
-  }
-  .necesidad-chip:has(input:checked) {
-    border-color: var(--color-accent);
-    background: var(--color-paper-2);
-  }
-  .necesidad-chip:has(input:focus-visible) {
-    outline: 2px solid var(--color-focus);
-    outline-offset: 2px;
-  }
-  /* El .form-group input global (width 100%, borde, min-height) no aplica al
-     checkbox del chip: se resetea y se tiñe con el acento del sistema. */
-  .necesidad-chip input {
-    width: 1rem;
-    height: 1rem;
-    min-height: 0;
-    flex: none;
-    margin: 0;
-    padding: 0;
-    border: 0;
-    border-radius: 0;
-    background: none;
-    outline: none;
-    accent-color: var(--color-accent);
-  }
-  .modal-acciones {
-    margin-bottom: var(--space-sm);
-  }
-  /* Los estilos del picker de ubicación (mapa, paneles, búsqueda) viven en
-     global.css: Astro scopea por atributo y los elementos creados por JS no
-     lo llevan. */
-</style>
+

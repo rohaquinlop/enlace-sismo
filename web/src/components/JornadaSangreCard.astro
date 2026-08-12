@@ -22,7 +22,10 @@ const fechas = jornada.fecha_fin
 <article class="card">
   <div class="card-head">
     <h3>{jornada.punto}</h3>
-    <StatusBadge estado={jornada.estado} />
+    <span class="card-badges">
+      <StatusBadge estado={jornada.estado} />
+      <StatusBadge estado={jornada.verificacion} />
+    </span>
   </div>
   <p class="card-tipo">Donación de sangre · {jornada.organizador}</p>
   <p class="card-dir">{jornada.direccion}</p>
@@ -34,15 +37,15 @@ const fechas = jornada.fecha_fin
       rel="noopener"
     >Cómo llegar</a>
   </p>
-  <p><strong>{fechas}</strong> · {jornada.horario}</p>
+  <p class="card-dato"><strong>{fechas}</strong> · {jornada.horario}</p>
   {jornada.grupos && jornada.grupos.length > 0 && (
     <div class="chips">
       {jornada.grupos.map((g) => <span class="chip">{g === "todos" ? "Todos los grupos" : `Grupo ${g}`}</span>)}
     </div>
   )}
-  {jornada.contacto && <p>Contacto: {jornada.contacto}</p>}
+  {jornada.contacto && <p class="card-dato"><strong>Contacto:</strong> {jornada.contacto}</p>}
   <p class="card-fuente">
-    <StatusBadge estado={jornada.verificacion} /> Fuente:{" "}
+    Fuente:{" "}
     <a href={jornada.fuente} target="_blank" rel="noopener">{jornada.fuente}</a>
   </p>
 </article>

@@ -92,7 +92,7 @@ a:hover {
   display: flex;
   align-items: center;
   gap: var(--space-xs);
-  font-family: var(--font-display);
+  font-family: var(--font-body);
   font-weight: 600;
   font-size: var(--text-md);
   letter-spacing: -0.02em;
@@ -136,10 +136,9 @@ a:hover {
 }
 
 .nav-secciones a {
-  font-family: var(--font-outlier);
+  font-family: var(--font-body);
   font-size: var(--text-xs);
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  letter-spacing: 0.01em;
   color: var(--color-muted);
   border: var(--rule-hair) solid var(--color-rule);
   border-radius: var(--radius-xs);
@@ -266,7 +265,7 @@ main {
 }
 
 .seccion-titulo h1 {
-  font-family: var(--font-display);
+  font-family: var(--font-body);
   font-weight: 600;
   font-size: var(--text-xl);
   line-height: 1.15;
@@ -285,7 +284,7 @@ main {
 }
 
 .seccion-head {
-  font-family: var(--font-display);
+  font-family: var(--font-body);
   font-weight: 600;
   font-size: var(--text-lg);
   line-height: 1.15;
@@ -297,7 +296,7 @@ main {
 }
 
 h2 {
-  font-family: var(--font-display);
+  font-family: var(--font-body);
   font-weight: 600;
   font-size: var(--text-lg);
   line-height: 1.15;
@@ -309,10 +308,9 @@ h2 {
 }
 
 .meta-mono {
-  font-family: var(--font-outlier);
+  font-family: var(--font-body);
   font-size: var(--text-xs);
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  letter-spacing: 0.01em;
   color: var(--color-muted);
   font-variant-numeric: tabular-nums;
 }
@@ -384,7 +382,7 @@ h2 {
 /* Fuente del dato — la regla de oro del proyecto, siempre visible */
 .barra-fuente {
   margin-left: auto;
-  font-family: var(--font-outlier);
+  font-family: var(--font-body);
   font-size: var(--text-xs);
   color: var(--color-graphite-muted);
 }
@@ -466,7 +464,7 @@ h2 {
 
 /* Conteo de puntos visibles — llenado por el script del mapa al filtrar */
 .tira-conteo {
-  font-family: var(--font-outlier);
+  font-family: var(--font-body);
   font-size: var(--text-xs);
   font-variant-numeric: tabular-nums;
   color: var(--color-muted);
@@ -717,10 +715,9 @@ h2 {
   border-bottom: var(--rule-strong) solid transparent;
   border-radius: 0;
   background: transparent;
-  font-family: var(--font-outlier);
+  font-family: var(--font-body);
   font-size: var(--text-xs);
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  letter-spacing: 0.01em;
   font-weight: 500;
   color: var(--color-muted);
   cursor: pointer;
@@ -791,7 +788,7 @@ h2 {
   margin-bottom: var(--space-2xs);
 }
 .zonas-ciudadanas-label {
-  font-family: var(--font-outlier);
+  font-family: var(--font-body);
   font-size: var(--text-xs);
   color: var(--color-muted);
   letter-spacing: 0.02em;
@@ -810,18 +807,37 @@ h2 {
   margin: 0 auto;
 }
 
-/* Filas de zona interactivas (lista ↔ mapa) */
+/* Filas de zona interactivas (lista ↔ mapa). Mismo sistema de cards que los
+   puntos de rescate (review de diseño): borde, radio 8 px, padding 12–16 px. */
 .dash-row.zona-fila {
   width: 100%;
   text-align: left;
   font: inherit;
-  background: none;
-  border-radius: 0;
+  background: var(--color-paper);
+  border: var(--rule-hair) solid var(--color-rule-2);
+  border-bottom: var(--rule-hair) solid var(--color-rule-2);
+  border-radius: var(--radius-badge);
+  padding: var(--space-sm) var(--space-md);
+  margin-bottom: var(--space-xs);
   cursor: pointer;
 }
 
+.dash-row.zona-fila:last-child {
+  border-bottom: var(--rule-hair) solid var(--color-rule-2);
+}
+
+.dash-row.zona-fila:hover {
+  border-color: var(--color-rule-2);
+  background: var(--color-paper-2);
+}
+
+.dash-row.zona-fila:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
 .zona-fila .dist-usuario {
-  font-family: var(--font-outlier);
+  font-family: var(--font-body);
   font-size: var(--text-xs);
   color: var(--color-geo);
   margin-top: var(--space-2xs);
@@ -841,6 +857,7 @@ h2 {
    lateral. Declarada después de zona-cercana: la activa gana si coinciden. */
 .zona-fila.zona-activa {
   background: var(--color-paper-3);
+  border-color: var(--color-accent);
 }
 
 .zona-fila.zona-activa .zona-dot {
@@ -883,14 +900,14 @@ h2 {
 }
 
 .zonas-escala-label {
-  font-family: var(--font-outlier);
+  font-family: var(--font-body);
   font-size: var(--text-xs);
   font-variant-numeric: tabular-nums;
   color: var(--color-muted);
 }
 
 .zonas-count {
-  font-family: var(--font-outlier);
+  font-family: var(--font-body);
   font-size: var(--text-xs);
   color: var(--color-muted);
   border: var(--rule-hair) solid var(--color-rule-2);
@@ -924,10 +941,9 @@ h2 {
 }
 
 .rail-verif .verif-label {
-  font-family: var(--font-outlier);
+  font-family: var(--font-body);
   font-size: var(--text-xs);
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  letter-spacing: 0.01em;
   color: var(--color-muted);
   margin-right: auto;
 }
@@ -1161,7 +1177,7 @@ body:has(.dash.con-mapa) .nav-secciones {
 
 /* Barra de estado — lectura del evento (único momento oscuro por página) */
 .barra-evento h2 {
-  font-family: var(--font-display);
+  font-family: var(--font-body);
   font-weight: 600;
   font-size: var(--text-md);
   letter-spacing: -0.02em;
@@ -1174,7 +1190,7 @@ body:has(.dash.con-mapa) .nav-secciones {
 }
 
 .barra-evento .graphite-line {
-  font-family: var(--font-outlier);
+  font-family: var(--font-body);
   font-size: var(--text-xs);
   font-variant-numeric: tabular-nums;
   color: var(--color-graphite-muted);
@@ -1188,11 +1204,10 @@ body:has(.dash.con-mapa) .nav-secciones {
 .barra-evento .status-chip {
   display: inline-block;
   flex: none;
-  font-family: var(--font-outlier);
+  font-family: var(--font-body);
   font-size: var(--text-xs);
   font-weight: 500;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  letter-spacing: 0.01em;
   color: var(--color-graphite-accent);
   border: var(--rule-hair) solid var(--color-graphite-accent);
   border-radius: var(--radius-xs);
@@ -1200,7 +1215,7 @@ body:has(.dash.con-mapa) .nav-secciones {
 }
 
 .barra-reporte {
-  font-family: var(--font-outlier);
+  font-family: var(--font-body);
   font-size: var(--text-xs);
   white-space: nowrap;
 }
@@ -1214,10 +1229,9 @@ body:has(.dash.con-mapa) .nav-secciones {
 }
 
 .dash-index h3 {
-  font-family: var(--font-outlier);
+  font-family: var(--font-body);
   font-size: var(--text-xs);
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  letter-spacing: 0.01em;
   font-weight: 500;
   color: var(--color-muted);
   margin: var(--space-sm) 0 var(--space-2xs);
@@ -1252,7 +1266,7 @@ body:has(.dash.con-mapa) .nav-secciones {
 }
 
 .dash-row .dash-row-nombre {
-  font-family: var(--font-display);
+  font-family: var(--font-body);
   font-weight: 600;
   font-size: var(--text-base);
   letter-spacing: -0.01em;
@@ -1262,10 +1276,9 @@ body:has(.dash.con-mapa) .nav-secciones {
 }
 
 .dash-row .dash-row-meta {
-  font-family: var(--font-outlier);
+  font-family: var(--font-body);
   font-size: var(--text-xs);
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  letter-spacing: 0.01em;
   color: var(--color-muted);
   white-space: nowrap;
   max-width: 45%;
@@ -1277,35 +1290,34 @@ body:has(.dash.con-mapa) .nav-secciones {
    propia nomenclatura (.zona-fila-*) */
 .zona-fila .zona-fila-top {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: var(--space-sm);
 }
 
-/* El nombre crece primero (wrap) y la meta conserva su ancho: sin esto, el
-   nombre largo del epicentro comprime la meta a "SIN RE..." */
+/* El nombre tiene todo el ancho de la card (review de diseño: elemento
+   principal); rompe entre palabras completas, nunca en cualquier carácter. */
 .zona-fila .zona-fila-nombre {
   flex: 1;
   min-width: 0;
-  font-family: var(--font-display);
+  font-family: var(--font-body);
   font-weight: 600;
   font-size: var(--text-base);
   letter-spacing: -0.01em;
   font-style: normal;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 
+/* Meta en línea propia bajo el nombre: no compite con el ancho del nombre
+   (evita el salto de palabra del layout anterior). */
 .zona-fila .zona-fila-meta {
-  flex: none;
-  font-family: var(--font-outlier);
+  display: block;
+  margin-top: var(--space-2xs);
+  font-family: var(--font-body);
   font-size: var(--text-xs);
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  letter-spacing: 0.01em;
   color: var(--color-muted);
-  white-space: nowrap;
-  max-width: 50%;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  overflow-wrap: break-word;
 }
 
 .zona-fila .zona-fila-linea {
@@ -1324,7 +1336,7 @@ body:has(.dash.con-mapa) .nav-secciones {
 
 /* Chevron de affordance en filas de zona */
 .dash-row-chevron {
-  font-family: var(--font-outlier);
+  font-family: var(--font-body);
   font-size: var(--text-sm);
   color: var(--color-rule-2);
   flex: none;
@@ -1340,10 +1352,9 @@ body:has(.dash.con-mapa) .nav-secciones {
 }
 
 .dash-colabora h3 {
-  font-family: var(--font-outlier);
+  font-family: var(--font-body);
   font-size: var(--text-xs);
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  letter-spacing: 0.01em;
   font-weight: 500;
   color: var(--color-muted);
   margin: 0 0 var(--space-2xs);
@@ -1351,10 +1362,9 @@ body:has(.dash.con-mapa) .nav-secciones {
 
 .dash-colabora a {
   display: inline-block;
-  font-family: var(--font-outlier);
+  font-family: var(--font-body);
   font-size: var(--text-xs);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.01em;
   margin-right: var(--space-md);
   padding: var(--space-2xs) 0;
   min-height: 44px;
@@ -1375,8 +1385,8 @@ body:has(.dash.con-mapa) .nav-secciones {
   font-weight: 500;
   text-decoration: none;
   border: var(--rule-hair) solid var(--color-ink);
-  border-radius: var(--radius-sm);
-  padding: 0 var(--space-md);
+  border-radius: var(--radius-btn);
+  padding: var(--space-xs) var(--space-sm);
   min-height: 44px;
   line-height: 1;
   white-space: nowrap;
@@ -1449,7 +1459,7 @@ body:has(.dash.con-mapa) .nav-secciones {
 }
 
 .ciudad-titulo {
-  font-family: var(--font-display);
+  font-family: var(--font-body);
   font-weight: 600;
   font-size: var(--text-lg);
   letter-spacing: -0.01em;
@@ -1459,10 +1469,9 @@ body:has(.dash.con-mapa) .nav-secciones {
 }
 
 .geo-indicador {
-  font-family: var(--font-outlier);
+  font-family: var(--font-body);
   font-size: var(--text-xs);
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  letter-spacing: 0.01em;
   color: var(--color-muted);
   margin-bottom: var(--space-sm);
 }
@@ -1485,6 +1494,10 @@ body:has(.dash.con-mapa) .nav-secciones {
   border-left: var(--rule-strong) solid var(--color-accent);
 }
 
+.card-confirmado {
+  border-left: var(--rule-strong) solid var(--color-badge-confirmado-ink);
+}
+
 .card-sin-confirmar {
   border-left: var(--rule-strong) solid var(--color-badge-sinconfirmar-bg);
 }
@@ -1492,8 +1505,7 @@ body:has(.dash.con-mapa) .nav-secciones {
 .card-tipo-acopio {
   font-size: var(--text-xs);
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.01em;
   color: var(--color-muted);
   margin-bottom: var(--space-xs);
 }
@@ -1531,8 +1543,22 @@ body:has(.dash.con-mapa) .nav-secciones {
   min-height: 2.8rem;
 }
 
+/* Badges de estado + verificación en la misma línea (review de diseño) */
+.card-badges {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: var(--space-2xs);
+  flex: none;
+}
+
+.card-head:has(.card-badges) {
+  align-items: flex-start;
+}
+
 .card-head h3 {
-  font-family: var(--font-display);
+  font-family: var(--font-body);
   font-weight: 600;
   font-size: var(--text-md);
   line-height: 1.2;
@@ -1545,10 +1571,9 @@ body:has(.dash.con-mapa) .nav-secciones {
 
 .card-tipo {
   margin: var(--space-2xs) 0 var(--space-xs);
-  font-family: var(--font-outlier);
+  font-family: var(--font-body);
   font-size: var(--text-xs);
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  letter-spacing: 0.01em;
   color: var(--color-muted);
 }
 
@@ -1567,6 +1592,15 @@ body:has(.dash.con-mapa) .nav-secciones {
   display: flex;
   flex-direction: column;
   gap: var(--space-2xs);
+}
+
+/* Datos de decisión en negrilla (review de diseño, jerarquía de contenido) */
+.card-dato strong {
+  font-weight: 600;
+}
+
+.card-dato {
+  margin: 0.3rem 0;
 }
 
 .card p {
@@ -1592,14 +1626,16 @@ body:has(.dash.con-mapa) .nav-secciones {
    ============================================================ */
 
 .badge {
-  display: inline-block;
-  font-family: var(--font-outlier);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-body);
   font-size: var(--text-xs);
   font-weight: 500;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  padding: var(--space-2xs) var(--space-xs);
-  border-radius: var(--radius-xs);
+  letter-spacing: 0.01em;
+  padding: var(--space-2xs);
+  border-radius: var(--radius-badge);
+  line-height: 1;
   white-space: nowrap;
 }
 
@@ -1636,12 +1672,138 @@ body:has(.dash.con-mapa) .nav-secciones {
 }
 
 .chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   background: var(--color-paper-2);
   border: var(--rule-hair) solid var(--color-rule);
-  border-radius: var(--radius-xs);
-  padding: var(--space-2xs) var(--space-xs);
+  border-radius: var(--radius-badge);
+  padding: var(--space-2xs);
   font-size: var(--text-xs);
-  font-family: var(--font-outlier);
+  font-family: var(--font-body);
+  line-height: 1;
+  white-space: nowrap;
+}
+
+/* Badge de tipo (p. ej. Refugio/Albergue): neutro, sin semántica de estado */
+.badge-tipo {
+  background: var(--color-paper-3);
+  color: var(--color-ink-2);
+}
+
+/* Selección de necesidades (reportar + sugerencias): chips con estado
+   seleccionado directo, deseleccionables en el mismo componente (review de
+   diseño). Mismo patrón en reportar.astro y sugerir-acopio.astro. */
+.form-group.necesidades {
+  border: 0;
+  padding: 0;
+  margin: 0 0 var(--space-md);
+  min-width: 0; /* fieldset trae min-content por defecto: rompía la alineación */
+}
+.form-group.necesidades legend {
+  display: block;
+  font-weight: 500;
+  font-size: var(--text-sm);
+  margin-bottom: var(--space-2xs);
+}
+.necesidades-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+}
+/* Especificidad bajo .form-group: compite contra .form-group label (block)
+   y .form-group input (width 100%) que vienen después en el archivo. */
+.form-group .necesidad-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2xs);
+  min-height: 44px; /* targets táctiles ≥ 44 px (design.md) */
+  padding: var(--space-xs) var(--space-sm);
+  border: var(--rule-hair) solid var(--color-rule);
+  border-radius: var(--radius-sm);
+  background: var(--color-paper);
+  font-size: var(--text-sm);
+  font-weight: 400;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: border-color var(--dur-micro) var(--ease-out),
+    background-color var(--dur-micro) var(--ease-out);
+}
+/* Microinteracción del sistema: shift de color de borde en superficies. */
+.form-group .necesidad-chip:hover {
+  border-color: var(--color-rule-2);
+}
+.form-group .necesidad-chip:has(input:checked) {
+  border-color: var(--color-accent);
+  background: var(--color-paper-2);
+}
+.form-group .necesidad-chip:has(input:focus-visible) {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+/* El .form-group input global (width 100%, borde, min-height) no aplica al
+   checkbox del chip: se resetea y se tiñe con el acento del sistema. */
+.form-group .necesidad-chip input {
+  width: 1rem;
+  height: 1rem;
+  min-height: 0;
+  flex: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  outline: none;
+  accent-color: var(--color-accent);
+}
+
+/* ============================================================
+   Breadcrumb — pantallas secundarias (review de diseño)
+   ============================================================ */
+
+.breadcrumb {
+  margin: 0 0 var(--space-sm);
+  font-size: var(--text-sm);
+}
+
+.breadcrumb ol {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2xs);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.breadcrumb li {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2xs);
+  color: var(--color-muted);
+  min-height: 44px; /* target táctil (design.md) */
+}
+
+.breadcrumb li + li::before {
+  content: "/";
+  color: var(--color-rule-2);
+}
+
+.breadcrumb a {
+  color: var(--color-accent);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
+
+.breadcrumb a:hover {
+  text-decoration: underline;
+}
+
+.breadcrumb [aria-current="page"] {
+  color: var(--color-ink);
+  font-weight: 500;
 }
 
 /* ============================================================
@@ -1658,10 +1820,9 @@ body:has(.dash.con-mapa) .nav-secciones {
 }
 
 .aviso strong {
-  font-family: var(--font-outlier);
+  font-family: var(--font-body);
   font-size: var(--text-xs);
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  letter-spacing: 0.01em;
   display: block;
   margin-bottom: var(--space-2xs);
 }
@@ -1672,6 +1833,22 @@ body:has(.dash.con-mapa) .nav-secciones {
 
 .aviso.danger strong {
   color: var(--color-error);
+}
+
+/* Alerta Warning — avisos de fuente oficial (review de diseño): fondo
+   amarillo, borde semántico y texto en negrilla. Contraste ≥4.5:1. */
+.aviso.warning {
+  background: var(--color-warning-bg);
+  border-color: var(--color-warning-border);
+}
+
+.aviso.warning strong {
+  color: var(--color-warning-ink);
+  font-weight: 600;
+}
+
+.aviso.warning p {
+  margin: 0.3rem 0;
 }
 
 /* ============================================================
@@ -1687,11 +1864,10 @@ body:has(.dash.con-mapa) .nav-secciones {
 
 .tabla th {
   text-align: left;
-  font-family: var(--font-outlier);
+  font-family: var(--font-body);
   font-size: var(--text-xs);
   font-weight: 500;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  letter-spacing: 0.01em;
   color: var(--color-muted);
   padding: var(--space-xs) var(--space-sm);
   border-bottom: var(--rule-hair) solid var(--color-rule);
@@ -1807,7 +1983,7 @@ body:has(.dash.con-mapa) .nav-secciones {
 .form-albergue h2,
 .form-acopio h2,
 .form-punto h2 {
-  font-family: var(--font-display);
+  font-family: var(--font-body);
   font-size: var(--text-lg);
   letter-spacing: -0.01em;
   margin-bottom: var(--space-lg);
@@ -1910,7 +2086,7 @@ body:has(.dash.con-mapa) .nav-secciones {
 }
 
 .modal-resultado-titulo {
-  font-family: var(--font-display);
+  font-family: var(--font-body);
   font-size: var(--text-lg);
   font-weight: 700;
   color: var(--color-ink);
@@ -1931,6 +2107,10 @@ body:has(.dash.con-mapa) .nav-secciones {
 
 .modal-resultado .btn {
   min-width: 8rem;
+}
+
+.modal-acciones {
+  margin-bottom: var(--space-sm);
 }
 
 /* ============================================================
@@ -2001,10 +2181,9 @@ body:has(.dash.con-mapa) .nav-secciones {
 }
 
 .picklist-label {
-  font-family: var(--font-outlier);
+  font-family: var(--font-body);
   font-size: var(--text-xs);
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  letter-spacing: 0.01em;
   color: var(--color-muted);
   margin-bottom: var(--space-2xs);
 }
@@ -2109,7 +2288,7 @@ ul.picklist-list li:hover:not(.selected) {
 }
 
 .vacio h3 {
-  font-family: var(--font-display);
+  font-family: var(--font-body);
   font-weight: 600;
   font-size: var(--text-md);
   color: var(--color-ink);
@@ -2161,7 +2340,7 @@ ul.picklist-list li:hover:not(.selected) {
 
 .popup-titulo {
   display: block;
-  font-family: var(--font-display);
+  font-family: var(--font-body);
   font-weight: 600;
   font-size: var(--text-md);
   letter-spacing: -0.01em;
@@ -2184,7 +2363,7 @@ ul.picklist-list li:hover:not(.selected) {
 
 .popup-coords {
   margin: var(--space-2xs) 0 0;
-  font-family: var(--font-outlier);
+  font-family: var(--font-body);
   font-size: var(--text-xs);
   font-variant-numeric: tabular-nums;
   color: var(--color-muted);
@@ -2203,15 +2382,17 @@ ul.picklist-list li:hover:not(.selected) {
 }
 
 .popup-badge {
-  display: inline-block;
-  font-family: var(--font-outlier);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-body);
   font-size: var(--text-xs);
   font-weight: 500;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  padding: 0.1rem 0.4rem;
+  letter-spacing: 0.01em;
+  padding: var(--space-2xs);
   border: var(--rule-hair) solid;
-  border-radius: var(--radius-xs);
+  border-radius: var(--radius-badge);
+  line-height: 1;
   margin-right: var(--space-2xs);
   vertical-align: baseline;
 }
@@ -2249,17 +2430,17 @@ ul.picklist-list li:hover:not(.selected) {
   margin-top: var(--space-2xs);
 }
 .popup-rescate-ns span {
-  font-family: var(--font-outlier);
+  font-family: var(--font-body);
   font-size: var(--text-xs);
   border: var(--rule-hair) solid var(--color-rule-2);
-  border-radius: var(--radius-xs);
-  padding: 0.1rem 0.4rem;
+  border-radius: var(--radius-badge);
+  padding: var(--space-2xs);
   color: var(--color-muted);
 }
 
 .rescate-agregado {
   display: block;
-  font-family: var(--font-outlier);
+  font-family: var(--font-body);
   font-size: var(--text-xs);
   color: var(--color-muted);
   letter-spacing: 0.02em;
@@ -2267,30 +2448,16 @@ ul.picklist-list li:hover:not(.selected) {
 }
 .rescate-acciones {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   gap: var(--space-xs);
-  align-items: center;
   margin-top: var(--space-xs);
 }
-.rescate-btn {
-  font-family: var(--font-outlier);
-  font-size: var(--text-xs);
-  min-height: 44px; /* targets táctiles ≥ 44 px (design.md) */
-  padding: 0.25rem 0.5rem;
-  border: var(--rule-hair) solid var(--color-rule-2);
-  border-radius: var(--radius-xs);
-  background: var(--color-paper);
-  color: var(--color-ink);
-  cursor: pointer;
+
+/* Acciones a ancho completo, mismo ancho entre sí (review de diseño) */
+.rescate-acciones .btn {
+  width: 100%;
 }
-.rescate-btn:hover,
-.rescate-btn:focus-visible {
-  border-color: var(--color-ink-2);
-}
-.rescate-btn[aria-busy="true"] {
-  opacity: 0.6;
-  cursor: progress;
-}
+
 .rescate-vacio {
   color: var(--color-muted);
   font-size: var(--text-sm);
@@ -2309,15 +2476,55 @@ ul.picklist-list li:hover:not(.selected) {
   cursor: pointer;
 }
 .rescate-fila[data-volar-rescate]:hover {
+  border-color: var(--color-rule-2);
   background: var(--color-paper-2);
 }
+/* Puntos de rescate como cards (review de diseño): borde del sistema, radio
+   8 px, padding 12–16 px, jerarquía con nombre en negrilla. */
 .rescate-fila {
-  display: block;
-  padding: var(--space-sm) 0;
-  border-bottom: var(--rule-hair) solid var(--color-rule);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xs);
+  padding: var(--space-sm) var(--space-md);
+  border: var(--rule-hair) solid var(--color-rule-2);
+  border-radius: var(--radius-badge);
+  background: var(--color-paper);
+  margin-bottom: var(--space-xs);
 }
 .rescate-fila:last-child {
-  border-bottom: 0;
+  margin-bottom: 0;
+}
+.rescate-fila .dash-row-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-sm);
+}
+.rescate-fila .dash-row-nombre {
+  font-weight: 600;
+  font-size: var(--text-sm);
+  letter-spacing: -0.01em;
+  overflow-wrap: break-word;
+  min-width: 0;
+}
+.rescate-fila .dash-row-meta {
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
+  letter-spacing: 0.01em;
+  color: var(--color-muted);
+  text-align: right;
+  white-space: nowrap;
+  max-width: 45%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.rescate-badges {
+  display: inline-flex;
+  gap: var(--space-2xs);
+}
+.rescate-descripcion {
+  font-size: var(--text-sm);
+  margin: var(--space-2xs) 0 0;
 }
 
 /* ============================================================
@@ -2369,7 +2576,7 @@ ul.picklist-list li:hover:not(.selected) {
   align-items: baseline;
 }
 .resultados-busqueda .res-precision {
-  font-family: var(--font-outlier);
+  font-family: var(--font-body);
   font-size: var(--text-xs);
   border: var(--rule-hair) solid var(--color-rule-2);
   border-radius: var(--radius-xs);
@@ -2487,7 +2694,7 @@ ul.picklist-list li:hover:not(.selected) {
   flex-wrap: wrap;
   gap: var(--space-xs) var(--space-md);
   align-items: baseline;
-  font-family: var(--font-outlier);
+  font-family: var(--font-body);
   font-size: var(--text-xs);
   color: var(--color-muted);
   max-width: 68rem;
@@ -2731,11 +2938,10 @@ ul.picklist-list li:hover:not(.selected) {
   .tabla td::before {
     content: attr(data-label);
     display: block;
-    font-family: var(--font-outlier);
+    font-family: var(--font-body);
     font-size: var(--text-xs);
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-    color: var(--color-muted);
+    letter-spacing: 0.01em;
+  color: var(--color-muted);
   }
 }
 

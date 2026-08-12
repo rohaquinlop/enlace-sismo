@@ -13,10 +13,10 @@ const GITHUB = "https://github.com/rohaquinlop/enlace-sismo";
 const SECCIONES = [
   { href: "/#mapa", label: "Mapa", descripcion: "Zonas afectadas, epicentro y puntos sobre el territorio." },
   { href: "/acopios", label: "Puntos de acopio", descripcion: "Dónde entregar alimentos, ropa, agua y medicamentos." },
-  { href: "/albergues", label: "Albergues", descripcion: "Refugios habilitados para damnificados." },
+  { href: "/albergues", label: "Albergues y refugios", descripcion: "Refugios habilitados para damnificados." },
   { href: "/salud", label: "Centros de salud", descripcion: "Hospitales, clínicas y primeros auxilios." },
   { href: "/desaparecidos", label: "Desaparecidos", descripcion: "Reportes de personas desaparecidas en ColombiaTeBusca." },
-  { href: "/reportar", label: "Reportar punto", descripcion: "Reporta un punto de rescate con ubicación exacta." },
+  { href: "/reportar", label: "Puntos de rescate", descripcion: "Puntos donde se necesita ayuda: reporta o confirma con tu ubicación." },
   { href: "/ayuda", label: "Cómo ayudar", descripcion: "Canales oficiales de donación y voluntariado." },
   { href: "/contactos", label: "Contactos", descripcion: "Líneas de emergencia oficiales." },
 ];
@@ -31,6 +31,19 @@ const slugCiudad = (c: string) =>
 const CIUDADES = [
   "Bogotá", "Cali", "Medellín", "Pereira", "Manizales", "Armenia", "Chocó", "Valle del Cauca",
 ].map((c) => ({ label: c, href: `/?ciudad=${slugCiudad(c)}#mapa` }));
+
+// Sección activa del nav: compara pathname normalizado (Astro añade slash
+// final en build; sin normalizar el estado activo nunca coincidía). Las
+// subpáginas (sugerir/reportar) activan su sección padre por prefijo de
+// segmentos; la portada solo coincide exacta ("Mapa").
+const normalizar = (p: string) => p.replace(/\/+$/, "") || "/";
+const segmentos = (p: string) => normalizar(p).split("/").filter(Boolean);
+const segActual = segmentos(Astro.url.pathname);
+const seccionActiva = (href: string) => {
+  const segNav = segmentos(new URL(href, Astro.url).pathname);
+  if (segNav.length === 0) return segActual.length === 0; // portada: solo exacta
+  return segNav.every((s, i) => segActual[i] === s); // prefijo de sección
+};
 ---
 
 <!doctype html>
@@ -57,7 +70,7 @@ const CIUDADES = [
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
     <!-- Service worker solo en producción. En dev (Vite) los estilos se sirven
@@ -82,7 +95,11 @@ const CIUDADES = [
       </a>
       <nav class="nav-secciones" aria-label="Secciones">
         {SECCIONES.map((s) => (
-          <a href={s.href} class:list={{ active: Astro.url.pathname === new URL(s.href, Astro.url).pathname }}>
+          <a
+            href={s.href}
+            class:list={{ active: seccionActiva(s.href) }}
+            aria-current={seccionActiva(s.href) ? "page" : undefined}
+          >
             {s.label}
           </a>
         ))}
@@ -106,7 +123,7 @@ const CIUDADES = [
 
     <footer class="site-footer">
       <div class="foot-line">
-        <strong>ENLACE SISMO</strong>
+        <strong>Enlace Sismo</strong>
         <span class="foot-sep">·</span>
         <span>datos verificados contra fuente</span>
         <span class="foot-sep">·</span>

@@ -1,6 +1,7 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import UbicacionPicker from "../../components/UbicacionPicker.astro";
+import Breadcrumb from "../../components/Breadcrumb.astro";
 import type { DedupeItem } from "../../lib/ubicacion-picker";
 import acopiosData from "../../../../data/acopios.json";
 
@@ -20,6 +21,7 @@ const dedupeDatos: DedupeItem[] = acopiosData.acopios.map((a) => ({
   description="Sugiere un punto de acopio para incluir en la plataforma. Los datos serán verificados antes de publicarse."
 >
   <section class="seccion-titulo">
+    <Breadcrumb items={[{ label: "Puntos de acopio", href: "/acopios" }, { label: "Sugerir un punto de acopio" }]} />
     <h1>Sugerir un punto de acopio</h1>
     <p>
       Los datos enviados serán revisados por un mantenedor antes de publicarse.
@@ -27,7 +29,7 @@ const dedupeDatos: DedupeItem[] = acopiosData.acopios.map((a) => ({
     </p>
   </section>
 
-  <div class="aviso">
+  <div class="aviso warning">
     <strong>Importante</strong>
     Si tienes una fuente oficial (comunicado de la alcaldía, UNGRD, Cruz Roja, etc.), inclúyela.
     Los acopios sin fuente verificable se publicarán como "sin confirmar" hasta ser validados.
@@ -97,33 +99,22 @@ const dedupeDatos: DedupeItem[] = acopiosData.acopios.map((a) => ({
 
     <div class="form-group">
       <label>Necesidades (opcional)</label>
-      <div class="dual-picklist" id="necesidades-picklist">
-        <div class="picklist-col">
-          <span class="picklist-label">Disponibles</span>
-          <ul class="picklist-list" id="necesidades-disponibles">
-            <li data-value="alimentos-no-perecederos">Alimentos no perecederos</li>
-            <li data-value="agua">Agua</li>
-            <li data-value="ropa">Ropa</li>
-            <li data-value="medicamentos">Medicamentos</li>
-            <li data-value="elementos-aseo">Elementos de aseo</li>
-            <li data-value="cobijas">Cobijas</li>
-            <li data-value="colchonetas">Colchonetas</li>
-            <li data-value="alimentos-bebe">Alimentos para bebés</li>
-            <li data-value="mascotas">Mascotas</li>
-            <li data-value="herramientas">Herramientas</li>
-            <li data-value="voluntarios">Voluntarios</li>
-          </ul>
+      <fieldset class="form-group necesidades">
+        <legend class="visually-hidden">¿Qué necesita este punto de acopio?</legend>
+        <div class="necesidades-grid">
+          <label class="necesidad-chip"><input type="checkbox" value="alimentos-no-perecederos" /><span>Alimentos no perecederos</span></label>
+          <label class="necesidad-chip"><input type="checkbox" value="agua" /><span>Agua</span></label>
+          <label class="necesidad-chip"><input type="checkbox" value="ropa" /><span>Ropa</span></label>
+          <label class="necesidad-chip"><input type="checkbox" value="medicamentos" /><span>Medicamentos</span></label>
+          <label class="necesidad-chip"><input type="checkbox" value="elementos-aseo" /><span>Elementos de aseo</span></label>
+          <label class="necesidad-chip"><input type="checkbox" value="cobijas" /><span>Cobijas</span></label>
+          <label class="necesidad-chip"><input type="checkbox" value="colchonetas" /><span>Colchonetas</span></label>
+          <label class="necesidad-chip"><input type="checkbox" value="alimentos-bebe" /><span>Alimentos para bebés</span></label>
+          <label class="necesidad-chip"><input type="checkbox" value="mascotas" /><span>Mascotas</span></label>
+          <label class="necesidad-chip"><input type="checkbox" value="herramientas" /><span>Herramientas</span></label>
+          <label class="necesidad-chip"><input type="checkbox" value="voluntarios" /><span>Voluntarios</span></label>
         </div>
-        <div class="picklist-actions">
-          <button type="button" class="picklist-btn" id="picklist-add" aria-label="Agregar seleccionados">&#8594;</button>
-          <button type="button" class="picklist-btn" id="picklist-remove" aria-label="Quitar seleccionados">&#8592;</button>
-        </div>
-        <div class="picklist-col">
-          <span class="picklist-label">Elegidas</span>
-          <ul class="picklist-list" id="necesidades-elegidas"></ul>
-        </div>
-      </div>
-      <input type="hidden" id="necesidades" name="necesidades" />
+      </fieldset>
     </div>
 
     <div class="form-group">
@@ -182,6 +173,7 @@ const dedupeDatos: DedupeItem[] = acopiosData.acopios.map((a) => ({
       <div class="modal-resultado-icono" id="modal-icono"></div>
       <div class="modal-resultado-titulo" id="modal-titulo"></div>
       <div class="modal-resultado-mensaje" id="modal-mensaje"></div>
+      <div class="modal-acciones" id="modal-acciones"></div>
       <button class="btn btn-primary" id="modal-cerrar">Cerrar</button>
     </div>
   </div>
@@ -189,6 +181,7 @@ const dedupeDatos: DedupeItem[] = acopiosData.acopios.map((a) => ({
 
 <script>
   import { apiPost, apiUrl } from "../../lib/api";
+  import { compartirSeccion } from "../../lib/compartir";
   import { EVENTO_FIJADA, EVENTO_REINICIAR, type UbicacionFijada } from "../../lib/ubicacion-picker";
 
   interface UploadResponse {
@@ -210,6 +203,7 @@ const dedupeDatos: DedupeItem[] = acopiosData.acopios.map((a) => ({
     const modalIcono = document.getElementById("modal-icono") as HTMLDivElement | null;
     const modalTitulo = document.getElementById("modal-titulo") as HTMLDivElement | null;
     const modalMensaje = document.getElementById("modal-mensaje") as HTMLDivElement | null;
+    const modalAcciones = document.getElementById("modal-acciones") as HTMLDivElement | null;
     const modalCerrar = document.getElementById("modal-cerrar") as HTMLButtonElement | null;
     const imagenInput = document.getElementById("imagen") as HTMLInputElement | null;
     const imagenPreview = document.getElementById("imagen-preview") as HTMLDivElement | null;
@@ -245,14 +239,28 @@ const dedupeDatos: DedupeItem[] = acopiosData.acopios.map((a) => ({
     // pueden renderizar como emoji en móvil). El color lo da el CSS del modal.
     const ICONO_OK = `<svg viewBox="0 0 16 16" width="22" height="22" aria-hidden="true" fill="none"><path d="M2.5 8.5 6 12l7.5-8" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
     const ICONO_ERROR = `<svg viewBox="0 0 16 16" width="22" height="22" aria-hidden="true" fill="none"><path d="m3.5 3.5 9 9m0-9-9 9" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>`;
-    function mostrarModal(tipo: "ok" | "error", titulo: string, mensaje: string) {
+    function mostrarModal(tipo: "ok" | "error", titulo: string, mensaje: string, accionesHtml = "") {
       if (!modal || !modalIcono || !modalTitulo || !modalMensaje) return;
       modal.dataset.tipo = tipo;
       modalIcono.innerHTML = tipo === "ok" ? ICONO_OK : ICONO_ERROR;
       modalTitulo.textContent = titulo;
       modalMensaje.textContent = mensaje;
+      if (modalAcciones) modalAcciones.innerHTML = accionesHtml;
       modal.dataset.open = "true";
     }
+
+    // Compartir (review de diseño): acción secundaria del modal de éxito.
+    modal?.addEventListener("click", (e) => {
+      const btn = (e.target as HTMLElement).closest<HTMLButtonElement>("[data-compartir]");
+      if (!btn) return;
+      void compartirSeccion("/acopios", "Puntos de acopio").then((r) => {
+        if (r === "copiado") {
+          const previo = btn.textContent;
+          btn.textContent = "Enlace copiado";
+          setTimeout(() => (btn.textContent = previo), 2000);
+        }
+      });
+    });
     function cerrarModal() {
       if (modal) modal.dataset.open = "false";
       window.location.href = "/acopios";
@@ -348,49 +356,9 @@ const dedupeDatos: DedupeItem[] = acopiosData.acopios.map((a) => ({
       }
     }
 
-    // ---------- Dual Picklist (necesidades) ----------
-    const disponibles = document.getElementById("necesidades-disponibles") as HTMLUListElement | null;
-    const elegidas = document.getElementById("necesidades-elegidas") as HTMLUListElement | null;
-    const btnAdd = document.getElementById("picklist-add") as HTMLButtonElement | null;
-    const btnRemove = document.getElementById("picklist-remove") as HTMLButtonElement | null;
-    const hiddenNecesidades = document.getElementById("necesidades") as HTMLInputElement | null;
-
-    function setupPicklistClick(list: HTMLUListElement) {
-      list.addEventListener("click", (e) => {
-        const li = (e.target as HTMLElement).closest("li");
-        if (!li) return;
-        const wasSelected = li.classList.contains("selected");
-        list.querySelectorAll("li.selected").forEach((el) => el.classList.remove("selected"));
-        if (!wasSelected) li.classList.add("selected");
-      });
-    }
-
-    function syncHidden() {
-      if (!elegidas || !hiddenNecesidades) return;
-      const values = Array.from(elegidas.querySelectorAll("li")).map((li) => li.dataset.value ?? "");
-      hiddenNecesidades.value = values.join(",");
-    }
-
-    if (disponibles && elegidas) {
-      setupPicklistClick(disponibles);
-      setupPicklistClick(elegidas);
-
-      btnAdd?.addEventListener("click", () => {
-        const selected = disponibles.querySelector("li.selected");
-        if (!selected) return;
-        selected.classList.remove("selected");
-        elegidas.appendChild(selected);
-        syncHidden();
-      });
-
-      btnRemove?.addEventListener("click", () => {
-        const selected = elegidas.querySelector("li.selected");
-        if (!selected) return;
-        selected.classList.remove("selected");
-        disponibles.appendChild(selected);
-        syncHidden();
-      });
-    }
+    // ---------- Necesidades: chips con estado seleccionado directo ----------
+    // (review de diseño: sin recuadro "Elegidas" — se selecciona y se
+    // deselecciona en el mismo componente; el submit lee los checkboxes)
 
     // ---------- Submit ----------
     if (form) {
@@ -408,10 +376,9 @@ const dedupeDatos: DedupeItem[] = acopiosData.acopios.map((a) => ({
           return el?.value.trim() ?? "";
         };
 
-        const necesidadesRaw = getVal("necesidades");
-        const necesidades = necesidadesRaw
-          ? necesidadesRaw.split(",").filter(Boolean)
-          : [];
+        const necesidades = Array.from(
+          document.querySelectorAll<HTMLInputElement>(".necesidades-grid input[type='checkbox']:checked")
+        ).map((c) => c.value);
 
         const evidenciaRaw = getVal("evidencia_links");
         const evidenciaLinks = evidenciaRaw
@@ -444,14 +411,15 @@ const dedupeDatos: DedupeItem[] = acopiosData.acopios.map((a) => ({
         if (btnEnviar) { btnEnviar.disabled = false; btnEnviar.removeAttribute("aria-busy"); btnEnviar.textContent = "Enviar sugerencia"; }
 
         if (data?.ok) {
-          mostrarModal("ok", "Sugerencia enviada", "Un mantenedor revisará los datos y los publicará tras verificar la fuente.");
+          mostrarModal(
+            "ok",
+            "Sugerencia enviada",
+            "La sugerencia entró a la cola de revisión del repositorio y llegará a la sección Puntos de acopio. Un mantenedor verificará la fuente antes de publicarla.",
+            `<button type="button" class="btn" data-compartir>Compartir</button>`
+          );
           form.reset();
           document.dispatchEvent(new CustomEvent(EVENTO_REINICIAR));
           if (imagenPreview) imagenPreview.innerHTML = "";
-          if (disponibles && elegidas) {
-            Array.from(elegidas.children).forEach((li) => disponibles.appendChild(li));
-            syncHidden();
-          }
         } else {
           mostrarModal("error", "No se pudo enviar", data?.error ?? "Intentá nuevamente más tarde.");
         }

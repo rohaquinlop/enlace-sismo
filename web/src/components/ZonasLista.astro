@@ -61,9 +61,9 @@ const metaFila = (z: Zona, km: number) => {
         <span class="zona-fila-top">
           <span class:list={["zona-dot", claseDot(z)]} aria-hidden="true"></span>
           <span class="zona-fila-nombre">{z.nombre}</span>
-          <span class="zona-fila-meta">{metaFila(z, km)}</span>
           <span class="dash-row-chevron" aria-hidden="true">›</span>
         </span>
+        <span class="zona-fila-meta">{metaFila(z, km)}</span>
         <span class="zona-fila-linea">{z.detalle ?? "Sismo sentido"} · {fecha} · SGC</span>
         <span class="dist-usuario" hidden></span>
       </button>
@@ -88,9 +88,9 @@ const metaFila = (z: Zona, km: number) => {
               <span class="zona-fila-top">
                 <span class="zona-dot zona-dot-ciudad" aria-hidden="true"></span>
                 <span class="zona-fila-nombre">{c.nombre}</span>
-                <span class="zona-fila-meta">{c.puntos.length} punto{c.puntos.length === 1 ? "" : "s"} · sin confirmar</span>
                 <span class="dash-row-chevron" aria-hidden="true">›</span>
               </span>
+              <span class="zona-fila-meta">{c.puntos.length} punto{c.puntos.length === 1 ? "" : "s"} · sin confirmar</span>
               <span class="zona-fila-linea">Reportada por ciudadanos · sin intensidad (falta fuente oficial)</span>
             </button>
           ))

@@ -32,17 +32,38 @@ const TIPO_ACOPIO: Record<string, string> = {
   "oficial-gobierno": "Oficial gobierno",
   "no-oficial": "No oficial",
 };
+const TIPO_ALBERGUE: Record<string, string> = {
+  albergue: "Albergue",
+  refugio: "Refugio",
+};
 
-const verificacionClase = entrada.verificacion === "oficial" ? "card-oficial" : entrada.verificacion === "sin-confirmar" ? "card-sin-confirmar" : "";
+const verificacionClase =
+  entrada.verificacion === "oficial"
+    ? "card-oficial"
+    : entrada.verificacion === "confirmado"
+      ? "card-confirmado"
+      : entrada.verificacion === "sin-confirmar"
+        ? "card-sin-confirmar"
+        : "";
+
+// "Centro de salud" no se repite dentro de la sección de salud (review de
+// diseño): el nombre del centro es el elemento principal de la card.
+const tipoAlbergue = "tipo" in entrada && entrada.tipo ? TIPO_ALBERGUE[entrada.tipo] ?? entrada.tipo : null;
 ---
 
 <article class={`card ${verificacionClase}`} id={entrada.id}>
   <div class="card-head">
     <h3>{entrada.nombre}</h3>
-    <StatusBadge estado={entrada.estado} />
+    <span class="card-badges">
+      <StatusBadge estado={entrada.estado} />
+      <StatusBadge estado={entrada.verificacion} />
+    </span>
   </div>
-  <p class="card-tipo">{TIPOS[tipo]}</p>
-  {"tipo" in entrada && entrada.tipo && <p class="card-tipo-acopio">{TIPO_ACOPIO[entrada.tipo] ?? entrada.tipo}</p>}
+  {tipo !== "salud" && <p class="card-tipo">{TIPOS[tipo]}</p>}
+  {"tipo" in entrada && entrada.tipo && entrada.tipo !== "albergue" && entrada.tipo !== "refugio" && (
+    <p class="card-tipo-acopio">{TIPO_ACOPIO[entrada.tipo] ?? entrada.tipo}</p>
+  )}
+  {tipo === "albergue" && tipoAlbergue && <p class="card-tipo"><span class="badge badge-tipo">{tipoAlbergue}</span></p>}
   <p class="card-dir">{entrada.direccion}</p>
   <p class="card-ciudad">
     {entrada.ciudad}, {entrada.departamento} ·{" "}
@@ -53,21 +74,23 @@ const verificacionClase = entrada.verificacion === "oficial" ? "card-oficial" : 
     >Cómo llegar</a>
   </p>
   <div class="card-body">
-    {"horario" in entrada && entrada.horario && <p>Horario: {entrada.horario}</p>}
+    {"horario" in entrada && entrada.horario && <p class="card-dato"><strong>Horario:</strong> {entrada.horario}</p>}
     {"necesidades" in entrada && entrada.necesidades && entrada.necesidades.length > 0 && (
       <div class="chips">
         {entrada.necesidades.map((n) => <span class="chip">{NECESIDADES[n] ?? n}</span>)}
       </div>
     )}
     {"detalles" in entrada && entrada.detalles && <p class="card-detalles">{entrada.detalles}</p>}
-    {"fecha_limite" in entrada && entrada.fecha_limite && <p>Recolección hasta: {entrada.fecha_limite}</p>}
+    {"fecha_limite" in entrada && entrada.fecha_limite && (
+      <p class="card-dato"><strong>Recolección hasta:</strong> {entrada.fecha_limite}</p>
+    )}
     {"capacidad" in entrada && entrada.capacidad && (
-      <p>Capacidad: {entrada.capacidad} personas</p>
+      <p class="card-dato"><strong>Capacidad:</strong> {entrada.capacidad} personas</p>
     )}
     {"urgencias_24h" in entrada && (
-      <p>{entrada.urgencias_24h ? "Urgencias 24 horas" : "Sin urgencias 24 horas"}</p>
+      <p class="card-dato"><strong>{entrada.urgencias_24h ? "Urgencias 24 horas" : "Sin urgencias 24 horas"}</strong></p>
     )}
-    {"contacto" in entrada && entrada.contacto && <p>Contacto: {entrada.contacto}</p>}
+    {"contacto" in entrada && entrada.contacto && <p class="card-dato"><strong>Contacto:</strong> {entrada.contacto}</p>}
     {"imagen_url" in entrada && entrada.imagen_url && (
       <a href={entrada.imagen_url} target="_blank" rel="noopener" class="card-imagen-link">Ver imagen</a>
     )}
@@ -81,7 +104,7 @@ const verificacionClase = entrada.verificacion === "oficial" ? "card-oficial" : 
     )}
   </div>
   <p class="card-fuente">
-    <StatusBadge estado={entrada.verificacion} /> Fuente:{" "}
+    Fuente:{" "}
     <a href={entrada.fuente} target="_blank" rel="noopener">{entrada.fuente}</a>
   </p>
 </article>

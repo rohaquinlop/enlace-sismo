@@ -54,13 +54,30 @@ const TIPO_ACOPIO: Record<string, string> = {
   "oficial-gobierno": "Oficial gobierno",
   "no-oficial": "No oficial",
 };
+const TIPO_ALBERGUE: Record<string, string> = {
+  albergue: "Albergue",
+  refugio: "Refugio",
+};
 
 export function cardHTML(tipo: "acopio" | "albergue" | "salud", e: Acopio | Albergue | CentroSalud): string {
   const clase =
-    e.verificacion === "oficial" ? "card-oficial" : e.verificacion === "sin-confirmar" ? "card-sin-confirmar" : "";
+    e.verificacion === "oficial"
+      ? "card-oficial"
+      : e.verificacion === "confirmado"
+        ? "card-confirmado"
+        : e.verificacion === "sin-confirmar"
+          ? "card-sin-confirmar"
+          : "";
   const tipoAcopio =
-    "tipo" in e && e.tipo ? `<p class="card-tipo-acopio">${escapar(TIPO_ACOPIO[e.tipo] ?? e.tipo)}</p>` : "";
-  const horario = "horario" in e && e.horario ? `<p>Horario: ${escapar(e.horario)}</p>` : "";
+    tipo === "acopio" && "tipo" in e && e.tipo
+      ? `<p class="card-tipo-acopio">${escapar(TIPO_ACOPIO[e.tipo] ?? e.tipo)}</p>`
+      : "";
+  const tipoAlbergue =
+    tipo === "albergue" && "tipo" in e && e.tipo && TIPO_ALBERGUE[e.tipo]
+      ? `<p class="card-tipo"><span class="badge badge-tipo">${escapar(TIPO_ALBERGUE[e.tipo])}</span></p>`
+      : "";
+  const horario =
+    "horario" in e && e.horario ? `<p class="card-dato"><strong>Horario:</strong> ${escapar(e.horario)}</p>` : "";
   const necesidades =
     "necesidades" in e && e.necesidades && e.necesidades.length > 0
       ? `<div class="chips">${e.necesidades
@@ -69,12 +86,19 @@ export function cardHTML(tipo: "acopio" | "albergue" | "salud", e: Acopio | Albe
       : "";
   const detalles = "detalles" in e && e.detalles ? `<p class="card-detalles">${escapar(e.detalles)}</p>` : "";
   const fechaLimite =
-    "fecha_limite" in e && e.fecha_limite ? `<p>Recolección hasta: ${escapar(e.fecha_limite)}</p>` : "";
+    "fecha_limite" in e && e.fecha_limite
+      ? `<p class="card-dato"><strong>Recolección hasta:</strong> ${escapar(e.fecha_limite)}</p>`
+      : "";
   const capacidad =
-    "capacidad" in e && e.capacidad ? `<p>Capacidad: ${e.capacidad} personas</p>` : "";
+    "capacidad" in e && e.capacidad
+      ? `<p class="card-dato"><strong>Capacidad:</strong> ${e.capacidad} personas</p>`
+      : "";
   const urgencias =
-    "urgencias_24h" in e ? `<p>${e.urgencias_24h ? "Urgencias 24 horas" : "Sin urgencias 24 horas"}</p>` : "";
-  const contacto = "contacto" in e && e.contacto ? `<p>Contacto: ${escapar(e.contacto)}</p>` : "";
+    "urgencias_24h" in e
+      ? `<p class="card-dato"><strong>${e.urgencias_24h ? "Urgencias 24 horas" : "Sin urgencias 24 horas"}</strong></p>`
+      : "";
+  const contacto =
+    "contacto" in e && e.contacto ? `<p class="card-dato"><strong>Contacto:</strong> ${escapar(e.contacto)}</p>` : "";
   const imagen =
     "imagen_url" in e && e.imagen_url
       ? `<a href="${escapar(e.imagen_url)}" target="_blank" rel="noopener" class="card-imagen-link">Ver imagen</a>`
@@ -87,14 +111,15 @@ export function cardHTML(tipo: "acopio" | "albergue" | "salud", e: Acopio | Albe
       : "";
   return (
     `<article class="card ${clase}" id="${escapar(e.id)}">` +
-    `<div class="card-head"><h3>${escapar(e.nombre)}</h3>${badgeHTML(e.estado)}</div>` +
-    `<p class="card-tipo">${TIPOS_CARD[tipo]}</p>` +
+    `<div class="card-head"><h3>${escapar(e.nombre)}</h3><span class="card-badges">${badgeHTML(e.estado)}${badgeHTML(e.verificacion)}</span></div>` +
+    `${tipo !== "salud" ? `<p class="card-tipo">${TIPOS_CARD[tipo]}</p>` : ""}` +
     tipoAcopio +
+    tipoAlbergue +
     `<p class="card-dir">${escapar(e.direccion)}</p>` +
     `<p class="card-ciudad">${escapar(e.ciudad)}, ${escapar(e.departamento)} · ` +
     `<a href="https://www.google.com/maps/dir/?api=1&destination=${e.lat},${e.lng}" target="_blank" rel="noopener">Cómo llegar</a></p>` +
     `<div class="card-body">${horario}${necesidades}${detalles}${fechaLimite}${capacidad}${urgencias}${contacto}${imagen}${evidencia}</div>` +
-    `<p class="card-fuente">${badgeHTML(e.verificacion)} Fuente: ` +
+    `<p class="card-fuente">Fuente: ` +
     `<a href="${escapar(e.fuente)}" target="_blank" rel="noopener">${escapar(e.fuente)}</a></p>` +
     `</article>`
   );
@@ -115,18 +140,18 @@ export function cardJornadaHTML(j: JornadaSangre): string {
           .map((g) => `<span class="chip">${g === "todos" ? "Todos los grupos" : `Grupo ${escapar(g)}`}</span>`)
           .join("")}</div>`
       : "";
-  const contacto = j.contacto ? `<p>Contacto: ${escapar(j.contacto)}</p>` : "";
+  const contacto = j.contacto ? `<p class="card-dato"><strong>Contacto:</strong> ${escapar(j.contacto)}</p>` : "";
   return (
     `<article class="card">` +
-    `<div class="card-head"><h3>${escapar(j.punto)}</h3>${badgeHTML(j.estado)}</div>` +
+    `<div class="card-head"><h3>${escapar(j.punto)}</h3><span class="card-badges">${badgeHTML(j.estado)}${badgeHTML(j.verificacion)}</span></div>` +
     `<p class="card-tipo">Donación de sangre · ${escapar(j.organizador)}</p>` +
     `<p class="card-dir">${escapar(j.direccion)}</p>` +
     `<p class="card-ciudad">${escapar(j.ciudad)}, ${escapar(j.departamento)} · ` +
     `<a href="https://www.google.com/maps/dir/?api=1&destination=${j.lat},${j.lng}" target="_blank" rel="noopener">Cómo llegar</a></p>` +
-    `<p><strong>${escapar(fechas)}</strong> · ${escapar(j.horario)}</p>` +
+    `<p class="card-dato"><strong>${escapar(fechas)}</strong> · ${escapar(j.horario)}</p>` +
     grupos +
     contacto +
-    `<p class="card-fuente">${badgeHTML(j.verificacion)} Fuente: ` +
+    `<p class="card-fuente">Fuente: ` +
     `<a href="${escapar(j.fuente)}" target="_blank" rel="noopener">${escapar(j.fuente)}</a></p>` +
     `</article>`
   );
@@ -324,8 +349,8 @@ export function renderZonasListaHTML(zonas: Zona[], ciudadesReportadas: CiudadRe
               `<button type="button" class="dash-row zona-fila zona-fila-ciudadana" data-ciudad-nombre="${escapar(c.nombre)}" aria-pressed="false" title="Ciudad reportada por ciudadanos — sin intensidad hasta verificación oficial">` +
               `<span class="zona-fila-top"><span class="zona-dot zona-dot-ciudad" aria-hidden="true"></span>` +
               `<span class="zona-fila-nombre">${escapar(c.nombre)}</span>` +
-              `<span class="zona-fila-meta">${c.puntos.length} punto${c.puntos.length === 1 ? "" : "s"} · sin confirmar</span>` +
               `<span class="dash-row-chevron" aria-hidden="true">›</span></span>` +
+              `<span class="zona-fila-meta">${c.puntos.length} punto${c.puntos.length === 1 ? "" : "s"} · sin confirmar</span>` +
               `<span class="zona-fila-linea">Reportada por ciudadanos · sin intensidad (falta fuente oficial)</span>` +
               `</button>`
           )
@@ -349,8 +374,8 @@ export function renderZonasListaHTML(zonas: Zona[], ciudadesReportadas: CiudadRe
           `<button type="button" class="dash-row zona-fila" data-zona-id="${escapar(z.id)}" data-tipo="${z.tipo}" aria-pressed="false" title="${z.intensidad ? `Intensidad Mercalli ${ROMANOS[z.intensidad]}` : "Sin reporte de intensidad"}">` +
           `<span class="zona-fila-top"><span class="zona-dot ${claseDot(z)}" aria-hidden="true"></span>` +
           `<span class="zona-fila-nombre">${escapar(z.nombre)}</span>` +
-          `<span class="zona-fila-meta">${escapar(metaFila(z, km))}</span>` +
           `<span class="dash-row-chevron" aria-hidden="true">›</span></span>` +
+          `<span class="zona-fila-meta">${escapar(metaFila(z, km))}</span>` +
           `<span class="zona-fila-linea">${z.detalle ? escapar(z.detalle) : "Sismo sentido"} · ${escapar(fecha)} · SGC</span>` +
           `<span class="dist-usuario" hidden></span>` +
           `</button>`
