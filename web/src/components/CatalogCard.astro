@@ -37,21 +37,10 @@ const TIPO_ALBERGUE: Record<string, string> = {
   refugio: "Refugio",
 };
 
-const verificacionClase =
-  entrada.verificacion === "oficial"
-    ? "card-oficial"
-    : entrada.verificacion === "confirmado"
-      ? "card-confirmado"
-      : entrada.verificacion === "sin-confirmar"
-        ? "card-sin-confirmar"
-        : "";
-
-// "Centro de salud" no se repite dentro de la sección de salud (review de
-// diseño): el nombre del centro es el elemento principal de la card.
 const tipoAlbergue = "tipo" in entrada && entrada.tipo ? TIPO_ALBERGUE[entrada.tipo] ?? entrada.tipo : null;
 ---
 
-<article class={`card ${verificacionClase}`} id={entrada.id}>
+<article class="card" id={entrada.id}>
   <div class="card-head">
     <h3>{entrada.nombre}</h3>
     <span class="card-badges">
@@ -59,7 +48,9 @@ const tipoAlbergue = "tipo" in entrada && entrada.tipo ? TIPO_ALBERGUE[entrada.t
       <StatusBadge estado={entrada.verificacion} />
     </span>
   </div>
-  {tipo !== "salud" && <p class="card-tipo">{TIPOS[tipo]}</p>}
+  {/* El tipo se muestra una sola vez: el badge-tipo reemplaza al texto
+      para albergues; salud no repite la sección (review de diseño). */}
+  {tipo === "acopio" && <p class="card-tipo">{TIPOS[tipo]}</p>}
   {"tipo" in entrada && entrada.tipo && entrada.tipo !== "albergue" && entrada.tipo !== "refugio" && (
     <p class="card-tipo-acopio">{TIPO_ACOPIO[entrada.tipo] ?? entrada.tipo}</p>
   )}

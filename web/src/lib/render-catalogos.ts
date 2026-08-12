@@ -60,14 +60,6 @@ const TIPO_ALBERGUE: Record<string, string> = {
 };
 
 export function cardHTML(tipo: "acopio" | "albergue" | "salud", e: Acopio | Albergue | CentroSalud): string {
-  const clase =
-    e.verificacion === "oficial"
-      ? "card-oficial"
-      : e.verificacion === "confirmado"
-        ? "card-confirmado"
-        : e.verificacion === "sin-confirmar"
-          ? "card-sin-confirmar"
-          : "";
   const tipoAcopio =
     tipo === "acopio" && "tipo" in e && e.tipo
       ? `<p class="card-tipo-acopio">${escapar(TIPO_ACOPIO[e.tipo] ?? e.tipo)}</p>`
@@ -110,9 +102,9 @@ export function cardHTML(tipo: "acopio" | "albergue" | "salud", e: Acopio | Albe
           .join("")}</div>`
       : "";
   return (
-    `<article class="card ${clase}" id="${escapar(e.id)}">` +
+    `<article class="card" id="${escapar(e.id)}">` +
     `<div class="card-head"><h3>${escapar(e.nombre)}</h3><span class="card-badges">${badgeHTML(e.estado)}${badgeHTML(e.verificacion)}</span></div>` +
-    `${tipo !== "salud" ? `<p class="card-tipo">${TIPOS_CARD[tipo]}</p>` : ""}` +
+    `${tipo === "acopio" ? `<p class="card-tipo">${TIPOS_CARD[tipo]}</p>` : ""}` +
     tipoAcopio +
     tipoAlbergue +
     `<p class="card-dir">${escapar(e.direccion)}</p>` +
