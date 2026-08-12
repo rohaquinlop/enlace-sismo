@@ -14,7 +14,8 @@
       "verificado_por": "equipo-enlacesismo (verificación publicación oficial Alcaldía de Pereira 2026-08-11)",
       "fecha_verificacion": "2026-08-11",
       "verificacion": "oficial",
-      "coordenadas_nivel": "barrio"
+      "coordenadas_nivel": "barrio",
+      "tipo": "refugio"
     },
     {
       "id": "pereira-parque-el-oso",
@@ -29,7 +30,8 @@
       "verificado_por": "equipo-enlacesismo (verificación publicación oficial Alcaldía de Pereira 2026-08-11)",
       "fecha_verificacion": "2026-08-11",
       "verificacion": "oficial",
-      "coordenadas_nivel": "premisa"
+      "coordenadas_nivel": "premisa",
+      "tipo": "refugio"
     },
     {
       "id": "pereira-coliseo-mayor",
@@ -44,7 +46,8 @@
       "verificado_por": "equipo-enlacesismo (verificación publicación oficial Alcaldía de Pereira 2026-08-11)",
       "fecha_verificacion": "2026-08-11",
       "verificacion": "oficial",
-      "coordenadas_nivel": "premisa"
+      "coordenadas_nivel": "premisa",
+      "tipo": "refugio"
     },
     {
       "id": "pereira-parque-olaya-herrera",
@@ -59,7 +62,8 @@
       "verificado_por": "equipo-enlacesismo (verificación publicación oficial Alcaldía de Pereira 2026-08-11)",
       "fecha_verificacion": "2026-08-11",
       "verificacion": "oficial",
-      "coordenadas_nivel": "premisa"
+      "coordenadas_nivel": "premisa",
+      "tipo": "refugio"
     },
     {
       "id": "pereira-estadio-mora-mora",
@@ -74,7 +78,8 @@
       "verificado_por": "equipo-enlacesismo (verificación publicación oficial Alcaldía de Pereira 2026-08-11)",
       "fecha_verificacion": "2026-08-11",
       "verificacion": "oficial",
-      "coordenadas_nivel": "premisa"
+      "coordenadas_nivel": "premisa",
+      "tipo": "refugio"
     },
     {
       "id": "pereira-plaza-de-ferias",
@@ -89,7 +94,8 @@
       "fuente": "https://x.com/Alcaldiapereira/status/2087001826793070879",
       "verificado_por": "equipo-enlacesismo (verificación publicación oficial Alcaldía de Pereira 2026-08-11)",
       "fecha_verificacion": "2026-08-11",
-      "verificacion": "oficial"
+      "verificacion": "oficial",
+      "tipo": "refugio"
     }
   ]
 }

@@ -16,7 +16,8 @@
     "admite_mascotas": { "type": "boolean" },
     "servicios": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
     "estado": { "type": "string", "enum": ["abierto", "cerrado", "sin-confirmar"] },
+    "tipo": { "type": "string", "enum": ["albergue", "refugio"] },
     "contacto": { "type": "string" }
   },
-  "required": ["id", "nombre", "ciudad", "departamento", "direccion", "lat", "lng", "estado"]
+  "required": ["id", "nombre", "ciudad", "departamento", "direccion", "lat", "lng", "estado", "tipo"]
 }
