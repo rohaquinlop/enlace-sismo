@@ -28,9 +28,8 @@ enlace-sismo/
 │   ├── contactos.json       # Líneas oficiales de emergencia
 │   ├── canales-ayuda.json   # Canales de donación/voluntariado
 │   ├── zonas-afectadas.json # Epicentro SGC + ciudades; `intensidad` Mercalli opcional SOLO con fuente
-│   ├── puntos-rescate.json  # Catálogo promovido de puntos verificados (regla de oro; vacío hasta el primer PR)
 │   ├── evento.json          # Boletín oficial SGC (evento en curso)
-│   └── schema/              # JSON Schemas (draft 2020-12) por catálogo + reporte-punto.schema.json (registro en vivo)
+│   └── schema/              # JSON Schemas (draft 2020-12) por catálogo + reporte-punto.schema.json (registro en vivo; los puntos verificados viven en el registro, unificado)
 ├── scripts/
 │   ├── validate-data.mjs    # Validación con Ajv + reglas de seguridad
 │   ├── verificar-coordenadas.mjs  # Doble geocodificación (Google embed + ArcGIS) contra data/*.json
@@ -162,7 +161,7 @@ cd worker && npx wrangler secret put GITHUB_TOKEN
 - **Ingresos hospitalarios: prohibidos.** No hay registro de pacientes en ningún formato (nombres, iniciales, hospital, fecha/hora). Los nombres de pacientes son datos sensibles (Ley 1581/2012); un paciente inconsciente no puede consentir y su familia no siempre es localizable. No existe fuente pública verificable por paciente, así que la regla de oro no se puede cumplir. Los PR que propongan esta funcionalidad se rechazan; derivar a ColombiaTeBusca
 - **Estados operativos:** `abierto | cerrado | sin-confirmar` (acopios/albergues), `operativo | limitado | cerrado | sin-confirmar` (salud), `activa | finalizada | sin-confirmar` (jornadas de sangre), `sin-confirmar | confirmado | en-curso | resuelto | falso | promovido` (registro en vivo de rescates)
 - **Registro en vivo (puntos de rescate):** los reportes entran por `/reportar` → el worker valida (honeypot, rate limits, enums, `coordenadas_nivel`) y commitea a `web/public/datos/reportes-puntos.json` (GitHub como almacén, retry ante 409, validación Ajv por entrada; write-through a la caché KV del API, clave `datos:v1:registro`). Confirmaciones con cercanía ≤1 km — peso ORIENTATIVO (la posición la declara el cliente): el estado `confirmado` real lo fija un mantenedor. 1 confirmación y 1 flag por IP por punto; 3+ flags ocultan el punto; degradación 72 h sin reconfirmación (calculada en cliente, el archivo conserva todo)
-- **Promoción de puntos:** mantenedor verifica contra fuente → copia a `data/puntos-rescate.json` con `fuente`/`verificado_por`/`fecha_verificacion` y `reporte_id` → PR → CI → merge → admin marca la entrada `promovido`
+- **Promoción de puntos:** mantenedor verifica contra fuente → edita la entrada EN EL REGISTRO (`web/public/datos/reportes-puntos.json`) agregando `nombre`/`fuente`/`verificado_por`/`fecha_verificacion`/`verificacion` (regla de oro) → PR → CI → merge → admin marca la entrada `promovido` (deja de mostrarse en vivo; el registro conserva todo)
 - **Ciudades reportadas:** el reporte guarda `ciudad` derivada del geocoder (normalizada: "Cali ciudad" → "Cali"); las ciudades sin catálogo aparecen en el select, en el mapa como marcador neutral ("Sin reporte de intensidad" — nunca estimar Mercalli sin fuente) y en la sección "Ciudades con reportes ciudadanos" del panel Zonas, con dedupe por nombre normalizado (sin acentos/caja); la ciudad pasa a zona SGC por PR con fuente oficial
 - **El filtro de ciudad aplica también a los puntos de rescate** (cada reporte lleva su ciudad; sin ciudad se oculta bajo filtro activo); el chip "Rescates" controla la capa
 - **Coordenadas:** toda entrada lleva `coordenadas_nivel` (`premisa` = edificio/POI · `via` = calle · `barrio` = centroide); antes de publicar una coordenada nueva, correr `scripts/verificar-coordenadas.mjs` y publicar solo donde coinciden ≥2 fuentes independientes (Google embed + ArcGIS + POI OSM); un pin equivocado es peor que ningún pin

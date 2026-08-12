@@ -77,11 +77,11 @@ ES el registro, y cualquier contribuidor puede verlo, corregirlo o archivarlo po
   `confirmado` real lo fija un mantenedor tras verificar contra fuente.
 - **3 reportes de falso** (`flags` en la entrada) ocultan el punto del mapa; sigue visible en
   el archivo para auditoría. Un admin puede marcarlo `falso`, `resuelto` o `promovido`.
-- **Promoción a catálogo verificado:** cuando un punto se confirma contra fuente oficial,
-  cópialo a `data/puntos-rescate.json` con `fuente`, `verificado_por`, `fecha_verificacion`
-  y `reporte_id` (regla de oro; CI lo exige), abre el PR y, al fusionar, marca la entrada
-  original `promovido` (deja de mostrarse en vivo). El punto verificado sobrevive a una API
-  caída porque se renderiza desde el build.
+- **Promoción a punto verificado:** cuando un punto se confirma contra fuente oficial,
+  edita su entrada **en el propio registro** (`web/public/datos/reportes-puntos.json`)
+  agregando `nombre`, `fuente`, `verificado_por`, `fecha_verificacion` y `verificacion`
+  (regla de oro; CI lo exige) — sin moverlo a otro archivo. Abre el PR y, al fusionar,
+  el admin marca la entrada `promovido` (deja de mostrarse como punto activo en vivo).
 
 **Secreto requerido:** `GITHUB_TOKEN` (un solo fine-grained PAT con `contents:write` e
 `issues:write` sobre el repo) como secreto del worker:
