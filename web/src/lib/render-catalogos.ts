@@ -246,10 +246,13 @@ export function renderSangrePagina(items: JornadaSangre[]): string {
     return VACIO(
       "Aún no hay jornadas de donación verificadas",
       "Las jornadas oficiales están siendo confirmadas por la Cruz Roja y las alcaldías. Este es un proyecto open-source: si tienes un dato verificado, súbelo y publícalo.",
-      `<a class="btn btn-primary" href="https://github.com/rohaquinlop/enlace-sismo/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener">Agregar una jornada (guía)</a>`
+      `<a class="btn btn-primary" href="/donar-sangre/sugerir-jornada">Sugerir una jornada</a>`
     );
   }
-  return gruposHTML(items, (e) => cardJornadaHTML(e));
+  return (
+    `<div class="filtros"><a class="btn btn-primary" href="/donar-sangre/sugerir-jornada">Sugerir una jornada</a></div>` +
+    gruposHTML(items, (e) => cardJornadaHTML(e))
+  );
 }
 
 // ---------- Página /ayuda (espejo de ayuda.astro) ----------

@@ -1929,6 +1929,13 @@ body:has(.dash.con-mapa) .nav-secciones {
 .modal-resultado[data-tipo="error"] .modal-resultado-icono { color: var(--color-error); }
 .modal-resultado[data-tipo="error"] .modal-resultado-titulo { color: var(--color-error); }
 
+.modal-acciones {
+  display: flex;
+  justify-content: center;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-sm);
+}
+
 .modal-resultado .btn {
   min-width: 8rem;
 }
