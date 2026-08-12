@@ -40,10 +40,10 @@ jobs:
           while IFS= read -r f; do
             case "$f" in
               # Los schemas los importa el worker en build: su cambio SÍ despliega.
-              data/schema/*) echo "desplegar=true"; exit 0 ;;
+              data/schema/*) echo "desplegar=true" >> "$GITHUB_OUTPUT"; exit 0 ;;
               data/*) ;;
               web/public/datos/*) ;;
-              *) echo "desplegar=true"; exit 0 ;;
+              *) echo "desplegar=true" >> "$GITHUB_OUTPUT"; exit 0 ;;
             esac
           done <<< "$ARCHIVOS"
           echo "desplegar=false" >> "$GITHUB_OUTPUT"
