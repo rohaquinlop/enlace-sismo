@@ -110,6 +110,15 @@ const enlaceMaps = (lat: number, lng: number) =>
                 <h3>Puntos de rescate</h3>
                 <span class="zonas-count" id="rescate-conteo" aria-label={`${activos.length} puntos activos`}>{activos.length}</span>
               </div>
+              <!-- Acción principal del panel: barra de acción sticky al inicio
+                   (acceso rápido a /reportar; el contenido scrollea debajo). -->
+              <a class="dash-row dash-cta" href="/reportar">
+                <span class="dash-row-top">
+                  <span class="dash-row-nombre">Reportar un punto</span>
+                  <span class="dash-row-meta">en vivo</span>
+                </span>
+                <p>¿Ves un lugar donde se necesita ayuda? Publícalo con ubicación exacta y necesidades.</p>
+              </a>
               <!-- Contenido re-renderizado por el refresco runtime y por el
                    filtro de zona activa (clic en una zona → sus rescates). -->
               <div id="rescate-panel">
@@ -172,13 +181,6 @@ const enlaceMaps = (lat: number, lng: number) =>
                   )
                 }
               </div>
-              <a class="dash-row" href="/reportar">
-                <span class="dash-row-top">
-                  <span class="dash-row-nombre">Reportar un punto</span>
-                  <span class="dash-row-meta">en vivo</span>
-                </span>
-                <p>¿Ves un lugar donde se necesita ayuda? Publícalo con ubicación exacta y necesidades.</p>
-              </a>
             </div>
           </div>
           <!-- Pie del panel: cómo leer la verificación de cada dato (fuera de
@@ -272,11 +274,31 @@ const enlaceMaps = (lat: number, lng: number) =>
   // Sync con el mapa: popup de zona o geolocalización → pestaña Zonas.
   // Un id vacío solo limpia el resaltado; no cambia de pestaña.
   // La zona activa además filtra el panel Rescates (epicentro = todas).
-  function activarZonaRescates(nombre: string | null) {
-    if (zonaRescates === nombre) return;
-    zonaRescates = nombre;
-    if (ultimoRegistro) aplicarRegistro(ultimoRegistro);
+  /** Navegación zona → rescates: filtra el panel por ciudad y muestra la
+      pestaña Rescates (el usuario ve los puntos de esa zona al instante). */
+  function activarZonaRescates(nombre: string | null, cambiarPestana = false) {
+    if (zonaRescates !== nombre) {
+      zonaRescates = nombre;
+      if (ultimoRegistro) aplicarRegistro(ultimoRegistro);
+    }
+    if (cambiarPestana && nombre) {
+      const tabRescates = document.getElementById("tab-rescates") as HTMLButtonElement | null;
+      if (tabRescates) activar(tabRescates);
+    }
   }
+
+  // Clic en una fila de zona (ZonasLista): filtra rescates por esa ciudad y
+  // muestra la pestaña Rescates. Funciona aunque el mapa no haya cargado
+  // (modo flujo): el evento lo emite la fila, no el mapa.
+  window.addEventListener("enlace:mapa:volar-zona", (e) => {
+    const id = (e as CustomEvent<{ id?: string }>).detail?.id;
+    if (!id) return;
+    const z = zonasActuales.find((x) => x.id === id);
+    activarZonaRescates(z && z.tipo !== "epicentro" ? z.nombre : null, !!z && z.tipo !== "epicentro");
+  });
+
+  // Popup de zona abierto en el mapa: mismo filtro (el epicentro limpia;
+  // el clic en el epicentro no cambia de pestaña).
   window.addEventListener("enlace:mapa:zona-activa", (e) => {
     const id = (e as CustomEvent<{ id?: string }>).detail?.id;
     if (!id) {
@@ -284,12 +306,11 @@ const enlaceMaps = (lat: number, lng: number) =>
       return;
     }
     const z = zonasActuales.find((x) => x.id === id);
-    activarZonaRescates(z && z.tipo !== "epicentro" ? z.nombre : null);
-    tabZonas && activar(tabZonas);
+    activarZonaRescates(z && z.tipo !== "epicentro" ? z.nombre : null, !!z && z.tipo !== "epicentro");
   });
   window.addEventListener("enlace:mapa:ciudad-reportada", (e) => {
     const nombre = (e as CustomEvent<{ nombre?: string }>).detail?.nombre;
-    if (nombre) activarZonaRescates(nombre);
+    if (nombre) activarZonaRescates(nombre, true);
   });
   window.addEventListener("enlace:mapa:posicion", () => tabZonas && activar(tabZonas));
 
@@ -693,8 +714,27 @@ const enlaceMaps = (lat: number, lng: number) =>
       detalle.evento = eventoD;
       actualizarBarraEvento(eventoD);
     }
-    if (registroD) ultimoRegistro = registroD;
-    if (Object.keys(detalle).length === 0) return; // API caída: queda el SSG
+    if (registroD) {
+      ultimoRegistro = registroD;
+    } else {
+      // API caída: la copia estática desplegada mantiene el filtro de
+      // rescates por zona (misma fuente que el SSG del panel).
+      try {
+        const res = await fetch("/datos/reportes-puntos.json");
+        if (res.ok) {
+          const estatico = (await res.json()) as PuntoVivo[];
+          if (Array.isArray(estatico)) ultimoRegistro = estatico;
+        }
+      } catch {
+        // Sin red: el panel queda como SSG (sin filtro aplicado).
+      }
+    }
+    if (Object.keys(detalle).length === 0) {
+      // API caída: aplicar el registro estático para que el filtro por zona
+      // funcione igual (ultimoRegistro se llenó en el else de arriba).
+      if (ultimoRegistro && !registroD) aplicarRegistro(ultimoRegistro, {});
+      return; // API caída: queda el SSG
+    }
     // eventoD también re-renderiza el panel Zonas: la fecha de las filas
     // (fila-linea) debe seguir a la barra de estado (la huella evita
     // re-renders inútiles).
