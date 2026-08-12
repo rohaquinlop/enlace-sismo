@@ -128,6 +128,10 @@
 
   /* ---- Sombras (una sola, apenas visible) ---- */
   --shadow-lift: 0 1px 2px oklch(24% 0.02 258 / 0.06);
+  --shadow-modal: 0 8px 32px oklch(24% 0.02 258 / 0.2);
+
+  /* ---- Overlay del modal de resultado (tinta al 70 %) ---- */
+  --color-modal-overlay: oklch(24% 0.02 258 / 0.7);
 
   /* ---- Z (seis niveles, nombrados) ---- */
   --z-base: 1;

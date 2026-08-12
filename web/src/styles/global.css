@@ -912,7 +912,7 @@ h2 {
   color: var(--color-muted);
   border: var(--rule-hair) solid var(--color-rule-2);
   border-radius: var(--radius-xs);
-  padding: 0.1rem 0.4rem;
+  padding: var(--space-2xs) var(--space-xs);
 }
 
 /* Header del índice de secciones: mismo patrón título + count que zonas */
@@ -1127,14 +1127,8 @@ body:has(.dash.con-mapa) .nav-secciones {
   flex: none;
 }
 
-/* Los paneles internos no repiten borde dentro del rail */
-.dash.con-mapa .rail .dash-index {
-  background: none;
-  border: none;
-  border-radius: 0;
-  box-shadow: none;
-  padding: 0 var(--space-sm);
-}
+/* Los paneles internos no repiten borde dentro del rail: la base
+   .dash-index ya es sin caja (las cards anidadas aportan la superficie). */
 
 /* Tira de leyenda — base izquierda */
 .dash.con-mapa .leyenda-tira {
@@ -1220,12 +1214,44 @@ body:has(.dash.con-mapa) .nav-secciones {
   white-space: nowrap;
 }
 
-/* Índice de secciones (panel y sheet) */
+/* Índice de secciones (panel y sheet). Sin caja propia: las cards anidadas
+   (zonas, rescates) aportan la única capa de superficie (audit Hallmark:
+   sin card-in-card). Mismo tratamiento en flujo y en modo mapa. */
 .dash-index {
-  background: var(--color-paper);
+  background: none;
+  border: none;
+  border-radius: 0;
+  padding: 0 var(--space-sm);
+}
+
+/* CTA "Reportar un punto": barra de acción al inicio del panel Rescates
+   (acceso rápido; sticky dentro del rail al scrollear). Card del sistema,
+   misma superficie que las filas de rescate. */
+.dash-index .dash-row.dash-cta {
+  position: sticky;
+  top: var(--space-2xs);
+  z-index: var(--z-sticky);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xs);
+  padding: var(--space-sm) var(--space-md);
   border: var(--rule-hair) solid var(--color-rule-2);
-  border-radius: var(--radius-sm);
-  padding: var(--space-2xs) var(--space-sm);
+  border-bottom: var(--rule-hair) solid var(--color-rule-2);
+  border-radius: var(--radius-badge);
+  background: var(--color-paper);
+  box-shadow: var(--shadow-lift);
+  margin: var(--space-xs) 0 var(--space-sm);
+  color: var(--color-ink);
+}
+
+.dash-index .dash-row.dash-cta:hover {
+  background: var(--color-paper-2);
+  text-decoration: none;
+}
+
+.dash-index .dash-row.dash-cta:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
 }
 
 .dash-index h3 {
@@ -1490,17 +1516,8 @@ body:has(.dash.con-mapa) .nav-secciones {
   flex-direction: column;
 }
 
-.card-oficial {
-  border-left: var(--rule-strong) solid var(--color-accent);
-}
-
-.card-confirmado {
-  border-left: var(--rule-strong) solid var(--color-badge-confirmado-ink);
-}
-
-.card-sin-confirmar {
-  border-left: var(--rule-strong) solid var(--color-badge-sinconfirmar-bg);
-}
+/* Verificación: la señal vive en el badge del head de la card (audit
+   Hallmark: sin stripe lateral — hairline uniforme en las 4 esquinas). */
 
 .card-tipo-acopio {
   font-size: var(--text-xs);
@@ -1517,7 +1534,6 @@ body:has(.dash.con-mapa) .nav-secciones {
   padding: var(--space-xs) var(--space-sm);
   background: var(--color-paper-2);
   border-radius: var(--radius-xs);
-  border-left: 3px solid var(--color-accent);
 }
 
 .card-imagen-link {
@@ -2061,7 +2077,7 @@ body:has(.dash.con-mapa) .nav-secciones {
   z-index: var(--z-modal);
   display: none;
   place-items: center;
-  background: oklch(24% 0.02 258 / 0.7);
+  background: var(--color-modal-overlay);
   backdrop-filter: blur(4px);
 }
 
@@ -2077,7 +2093,7 @@ body:has(.dash.con-mapa) .nav-secciones {
   max-width: 28rem;
   width: 90%;
   text-align: center;
-  box-shadow: 0 8px 32px oklch(24% 0.02 258 / 0.2);
+  box-shadow: var(--shadow-modal);
 }
 
 .modal-resultado-icono {
