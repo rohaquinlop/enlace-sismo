@@ -62,12 +62,13 @@ const CATALOGOS: Record<string, DefCatalogo> = {
     ruta: "data/evento.json",
     campo: null,
     documento: true,
-    // Boletín SGC sin schema propio: shape mínimo + los campos que exige
-    // validate-data.mjs (fuente, fuente_url, verificado_por, fecha_verificacion).
+    // Boletín SGC sin schema propio: espejo exacto de validate-data.mjs
+    // (fuente, fuente_url, verificado_por, fecha_verificacion) para no
+    // divergir del CI.
     valida: (doc) => {
       if (typeof doc !== "object" || doc === null) return false;
       const e = doc as Record<string, unknown>;
-      return ["id", "titulo", "fuente", "fuente_url", "verificado_por", "fecha_verificacion"].every(
+      return ["fuente", "fuente_url", "verificado_por", "fecha_verificacion"].every(
         (k) => typeof e[k] === "string" && String(e[k]).length > 0
       );
     },
@@ -87,15 +88,25 @@ function validaEntradas(doc: unknown, campo: string | null, valida: (e: unknown)
   return arr.every((e) => valida(e));
 }
 
+// Error de red/HTTP de GitHub (→ stale si hay caché; GitHub como almacén caído).
+class GithubIndisponible extends Error {}
+// El archivo en main no es JSON válido o es sospechoso (→ 502; nunca stale:
+// servir stale enmascararía la corrupción del repo hasta 6 h).
+class ContenidoInvalido extends Error {}
+
 async function leerDeGithub(c: Context<Bindings>, ruta: string): Promise<unknown> {
   const repo = c.env.GITHUB_REPO ?? REPO_DEFAULT;
   const res = await fetch(`https://raw.githubusercontent.com/${repo}/main/${ruta}`, {
     headers: { "User-Agent": UA },
   });
-  if (!res.ok) throw new Error(`GitHub ${res.status}`);
+  if (!res.ok) throw new GithubIndisponible(`GitHub ${res.status}`);
   const buf = await res.arrayBuffer();
-  if (buf.byteLength > MAX_BYTES) throw new Error("Archivo demasiado grande");
-  return JSON.parse(new TextDecoder().decode(buf));
+  if (buf.byteLength > MAX_BYTES) throw new ContenidoInvalido("Archivo demasiado grande");
+  try {
+    return JSON.parse(new TextDecoder().decode(buf));
+  } catch {
+    throw new ContenidoInvalido("El archivo no es JSON válido");
+  }
 }
 
 interface EnvolturaKV {
@@ -112,33 +123,42 @@ app.get("/:nombre", async (c) => {
 
   const clave = def.clave ?? `datos:v1:${nombre}`;
   let stale: EnvolturaKV | null = null;
-  const cacheado = await c.env.KV.get(clave);
-  if (cacheado !== null) {
-    try {
+  // KV es un acelerador desechable: si la lectura falla, se relee de GitHub.
+  try {
+    const cacheado = await c.env.KV.get(clave);
+    if (cacheado !== null) {
       const env = JSON.parse(cacheado) as EnvolturaKV;
       const edad = Date.now() - Date.parse(env.ts);
       if (Number.isFinite(edad)) {
         if (edad < FRESCO_MS) return c.json(env.data, 200, HEADERS);
         if (edad < STALE_MS) stale = env; // respaldo si GitHub falla
       }
-    } catch {
-      // Envoltura corrupta: ignora y relee desde GitHub.
     }
+  } catch {
+    // Envoltura corrupta o KV caído: ignora y relee desde GitHub.
   }
 
+  let data: unknown;
   try {
-    const data = await leerDeGithub(c, def.ruta);
-    const valido = def.documento ? def.valida(data) : validaEntradas(data, def.campo, def.valida);
-    if (!valido) {
+    data = await leerDeGithub(c, def.ruta);
+  } catch (err) {
+    if (err instanceof ContenidoInvalido) {
       // El archivo en main está protegido por CI; esto es doble seguro.
       return c.json({ error: "Datos inválidos en el repositorio" }, 502);
     }
-    await c.env.KV.put(clave, JSON.stringify({ data, ts: new Date().toISOString() } satisfies EnvolturaKV));
-    return c.json(data, 200, HEADERS);
-  } catch {
     if (stale) return c.json(stale.data, 200, HEADERS);
     return c.json({ error: "No se pudieron leer los datos" }, 502);
   }
+  const valido = def.documento ? def.valida(data) : validaEntradas(data, def.campo, def.valida);
+  if (!valido) {
+    // El archivo en main está protegido por CI; esto es doble seguro.
+    return c.json({ error: "Datos inválidos en el repositorio" }, 502);
+  }
+  // Un fallo de escritura no descarta los datos frescos (KV desechable).
+  await c.env.KV.put(clave, JSON.stringify({ data, ts: new Date().toISOString() } satisfies EnvolturaKV)).catch(
+    () => {}
+  );
+  return c.json(data, 200, HEADERS);
 });
 
 export default app;
