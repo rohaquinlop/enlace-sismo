@@ -13,6 +13,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # El filtro de despliegue compara event.before vs sha con git diff:
+          # con shallow clone (default) el commit anterior no existe y el paso
+          # falla con "bad object". Historial completo (repo pequeño).
+          fetch-depth: 0
 
       # Despliegue selectivo (desacoplar-datos-deploy): los cambios SOLO de
       # datos — catálogos (data/** sin data/schema/**) y el registro en vivo
