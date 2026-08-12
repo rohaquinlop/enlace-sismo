@@ -136,6 +136,7 @@ interface SugerenciaAlbergueBody {
   lat: number;
   lng: number;
   coordenadas_nivel: "premisa" | "via" | "barrio";
+  tipo: "albergue" | "refugio";
   capacidad?: number;
   ocupacion?: number;
   admite_mascotas?: boolean;
@@ -156,7 +157,7 @@ app.post("/albergues", async (c) => {
     return c.json({ error: "Demasiadas sugerencias. Intenta en una hora." }, 429);
   }
 
-  const { nombre, ciudad, departamento, direccion, lat, lng, coordenadas_nivel, capacidad, ocupacion, admite_mascotas, servicios, estado, contacto, fuente } =
+  const { nombre, ciudad, departamento, direccion, lat, lng, coordenadas_nivel, tipo, capacidad, ocupacion, admite_mascotas, servicios, estado, contacto, fuente } =
     body as SugerenciaAlbergueBody;
 
   if (!nombre || String(nombre).length < 3) return c.json({ error: "nombre es obligatorio (mínimo 3 caracteres)" }, 400);
@@ -173,6 +174,8 @@ app.post("/albergues", async (c) => {
 
   const ESTADOS = ["abierto", "cerrado", "sin-confirmar"];
   if (estado && !ESTADOS.includes(estado)) return c.json({ error: "estado inválido" }, 400);
+  const TIPOS_ALBERGUE = ["albergue", "refugio"];
+  if (!tipo || !TIPOS_ALBERGUE.includes(tipo)) return c.json({ error: "tipo inválido (albergue/refugio)" }, 400);
   if (!fuente || !/^https?:\/\//.test(fuente)) return c.json({ error: "fuente debe ser una URL válida" }, 400);
 
   const sNombre = md(String(nombre).slice(0, 200));
@@ -182,6 +185,7 @@ app.post("/albergues", async (c) => {
   const sContacto = contacto ? md(String(contacto).slice(0, 200)) : undefined;
   const sFuente = md(String(fuente).slice(0, 500));
   const sEstado = estado && ESTADOS.includes(estado) ? estado : "sin-confirmar";
+  const sTipo = tipo === "refugio" ? "Refugio" : "Albergue";
   const sNivel = String(coordenadas_nivel);
   const sServicios = servicios ? servicios.map((s) => md(String(s).slice(0, 100))).slice(0, 20) : [];
   const ip = c.req.header("cf-connecting-ip") ?? "local-dev";
@@ -203,6 +207,7 @@ app.post("/albergues", async (c) => {
     `| **Latitud** | ${lat} |`,
     `| **Longitud** | ${lng} |`,
     `| **Nivel de precisión** | ${sNivel} |`,
+    `| **Tipo** | ${sTipo} |`,
     `| **Capacidad** | ${capacidad ?? "no proporcionada"} |`,
     `| **Ocupación** | ${ocupacion ?? "no proporcionada"} |`,
     `| **Admite mascotas** | ${admite_mascotas == null ? "no indicado" : admite_mascotas ? "Sí" : "No"} |`,
