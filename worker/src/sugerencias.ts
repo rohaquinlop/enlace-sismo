@@ -302,7 +302,17 @@ app.post("/acopio", async (c) => {
   if (lng == null || typeof lng !== "number" || lng < -180 || lng > 180) return c.json({ error: "lng es obligatoria (entre -180 y 180)" }, 400);
   const NIVELES = ["premisa", "via", "barrio"];
   if (!coordenadas_nivel || !NIVELES.includes(coordenadas_nivel)) return c.json({ error: "coordenadas_nivel es obligatorio (premisa/via/barrio)" }, 400);
+  const TIPOS_ACOPIO = ["oficial-comunal", "oficial-gobierno", "no-oficial"];
+  if (tipo && !TIPOS_ACOPIO.includes(tipo)) return c.json({ error: "tipo inválido" }, 400);
+  const ESTADOS_ACOPIO = ["abierto", "cerrado", "sin-confirmar"];
+  if (estado && !ESTADOS_ACOPIO.includes(estado)) return c.json({ error: "estado inválido" }, 400);
   if (fuente && !/^https?:\/\//.test(fuente)) return c.json({ error: "fuente debe ser una URL válida" }, 400);
+  if (imagen_url && !/^https?:\/\//.test(imagen_url)) return c.json({ error: "imagen_url debe ser una URL válida" }, 400);
+  if (evidencia_links != null && !Array.isArray(evidencia_links)) return c.json({ error: "evidencia_links debe ser un arreglo" }, 400);
+  if (evidencia_links?.some((l) => typeof l !== "string" || !/^https?:\/\//.test(l))) {
+    return c.json({ error: "evidencia_links solo admite URLs válidas" }, 400);
+  }
+  if (necesidades != null && !Array.isArray(necesidades)) return c.json({ error: "necesidades debe ser un arreglo" }, 400);
 
   const sNombre = md(String(nombre).slice(0, 200));
   const sCiudad = md(String(ciudad).slice(0, 80));
@@ -313,8 +323,9 @@ app.post("/acopio", async (c) => {
   const sHorario = horario ? md(String(horario).slice(0, 200)) : undefined;
   const sDetalles = detalles ? md(String(detalles).slice(0, 1000)) : undefined;
   const sFuente = fuente ? md(String(fuente).slice(0, 500)) : undefined;
-  const sEstado = estado || "sin-confirmar";
-  const sTipo = tipo || "no-oficial";
+  const sEstado = estado && ESTADOS_ACOPIO.includes(estado) ? estado : "sin-confirmar";
+  const sTipo = tipo && TIPOS_ACOPIO.includes(tipo) ? tipo : "no-oficial";
+  const sImagen = imagen_url && /^https?:\/\//.test(imagen_url) ? md(String(imagen_url).slice(0, 500)) : undefined;
   const ip = c.req.header("cf-connecting-ip") ?? "local-dev";
   const ahora = new Date().toISOString();
 
@@ -331,7 +342,10 @@ app.post("/acopio", async (c) => {
     : "no especificadas";
 
   const evidenciaStr = evidencia_links?.length
-    ? evidencia_links.map((l) => `[${l}](<${l}>)`).join(", ")
+    ? evidencia_links
+        .filter((l): l is string => typeof l === "string" && /^https?:\/\//.test(l))
+        .map((l) => `[${md(String(l).slice(0, 500))}](<${md(String(l).slice(0, 500))}>)`)
+        .join(", ")
     : "no proporcionada";
 
   const issueBody = [
@@ -358,7 +372,7 @@ app.post("/acopio", async (c) => {
     `| **Contacto** | ${sContacto || "no proporcionado"} |`,
     `| **Fecha límite** | ${fecha_limite || "no especificada"} |`,
     `| **Evidencia** | ${evidenciaStr} |`,
-    `| **Imagen** | ${imagen_url ? `[Ver imagen](${imagen_url})` : "no proporcionada"} |`,
+    `| **Imagen** | ${sImagen ? `[Ver imagen](<${sImagen}>)` : "no proporcionada"} |`,
     `| **Fuente** | ${sFuente ? `[${sFuente}](<${sFuente}>)` : "no proporcionada"} |`,
     ``,
     `---`,
