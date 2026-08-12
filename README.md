@@ -56,7 +56,6 @@ equivocado**, así que la precisión es parte del protocolo.
 |---|---|---|
 | Web (estática, PWA offline) | Astro + MapLibre GL | Cloudflare Pages |
 | API | Hono (TypeScript) | Cloudflare Workers |
-| Base de datos dinámica | D1 (SQLite) | Cloudflare D1 |
 | Límites y caché | Cloudflare KV | Cloudflare KV |
 | Datos verificados | JSON en este repo, validados en CI | Repo (GitHub) + API `/api/datos/:catalogo` |
 
@@ -80,10 +79,10 @@ deploy. Para refrescar la fotografía estática (SSG) que ven los usuarios sin J
 crawlers, dispara el workflow `Deploy` manualmente (botón *Run workflow* → el baseline se
 reconstruye con los datos actuales).
 
-La configuración de D1/KV/secretos y los pasos manuales viven en
+La configuración de KV/secretos y los pasos manuales viven en
 `.github/workflows/` y `worker/wrangler.toml`.
 
-Secretos del worker: `ADMIN_TOKEN` (alertas oficiales) y `GITHUB_TOKEN` (un solo
+Secretos del worker: `ADMIN_TOKEN` (moderación de puntos) y `GITHUB_TOKEN` (un solo
 fine-grained PAT con `issues:write` + `contents:write` sobre el repo — crea issues de
 sugerencias y commitea el registro en vivo de puntos de rescate
 `web/public/datos/reportes-puntos.json`). Ver `CONTRIBUTING.md`.

@@ -48,7 +48,7 @@ data/          Datos verificados (acopios, albergues, donación de sangre, salud
 scripts/       Validación de datos, verificación de coordenadas y lectura de redes
 capturas/      Intake de redes (GITIGNORADA, nunca se publica)
 web/           Frontend (Astro, Cloudflare Pages)
-worker/        API (Hono, Cloudflare Workers, D1)
+worker/        API (Hono, Cloudflare Workers)
 .github/       CI, despliegue automático y procesamiento de sugerencias
 ```
 
@@ -62,7 +62,7 @@ deslizamiento, rescate en curso) con **ubicación exacta** y **necesidades**, de
 un token de bot unificado (`GITHUB_TOKEN`, fine-grained PAT con `contents:write` e `issues:write` sobre el repo). El push a main **no dispara deploy**: el worker actualiza la
 caché KV del API al commitear (write-through) y el punto aparece en el mapa y en la pestaña
 Rescates del dashboard en **~1 min**, vía `GET /api/datos/registro`. Sin comandos extra
-para contribuidores: la plataforma reutiliza el KV existente. No hay D1 nuevo: el archivo
+para contribuidores: la plataforma reutiliza el KV existente. El archivo
 ES el registro, y cualquier contribuidor puede verlo, corregirlo o archivarlo por PR.
 
 **Estados y ciclo de vida:**

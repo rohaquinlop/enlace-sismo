@@ -2,12 +2,11 @@ name = "enlace-sismo-api"
 main = "src/index.ts"
 compatibility_date = "2025-06-01"
 
-# Crea la base D1 con: wrangler d1 create enlace-sismo
-# Luego reemplaza database_id con el valor generado.
-[[d1_databases]]
-binding = "DB"
-database_name = "enlace-sismo"
-database_id = "REPLACE_WITH_D1_DATABASE_ID"
+# API pública del proyecto: https://api.enlacesismo.com
+# Requiere que el dominio esté en la misma cuenta Cloudflare (custom_domain).
+routes = [
+  { pattern = "api.enlacesismo.com", custom_domain = true },
+]
 
 # Crea el KV con: wrangler kv namespace create ENLACE_SISMO
 # Luego reemplaza id con el valor generado.
@@ -24,5 +23,6 @@ bucket_name = "enlace-sismo-imagenes"
 [vars]
 PUBLIC_ORIGIN = "https://enlacesismo.com"
 
-# Secreto requerido para publicar alertas oficiales:
+# Secreto requerido para la moderación de puntos de rescate
+# (POST /api/puntos/:id/estado — falso/promovido):
 #   wrangler secret put ADMIN_TOKEN

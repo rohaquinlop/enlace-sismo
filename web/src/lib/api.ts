@@ -11,16 +11,6 @@ export function apiUrl(path: string): string {
   return `${base}${path}`;
 }
 
-export async function apiGet<T>(path: string): Promise<T | null> {
-  try {
-    const res = await fetch(apiUrl(path), { headers: { Accept: "application/json" } });
-    if (!res.ok) return null;
-    return (await res.json()) as T;
-  } catch {
-    return null; // Sin conexión o API caída: la web estática sigue funcionando.
-  }
-}
-
 export async function apiPost<T>(path: string, body: unknown): Promise<T | null> {
   try {
     const res = await fetch(apiUrl(path), {

@@ -12,7 +12,7 @@
 - **Web:** Astro 5 (static SSG) + MapLibre GL + TypeScript
 - **API:** Hono 4 en Cloudflare Workers
 - **Registro en vivo (puntos de rescate):** GitHub como almacén — el worker commitea `web/public/datos/reportes-puntos.json` (JSON en el repo, visible y contribuible por PR); la lectura es vía `GET /api/datos/registro` (worker + KV, write-through al commitear)
-- **Datos dinámicos (legado):** Cloudflare D1 (alertas, reportes de errores) + KV (rate limits + caché de geocodificación)
+- **Datos dinámicos:** Cloudflare KV (rate limits + caché de geocodificación + caché de catálogos y registro)
 - **Despliegue:** Cloudflare Pages (web) + Workers (API), vía GitHub Actions
 - **Package Manager:** npm (CI usa `npm ci`; no usar bun)
 
@@ -39,7 +39,7 @@ enlace-sismo/
 ├── web/                     # Frontend Astro
 │   ├── src/pages/           # index (dashboard mapa-primero), acopios, albergues,
 │   │                        # donar-sangre, salud (+ sugerir-centro-salud), desaparecidos
-│   │                        # (referencia a ColombiaTeBusca), ayuda, alertas, contactos,
+│   │                        # (referencia a ColombiaTeBusca), ayuda, contactos,
 │   │                        # reportar (formulario de puntos de rescate)
 │   │                        # (NOTA: /mapa fue eliminado → 301 a /#mapa)
 │   ├── src/components/      # Map, MapLegend (tira de chips), DatosEvento (barra
@@ -53,13 +53,12 @@ enlace-sismo/
 │   ├── public/              # sw.js (PWA offline, cache v4), _redirects
 │   └── public/datos/        # reportes-puntos.json — REGISTRO EN VIVO (lo commitea el worker)
 ├── worker/                  # API Hono
-│   ├── src/index.ts         # alertas, reportes + rate limits
+│   ├── src/index.ts         # Router Hono: sugerencias, upload (R2), puntos, geocodificar, datos + rate limits
 │   ├── src/datos.ts         # Lectura de catálogos: GET /api/datos/:catalogo (GitHub raw + Ajv + KV)
 │   ├── src/puntos.ts        # Puntos de rescate (registro en vivo): crear/confirmar/flag/estado
 │   ├── src/github.ts        # Escritura del registro en vivo (GitHub como almacén, retry 409, write-through KV)
 │   ├── src/geocodificar.ts  # Nominatim forward/reverse con caché KV
 │   ├── src/geo.ts           # Haversine (copia de web/src/lib/geo.ts)
-│   └── migrations/          # 001_init.sql, 002_eliminar_desaparecidos.sql
 ├── .sdd/                   # Cambios spec-driven
 │   ├── changes/             # Activos (propose → apply)
 │   ├── archive/             # Completados (proposal + design + tasks como registro)
@@ -68,7 +67,7 @@ enlace-sismo/
 ├── design.md                # Sistema de diseño bloqueado (Hallmark)
 ├── .github/workflows/
 │   ├── ci.yml               # Validar datos + build en cada PR
-│   └── deploy.yml           # D1 migrations + Pages + Workers en main
+│   └── deploy.yml           # Pages + Workers en main
 └── CONTRIBUTING.md          # Protocolo de verificación por PRs
 ```
 
@@ -99,9 +98,9 @@ cd worker && npx tsc --noEmit # typecheck del API
 
 ### Despliegue (requiere cuenta Cloudflare)
 ```bash
-# Una vez: crear D1 y KV, copiar ids a worker/wrangler.toml
-cd worker && npx wrangler d1 migrations apply enlace-sismo --local|--remote
-# Secretos del worker: ADMIN_TOKEN (alertas oficiales) y GITHUB_TOKEN
+# Una vez: crear el KV, copiar el id a worker/wrangler.toml
+cd worker && npx wrangler kv namespace create ENLACE_SISMO
+# Secretos del worker: ADMIN_TOKEN (moderación de puntos) y GITHUB_TOKEN
 # (un solo fine-grained PAT sobre el repo: issues:write + contents:write —
 # crea issues de sugerencias y commitea el registro en vivo de puntos de
 # rescate web/public/datos/reportes-puntos.json; rotación sugerida: 1 año)
@@ -144,7 +143,7 @@ cd worker && npx wrangler secret put GITHUB_TOKEN
 - `web/public/_redirects` — `/mapa` → `/#mapa` (301, Cloudflare Pages)
 - `web/public/sw.js` — PWA offline; el `APP_SHELL` NO debe listar páginas borradas (rompe el install)
 - `web/src/lib/geo.ts` — haversine + formateo de distancia (build y cliente)
-- `worker/src/index.ts` — API; `ADMIN_TOKEN` (secreto) para publicar alertas oficiales; `GITHUB_TOKEN` (un solo fine-grained PAT: `issues:write` + `contents:write`) crea issues de sugerencias y commitea `web/public/datos/reportes-puntos.json`; `GITHUB_REPO` opcional (env, solo deploys desde fork); `/api/datos/:catalogo` (en `src/datos.ts`) sirve los catálogos y el registro en vivo desde el repo con validación Ajv y caché KV (fresco 60 s, stale 6 h)
+- `worker/src/index.ts` — API; `ADMIN_TOKEN` (secreto) para moderación de puntos (`POST /api/puntos/:id/estado`); `GITHUB_TOKEN` (un solo fine-grained PAT: `issues:write` + `contents:write`) crea issues de sugerencias y commitea `web/public/datos/reportes-puntos.json`; `GITHUB_REPO` opcional (env, solo deploys desde fork); `/api/datos/:catalogo` (en `src/datos.ts`) sirve los catálogos y el registro en vivo desde el repo con validación Ajv y caché KV (fresco 60 s, stale 6 h)
 - `CONTRIBUTING.md` — protocolo completo de verificación por PRs
 
 ## Conventions

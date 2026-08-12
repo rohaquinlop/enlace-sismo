@@ -1,15 +1,12 @@
 import { Hono, type Context } from "hono";
 import { cors } from "hono/cors";
 import sugerencias from "./sugerencias";
-import alertas from "./alertas";
-import reportes from "./reportes";
 import upload from "./upload";
 import puntos from "./puntos";
 import geocodificar from "./geocodificar";
 import datos from "./datos";
 
 type Env = {
-  DB: D1Database;
   KV: KVNamespace;
   IMAGENES: R2Bucket;
   ADMIN_TOKEN: string;
@@ -57,10 +54,10 @@ export async function rateLimit(c: Context<Bindings>, key: string, max: number):
 
 app.get("/api/health", (c) => c.json({ ok: true, servicio: "enlace-sismo-api" }));
 
-app.route("/api/alertas", alertas);
-app.route("/api/reportes", reportes);
 app.route("/api/upload", upload);
 app.route("/api/imagen", upload);
+
+// ---------- Sugerencias (issues de GitHub) ----------
 app.route("/api/sugerencias", sugerencias);
 
 // ---------- Puntos de rescate (registro en vivo) ----------
