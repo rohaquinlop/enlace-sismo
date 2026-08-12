@@ -1,6 +1,7 @@
 name = "enlace-sismo-api"
 main = "src/index.ts"
 compatibility_date = "2025-06-01"
+compatibility_flags = ["nodejs_compat_v2"]
 
 # Crea la base D1 con: wrangler d1 create enlace-sismo
 # Luego reemplaza database_id con el valor generado.

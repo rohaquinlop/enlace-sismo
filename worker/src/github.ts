@@ -13,26 +13,54 @@ const RUTA = "web/public/datos/reportes-puntos.json";
 const UA = "enlace-sismo/1.0 (https://enlacesismo.com)";
 const MAX_INTENTOS = 3;
 
-// ---------- Modo dev local (sin GITHUB_TOKEN) ----------
-// Lee el JSON desde el servidor Astro local y mantiene los cambios en memoria.
-// Aceptable para desarrollo: los cambios se pierden al reiniciar el worker.
-const DEV_ORIGIN = "http://localhost:4321";
-let devEntradas: EntradaPunto[] | null = null;
+// ---------- Modo dev local (WORKER_ENV=development) ----------
+// Lee y escribe directamente al archivo en disco. Los cambios persisten
+// entre requests y se reflejan de inmediato al recargar la página.
+import { readFileSync, writeFileSync, existsSync } from "node:fs";
+import { resolve } from "node:path";
 
-async function leerRegistroDev(): Promise<{ entradas: EntradaPunto[]; sha: string }> {
-  if (devEntradas !== null) return { entradas: devEntradas, sha: "dev" };
-  const res = await fetch(`${DEV_ORIGIN}/datos/reportes-puntos.json`);
-  if (!res.ok) throw new RegistroError("No se pudo leer el registro local (dev). ¿Está corriendo el servidor web?", 503);
-  const data = (await res.json()) as unknown;
-  if (!Array.isArray(data)) throw new RegistroError("El registro local no es un arreglo", 503);
-  devEntradas = data as EntradaPunto[];
-  return { entradas: devEntradas, sha: "dev" };
+// wrangler dev puede correr desde worker/ o desde la raíz del monorepo.
+// Probamos ambas rutas para encontrar el archivo local.
+function devFilePath(): string {
+  const candidatos = [
+    resolve("web/public/datos/reportes-puntos.json"),        // cwd = raíz
+    resolve("../web/public/datos/reportes-puntos.json"),     // cwd = worker/
+  ];
+  for (const p of candidatos) {
+    if (existsSync(p)) return p;
+  }
+  throw new RegistroError(
+    `No se pudo leer el registro local (dev). ¿Existe web/public/datos/reportes-puntos.json? Buscado en: ${candidatos.join(", ")}`,
+    503
+  );
+}
+let _devFile: string | null = null;
+function getDevFile(): string {
+  if (!_devFile) _devFile = devFilePath();
+  return _devFile;
 }
 
-async function escribirRegistroDev(
+function leerRegistroDev(): { entradas: EntradaPunto[]; sha: string } {
+  let raw: string;
+  try {
+    raw = readFileSync(getDevFile(), "utf8");
+  } catch {
+    throw new RegistroError("No se pudo leer el registro local (dev). ¿Existe web/public/datos/reportes-puntos.json?", 503);
+  }
+  let entradas: unknown;
+  try {
+    entradas = JSON.parse(raw);
+  } catch {
+    throw new RegistroError("El registro local no es JSON válido", 503);
+  }
+  if (!Array.isArray(entradas)) throw new RegistroError("El registro local no es un arreglo", 503);
+  return { entradas: entradas as EntradaPunto[], sha: "dev" };
+}
+
+function escribirRegistroDev(
   mutar: (entradas: EntradaPunto[]) => EntradaPunto[]
-): Promise<void> {
-  const { entradas } = await leerRegistroDev();
+): void {
+  const { entradas } = leerRegistroDev();
   const nuevas = mutar(entradas);
   for (const e of nuevas) {
     if (!valida(e)) {
@@ -43,7 +71,7 @@ async function escribirRegistroDev(
       );
     }
   }
-  devEntradas = nuevas;
+  writeFileSync(getDevFile(), JSON.stringify(nuevas, null, 2) + "\n", "utf8");
 }
 
 function esModoDev(c: Context<Bindings>): boolean {
@@ -162,7 +190,7 @@ export async function leerRegistro(c: Context<Bindings>): Promise<{ entradas: En
  * La mutación lanza RegistroError para abortar sin escribir (no se reintenta);
  * un 409 del PUT (conflicto concurrente) se reintenta hasta MAX_INTENTOS.
  *
- * En modo dev (sin GITHUB_TOKEN) usa almacén en memoria — sin commit a GitHub.
+ * En modo dev (WORKER_ENV=development) lee/escribe al archivo local en disco.
  */
 export async function escribirRegistro(
   c: Context<Bindings>,
