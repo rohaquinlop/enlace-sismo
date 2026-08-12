@@ -34,13 +34,11 @@
     "coordenadas_nivel": "premisa",
     "descripcion": "Edificio desplomado, no hay insumos, herramientas ni alimentos",
     "necesidades": [
-      "linternas",
       "palas",
       "picos",
       "mascarillas",
       "cuerdas",
-      "botiquin",
-      "voluntarios"
+      "botiquin"
     ],
     "estado": "sin-confirmar",
     "confirmaciones": [],
@@ -49,6 +47,12 @@
     "ip_hash": "eff8e7ca506627fe15dda5e0e512fcaad70b6d520f37cc76597fdb4f2d83a1a3",
     "created_at": "2026-08-12T01:26:55.205Z",
     "direccion": "Calle 8B #45-17",
-    "ciudad": "Cali"
+    "ciudad": "Cali",
+    "ediciones": [
+      {
+        "ip_hash": "eff8e7ca506627fe15dda5e0e512fcaad70b6d520f37cc76597fdb4f2d83a1a3",
+        "created_at": "2026-08-12T01:56:17.771Z"
+      }
+    ]
   }
 ]
