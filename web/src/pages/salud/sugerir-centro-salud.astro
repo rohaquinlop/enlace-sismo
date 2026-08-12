@@ -2,6 +2,7 @@
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import UbicacionPicker from "../../components/UbicacionPicker.astro";
 import Breadcrumb from "../../components/Breadcrumb.astro";
+import ModalResultado from "../../components/ModalResultado.astro";
 import type { DedupeItem } from "../../lib/ubicacion-picker";
 import centrosSaludData from "../../../../data/centros-salud.json";
 
@@ -136,20 +137,12 @@ const dedupeDatos: DedupeItem[] = centrosSaludData.centros.map((c) => ({
     </div>
   </form>
 
-  <div class="modal-resultado" id="modal-resultado" data-tipo="" role="dialog" aria-modal="true" aria-labelledby="modal-titulo">
-    <div class="modal-resultado-card">
-      <div class="modal-resultado-icono" id="modal-icono"></div>
-      <div class="modal-resultado-titulo" id="modal-titulo"></div>
-      <div class="modal-resultado-mensaje" id="modal-mensaje"></div>
-      <div class="modal-acciones" id="modal-acciones"></div>
-      <button class="btn btn-primary" id="modal-cerrar">Cerrar</button>
-    </div>
-  </div>
+  <ModalResultado />
 </BaseLayout>
 
 <script>
   import { apiPost } from "../../lib/api";
-  import { compartirSeccion } from "../../lib/compartir";
+  import { initModalResultado, mostrarModalResultado } from "../../lib/modal-resultado";
   import { EVENTO_FIJADA, EVENTO_REINICIAR, type UbicacionFijada } from "../../lib/ubicacion-picker";
 
   interface SugerenciaResponse {
@@ -161,12 +154,6 @@ const dedupeDatos: DedupeItem[] = centrosSaludData.centros.map((c) => ({
   document.addEventListener("DOMContentLoaded", () => {
     const form = document.getElementById("form-salud") as HTMLFormElement | null;
     const btnEnviar = document.getElementById("btn-enviar") as HTMLButtonElement | null;
-    const modal = document.getElementById("modal-resultado") as HTMLDivElement | null;
-    const modalIcono = document.getElementById("modal-icono") as HTMLDivElement | null;
-    const modalTitulo = document.getElementById("modal-titulo") as HTMLDivElement | null;
-    const modalMensaje = document.getElementById("modal-mensaje") as HTMLDivElement | null;
-    const modalAcciones = document.getElementById("modal-acciones") as HTMLDivElement | null;
-    const modalCerrar = document.getElementById("modal-cerrar") as HTMLButtonElement | null;
 
     // ---------- Pre-relleno de la dirección desde el picker ----------
     const direccionEl = document.getElementById("direccion") as HTMLInputElement | null;
@@ -183,46 +170,10 @@ const dedupeDatos: DedupeItem[] = centrosSaludData.centros.map((c) => ({
     }) as EventListener);
 
     // ---------- Modal ----------
-    // Iconos SVG propios (design.md: sin emojis como iconos; los glifos ✓/✗
-    // pueden renderizar como emoji en móvil). El color lo da el CSS del modal.
-    const ICONO_OK = `<svg viewBox="0 0 16 16" width="22" height="22" aria-hidden="true" fill="none"><path d="M2.5 8.5 6 12l7.5-8" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
-    const ICONO_ERROR = `<svg viewBox="0 0 16 16" width="22" height="22" aria-hidden="true" fill="none"><path d="m3.5 3.5 9 9m0-9-9 9" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>`;
-    function mostrarModal(tipo: "ok" | "error", titulo: string, mensaje: string, accionesHtml = "") {
-      if (!modal || !modalIcono || !modalTitulo || !modalMensaje) return;
-      modal.dataset.tipo = tipo;
-      modalIcono.innerHTML = tipo === "ok" ? ICONO_OK : ICONO_ERROR;
-      modalTitulo.textContent = titulo;
-      modalMensaje.textContent = mensaje;
-      if (modalAcciones) modalAcciones.innerHTML = accionesHtml;
-      modal.dataset.open = "true";
-      // Diálogo modal: el foco entra al control de cierre (mismo patrón que /reportar).
-      requestAnimationFrame(() => modalCerrar?.focus());
-    }
-
-    // Compartir (review de diseño): acción secundaria del modal de éxito.
-    modal?.addEventListener("click", (e) => {
-      const btn = (e.target as HTMLElement).closest<HTMLButtonElement>("[data-compartir]");
-      if (!btn) return;
-      void compartirSeccion("/salud", "Centros de salud").then((r) => {
-        if (r === "copiado") {
-          const previo = btn.textContent;
-          btn.textContent = "Enlace copiado";
-          setTimeout(() => (btn.textContent = previo), 2000);
-        }
-      });
-    });
-
-    function cerrarModal() {
-      if (modal) modal.dataset.open = "false";
-      window.location.href = "/salud";
-    }
-
-    modalCerrar?.addEventListener("click", cerrarModal);
-    modal?.addEventListener("click", (e) => {
-      if (e.target === modal) cerrarModal();
-    });
-    document.addEventListener("keydown", (e) => {
-      if (e.key === "Escape" && modal?.dataset.open === "true") cerrarModal();
+    initModalResultado({
+      irTrasExito: "/salud",
+      navegarSiempre: true,
+      compartir: { url: "/salud", titulo: "Centros de salud" },
     });
 
     // ---------- Validación ----------
@@ -349,7 +300,7 @@ const dedupeDatos: DedupeItem[] = centrosSaludData.centros.map((c) => ({
         }
 
         if (data?.ok) {
-          mostrarModal(
+          mostrarModalResultado(
             "ok",
             "Sugerencia enviada",
             "La sugerencia entró a la cola de revisión del repositorio y llegará a la sección Centros de salud. Un mantenedor verificará la fuente antes de publicarla.",
@@ -358,7 +309,7 @@ const dedupeDatos: DedupeItem[] = centrosSaludData.centros.map((c) => ({
           form.reset();
           document.dispatchEvent(new CustomEvent(EVENTO_REINICIAR));
         } else {
-          mostrarModal("error", "No se pudo enviar", data?.error ?? "Intenta nuevamente más tarde.");
+          mostrarModalResultado("error", "No se pudo enviar", data?.error ?? "Intenta nuevamente más tarde.");
         }
       });
     }
