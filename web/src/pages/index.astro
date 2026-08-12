@@ -12,6 +12,7 @@ import evento from "../../../data/evento.json";
 import { puntoActivo, agregarNecesidades, type PuntoVivo } from "../lib/puntos-rescate";
 import { agruparCiudades, fusionarCiudadesSelect, nombreCiudadNormalizado, type CiudadReportada } from "../lib/ciudades";
 import { etiquetaTipo, etiquetaNecesidad, etiquetaPrecision } from "../lib/necesidades";
+import { estadoVerificacion } from "../lib/verificacion";
 
 // Ciudades del filtro = unión de las que tienen puntos de datos, las zonas
 // afectadas y las ciudades derivadas de los reportes ciudadanos en vivo:
@@ -44,13 +45,9 @@ const agregado = agregarNecesidades(activos);
 
 // Badge de verificación de un punto (review de diseño): derivado de los
 // datos sin inventar — oficial si el mantenedor lo promovió; confirmado si
-// el estado o la verificación lo dicen; el resto, sin confirmar.
-const badgeVerificacion = (p: PuntoVivo): string =>
-  p.verificacion === "oficial"
-    ? "oficial"
-    : p.verificacion === "confirmado" || p.estado === "confirmado"
-      ? "confirmado"
-      : "sin-confirmar";
+// el estado o la verificación lo dicen; el resto, sin confirmar. La regla
+// vive en lib/verificacion.ts (mismo origen que el render runtime).
+const badgeVerificacion = (p: PuntoVivo): string => estadoVerificacion(p);
 
 // Ciudades con reportes ciudadanos: agrupadas desde el registro en vivo y
 // deduplicadas contra el catálogo (una ciudad oficial no se lista como
@@ -204,6 +201,7 @@ const enlaceMaps = (lat: number, lng: number) =>
   import { fetchCatalogo } from "../lib/datos";
   import { puntoActivo, agregarNecesidades, type PuntoVivo } from "../lib/puntos-rescate";
   import { agruparCiudades, nombreCiudadNormalizado, type CiudadReportada } from "../lib/ciudades";
+  import { estadoVerificacion } from "../lib/verificacion";
   import { etiquetaTipo, etiquetaNecesidad, etiquetaPrecision } from "../lib/necesidades";
   import { renderZonasListaHTML } from "../lib/render-catalogos";
   import { acopios, albergues, centrosSalud, jornadasSangre } from "../lib/catalogs";
@@ -509,10 +507,14 @@ const enlaceMaps = (lat: number, lng: number) =>
   /** Fila del panel Rescates (mismo markup SSG; clic en la fila = ver en el mapa). */
   /** Badge de verificación en HTML (mismo mapeo que el SSG, sin inventar). */
   function badgeVerificacionHTML(p: PuntoVivo): string {
-    const oficial = p.verificacion === "oficial";
-    const confirmado = p.verificacion === "confirmado" || p.estado === "confirmado";
-    const clase = oficial ? "badge-oficial" : confirmado ? "badge-confirmado" : "badge-sin-confirmar";
-    const texto = oficial ? "Oficial" : confirmado ? "Confirmado" : "Sin confirmar";
+    const estado = estadoVerificacion(p);
+    const clase =
+      estado === "oficial"
+        ? "badge-oficial"
+        : estado === "confirmado"
+          ? "badge-confirmado"
+          : "badge-sin-confirmar";
+    const texto = estado === "oficial" ? "Oficial" : estado === "confirmado" ? "Confirmado" : "Sin confirmar";
     return `<span class="badge ${clase}">${texto}</span>`;
   }
 
@@ -741,7 +743,9 @@ const enlaceMaps = (lat: number, lng: number) =>
       // API caída: la copia estática desplegada mantiene el filtro de
       // rescates por zona (misma fuente que el SSG del panel).
       try {
-        const res = await fetch("/datos/reportes-puntos.json");
+        // cache: no-store — el registro lo commitea el worker y puede
+        // cambiar entre deploys; no servir una copia vieja del HTTP cache.
+        const res = await fetch("/datos/reportes-puntos.json", { cache: "no-store" });
         if (res.ok) {
           const estatico = (await res.json()) as PuntoVivo[];
           if (Array.isArray(estatico)) ultimoRegistro = estatico;

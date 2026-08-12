@@ -45,10 +45,13 @@ enlace-sismo/
 │   ├── src/components/      # Map, MapLegend (tira de chips), DatosEvento (barra
 │   │                        # de estado), IndiceSecciones, ZonasLista, CatalogCard,
 │   │                        # JornadaSangreCard, StatusBadge, Breadcrumb (pantallas
-│   │                        # secundarias), UbicacionPicker
+│   │                        # secundarias), UbicacionPicker, ModalResultado (modal
+│   │                        # éxito/error compartido; lógica en lib/modal-resultado.ts)
 │   ├── src/lib/             # catalogs.ts, zonas.ts, geo.ts (haversine),
 │   │                        # color.ts (oklch→hex para MapLibre), api.ts,
 │   │                        # necesidades.ts, puntos-rescate.ts, ciudades.ts,
+│   │                        # verificacion.ts (badge oficial/confirmado/sin-confirmar,
+│   │                        # fuente única SSG+runtime), modal-resultado.ts
 │   │                        # datos.ts (fetchCatalogo, refresco SWR), render-catalogos.ts
 │   ├── src/styles/global.css
 │   ├── public/              # sw.js (PWA offline, cache v4), _redirects

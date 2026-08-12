@@ -82,7 +82,7 @@ export function cardHTML(tipo: "acopio" | "albergue" | "salud", e: Acopio | Albe
       ? `<p class="card-dato"><strong>Recolección hasta:</strong> ${escapar(e.fecha_limite)}</p>`
       : "";
   const capacidad =
-    "capacidad" in e && e.capacidad
+    "capacidad" in e && e.capacidad != null
       ? `<p class="card-dato"><strong>Capacidad:</strong> ${e.capacidad} personas</p>`
       : "";
   const urgencias =
