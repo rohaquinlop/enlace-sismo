@@ -11,7 +11,7 @@
 - **Monorepo:** npm workspaces (`web`, `worker`)
 - **Web:** Astro 5 (static SSG) + MapLibre GL + TypeScript
 - **API:** Hono 4 en Cloudflare Workers
-- **Registro en vivo (puntos de rescate):** GitHub como almacén — el worker commitea `web/public/datos/reportes-puntos.json` (JSON en el repo, visible y contribuible por PR)
+- **Registro en vivo (puntos de rescate):** GitHub como almacén — el worker commitea `web/public/datos/reportes-puntos.json` (JSON en el repo, visible y contribuible por PR); la lectura es vía `GET /api/datos/registro` (worker + KV, write-through al commitear)
 - **Datos dinámicos (legado):** Cloudflare D1 (alertas, reportes de errores) + KV (rate limits + caché de geocodificación)
 - **Despliegue:** Cloudflare Pages (web) + Workers (API), vía GitHub Actions
 - **Package Manager:** npm (CI usa `npm ci`; no usar bun)
@@ -28,9 +28,8 @@ enlace-sismo/
 │   ├── contactos.json       # Líneas oficiales de emergencia
 │   ├── canales-ayuda.json   # Canales de donación/voluntariado
 │   ├── zonas-afectadas.json # Epicentro SGC + ciudades; `intensidad` Mercalli opcional SOLO con fuente
-│   ├── puntos-rescate.json  # Catálogo promovido de puntos verificados (regla de oro; vacío hasta el primer PR)
 │   ├── evento.json          # Boletín oficial SGC (evento en curso)
-│   └── schema/              # JSON Schemas (draft 2020-12) por catálogo + reporte-punto.schema.json (registro en vivo)
+│   └── schema/              # JSON Schemas (draft 2020-12) por catálogo + reporte-punto.schema.json (registro en vivo; los puntos verificados viven en el registro, unificado)
 ├── scripts/
 │   ├── validate-data.mjs    # Validación con Ajv + reglas de seguridad
 │   ├── verificar-coordenadas.mjs  # Doble geocodificación (Google embed + ArcGIS) contra data/*.json
@@ -48,14 +47,16 @@ enlace-sismo/
 │   │                        # JornadaSangreCard, StatusBadge
 │   ├── src/lib/             # catalogs.ts, zonas.ts, geo.ts (haversine),
 │   │                        # color.ts (oklch→hex para MapLibre), api.ts,
-│   │                        # necesidades.ts, puntos-rescate.ts, ciudades.ts
+│   │                        # necesidades.ts, puntos-rescate.ts, ciudades.ts,
+│   │                        # datos.ts (fetchCatalogo, refresco SWR), render-catalogos.ts
 │   ├── src/styles/global.css
 │   ├── public/              # sw.js (PWA offline, cache v4), _redirects
 │   └── public/datos/        # reportes-puntos.json — REGISTRO EN VIVO (lo commitea el worker)
 ├── worker/                  # API Hono
 │   ├── src/index.ts         # alertas, reportes + rate limits
+│   ├── src/datos.ts         # Lectura de catálogos: GET /api/datos/:catalogo (GitHub raw + Ajv + KV)
 │   ├── src/puntos.ts        # Puntos de rescate (registro en vivo): crear/confirmar/flag/estado
-│   ├── src/github.ts        # Escritura del registro en vivo (GitHub como almacén, retry 409)
+│   ├── src/github.ts        # Escritura del registro en vivo (GitHub como almacén, retry 409, write-through KV)
 │   ├── src/geocodificar.ts  # Nominatim forward/reverse con caché KV
 │   ├── src/geo.ts           # Haversine (copia de web/src/lib/geo.ts)
 │   └── migrations/          # 001_init.sql, 002_eliminar_desaparecidos.sql
@@ -105,7 +106,11 @@ cd worker && npx wrangler d1 migrations apply enlace-sismo --local|--remote
 # crea issues de sugerencias y commitea el registro en vivo de puntos de
 # rescate web/public/datos/reportes-puntos.json; rotación sugerida: 1 año)
 cd worker && npx wrangler secret put GITHUB_TOKEN
-# Luego: push a main → GitHub Actions despliega
+# Luego: push a main con cambios de código → GitHub Actions despliega.
+# Los cambios SOLO de datos (data/** sin data/schema/**, o web/public/datos/**)
+# NO despliegan: el API los sirve en vivo desde el repo (GET /api/datos/:catalogo,
+# caché KV 60 s). Para refrescar el baseline SSG (no-JS/SEO/offline) dispara el
+# workflow Deploy manualmente (workflow_dispatch).
 ```
 
 ## Code Style
@@ -132,14 +137,14 @@ cd worker && npx wrangler secret put GITHUB_TOKEN
 - `web/src/lib/ciudades.ts` — agrupa puntos activos por ciudad (centroide) y fusiona el select con dedupe normalizado (sin acentos/caja)
 - `web/public/datos/reportes-puntos.json` — registro en vivo de puntos de rescate; lo commitea el worker; se valida en CI contra `data/schema/reporte-punto.schema.json`; los contribuidores lo corrigen/archivan por PR
 - `web/src/lib/color.ts` — conversión oklch→hex (MapLibre no soporta oklch)
-- `web/src/pages/index.astro` — dashboard mapa-primero: barra de estado superior, rail derecho con pestañas Zonas · Secciones · Rescates (tabs accesibles: roving tabindex; sin JS ambos paneles visibles) y tira de leyenda (una sola instancia en el DOM); `.dash` base = contenido en flujo, `.con-mapa` = superposición; ancla `id="mapa"`; script de tabs con sync a `enlace:mapa:zona-activa|posicion|ciudad-reportada`; panel Rescates (SSG) con agregación de necesidades y confirmaciones; refresco en runtime del registro en vivo
+- `web/src/pages/index.astro` — dashboard mapa-primero: barra de estado superior, rail derecho con pestañas Zonas · Secciones · Rescates (tabs accesibles: roving tabindex; sin JS ambos paneles visibles) y tira de leyenda (una sola instancia en el DOM); `.dash` base = contenido en flujo, `.con-mapa` = superposición; ancla `id="mapa"`; script de tabs con sync a `enlace:mapa:zona-activa|posicion|ciudad-reportada`; panel Rescates (SSG) con agregación de necesidades y confirmaciones; refresco en runtime de catálogos, zonas, evento y registro en vivo (poll 60 s + visibilitychange; SWR sobre SSG, evento `enlace:mapa:datos-frescos` al mapa)
 - `web/src/components/DatosEvento.astro` — barra de estado (lectura SGC + distancia + badges de verificación + reporte); único momento oscuro por página
 - `web/src/components/MapLegend.astro` — tira de chips: capas (checkboxes reales visualmente ocultos), chip "Rescates (N)", select de ciudad, chip "Cerca de mí" (8 estados, spinner con `aria-busy`); selectores `.leyenda-tira` usados por `Map.astro` y `ZonasLista.astro`
 - `web/src/components/ZonasLista.astro` — filas con dot de intensidad Mercalli real, escala I–XII de referencia, chevron, `aria-pressed`; sección "Ciudades con reportes ciudadanos" (dedupe por nombre normalizado contra el catálogo); el rail filtra por las casillas de la tira y ordena por distancia con "Cerca de mí"
 - `web/public/_redirects` — `/mapa` → `/#mapa` (301, Cloudflare Pages)
 - `web/public/sw.js` — PWA offline; el `APP_SHELL` NO debe listar páginas borradas (rompe el install)
 - `web/src/lib/geo.ts` — haversine + formateo de distancia (build y cliente)
-- `worker/src/index.ts` — API; `ADMIN_TOKEN` (secreto) para publicar alertas oficiales; `GITHUB_TOKEN` (un solo fine-grained PAT: `issues:write` + `contents:write`) crea issues de sugerencias y commitea `web/public/datos/reportes-puntos.json`; `GITHUB_REPO` opcional (env, solo deploys desde fork)
+- `worker/src/index.ts` — API; `ADMIN_TOKEN` (secreto) para publicar alertas oficiales; `GITHUB_TOKEN` (un solo fine-grained PAT: `issues:write` + `contents:write`) crea issues de sugerencias y commitea `web/public/datos/reportes-puntos.json`; `GITHUB_REPO` opcional (env, solo deploys desde fork); `/api/datos/:catalogo` (en `src/datos.ts`) sirve los catálogos y el registro en vivo desde el repo con validación Ajv y caché KV (fresco 60 s, stale 6 h)
 - `CONTRIBUTING.md` — protocolo completo de verificación por PRs
 
 ## Conventions
@@ -155,8 +160,8 @@ cd worker && npx wrangler secret put GITHUB_TOKEN
 - **Desaparecidos:** el registro se referencia a ColombiaTeBusca (https://colombiatebusca.com); no hay registro propio ni API de reportes en este proyecto
 - **Ingresos hospitalarios: prohibidos.** No hay registro de pacientes en ningún formato (nombres, iniciales, hospital, fecha/hora). Los nombres de pacientes son datos sensibles (Ley 1581/2012); un paciente inconsciente no puede consentir y su familia no siempre es localizable. No existe fuente pública verificable por paciente, así que la regla de oro no se puede cumplir. Los PR que propongan esta funcionalidad se rechazan; derivar a ColombiaTeBusca
 - **Estados operativos:** `abierto | cerrado | sin-confirmar` (acopios/albergues), `operativo | limitado | cerrado | sin-confirmar` (salud), `activa | finalizada | sin-confirmar` (jornadas de sangre), `sin-confirmar | confirmado | en-curso | resuelto | falso | promovido` (registro en vivo de rescates)
-- **Registro en vivo (puntos de rescate):** los reportes entran por `/reportar` → el worker valida (honeypot, rate limits, enums, `coordenadas_nivel`) y commitea a `web/public/datos/reportes-puntos.json` (GitHub como almacén, retry ante 409, validación Ajv por entrada). Confirmaciones con cercanía ≤1 km — peso ORIENTATIVO (la posición la declara el cliente): el estado `confirmado` real lo fija un mantenedor. 1 confirmación y 1 flag por IP por punto; 3+ flags ocultan el punto; degradación 72 h sin reconfirmación (calculada en cliente, el archivo conserva todo)
-- **Promoción de puntos:** mantenedor verifica contra fuente → copia a `data/puntos-rescate.json` con `fuente`/`verificado_por`/`fecha_verificacion` y `reporte_id` → PR → CI → merge → admin marca la entrada `promovido`
+- **Registro en vivo (puntos de rescate):** los reportes entran por `/reportar` → el worker valida (honeypot, rate limits, enums, `coordenadas_nivel`) y commitea a `web/public/datos/reportes-puntos.json` (GitHub como almacén, retry ante 409, validación Ajv por entrada; write-through a la caché KV del API, clave `datos:v1:registro`). Confirmaciones con cercanía ≤1 km — peso ORIENTATIVO (la posición la declara el cliente): el estado `confirmado` real lo fija un mantenedor. 1 confirmación y 1 flag por IP por punto; 3+ flags ocultan el punto; degradación 72 h sin reconfirmación (calculada en cliente, el archivo conserva todo)
+- **Promoción de puntos:** mantenedor verifica contra fuente → edita la entrada EN EL REGISTRO (`web/public/datos/reportes-puntos.json`) agregando `nombre`/`fuente`/`verificado_por`/`fecha_verificacion`/`verificacion` (regla de oro) → PR → CI → merge → admin marca la entrada `promovido` (deja de mostrarse en vivo; el registro conserva todo)
 - **Ciudades reportadas:** el reporte guarda `ciudad` derivada del geocoder (normalizada: "Cali ciudad" → "Cali"); las ciudades sin catálogo aparecen en el select, en el mapa como marcador neutral ("Sin reporte de intensidad" — nunca estimar Mercalli sin fuente) y en la sección "Ciudades con reportes ciudadanos" del panel Zonas, con dedupe por nombre normalizado (sin acentos/caja); la ciudad pasa a zona SGC por PR con fuente oficial
 - **El filtro de ciudad aplica también a los puntos de rescate** (cada reporte lleva su ciudad; sin ciudad se oculta bajo filtro activo); el chip "Rescates" controla la capa
 - **Coordenadas:** toda entrada lleva `coordenadas_nivel` (`premisa` = edificio/POI · `via` = calle · `barrio` = centroide); antes de publicar una coordenada nueva, correr `scripts/verificar-coordenadas.mjs` y publicar solo donde coinciden ≥2 fuentes independientes (Google embed + ArcGIS + POI OSM); un pin equivocado es peor que ningún pin

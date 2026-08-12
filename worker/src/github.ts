@@ -13,6 +13,10 @@ const RUTA = "web/public/datos/reportes-puntos.json";
 const UA = "enlace-sismo/1.0 (https://enlacesismo.com)";
 const MAX_INTENTOS = 3;
 
+// Clave KV del registro en vivo en /api/datos/registro (desacoplar-datos-deploy):
+// el write-through de escribirRegistro escribe aquí y el endpoint de lectura
+// (worker/src/datos.ts) la comparte para no tener doble estado.
+export const KV_REGISTRO = "datos:v1:registro";
 
 export interface Confirmacion {
   bucket: string;
@@ -152,7 +156,17 @@ export async function escribirRegistro(
         sha,
       }),
     });
-    if (res.ok) return;
+    if (res.ok) {
+      // Write-through del registro en vivo: el siguiente lector de
+      // /api/datos/registro recibe el contenido nuevo sin esperar el TTL.
+      // KV es un acelerador desechable; el repo sigue siendo la fuente de
+      // verdad. Un fallo aquí no debe abortar el reporte.
+      await c.env.KV.put(
+        KV_REGISTRO,
+        JSON.stringify({ data: nuevas, ts: new Date().toISOString() })
+      ).catch(() => {});
+      return;
+    }
     if (res.status === 409) {
       ultimo = new RegistroError("Conflicto concurrente al escribir el registro", 503);
       continue;

@@ -28,6 +28,7 @@ const canales = canalesData as CanalAyuda[];
     Civil). Nunca transfieras a cuentas personales difundidas por redes.
   </div>
 
+  <div id="contenido-ayuda">
   <h2>Canales verificados</h2>
   <div class="grid">
     {
@@ -70,6 +71,7 @@ const canales = canalesData as CanalAyuda[];
       }
     </tbody>
   </table>
+  </div>
 
   <p style="margin-top: 1rem">
     ¿Representas una entidad oficial con un punto de acopio o canal de ayuda?
@@ -78,3 +80,28 @@ const canales = canalesData as CanalAyuda[];
     </a>.
   </p>
 </BaseLayout>
+
+<script>
+  import { fetchCatalogo } from "../lib/datos";
+  import { renderAyudaPagina, type Contacto } from "../lib/render-catalogos";
+  import type { CanalAyuda } from "../lib/catalogs";
+  // Baseline SSG: si un fetch falla, se usa el del build (nunca vaciar una
+  // sección por culpa del refresco).
+  import canalesSSG from "../../../data/canales-ayuda.json";
+  import contactosSSG from "../../../data/contactos.json";
+
+  async function refrescar() {
+    const [canalesD, contactosD] = await Promise.all([
+      fetchCatalogo<CanalAyuda[]>("canales-ayuda"),
+      fetchCatalogo<Contacto[]>("contactos"),
+    ]);
+    if (!canalesD && !contactosD) return;
+    const cont = document.getElementById("contenido-ayuda");
+    if (!cont) return;
+    cont.innerHTML = renderAyudaPagina(
+      canalesD ?? (canalesSSG as CanalAyuda[]),
+      contactosD ?? (contactosSSG as Contacto[])
+    );
+  }
+  void refrescar();
+</script>

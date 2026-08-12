@@ -18,6 +18,7 @@ const grupos = agruparPorCiudad(acopios);
     </p>
   </section>
 
+  <div id="contenido-acopios">
   {
     acopios.length === 0 ? (
       <div class="vacio">
@@ -60,63 +61,96 @@ const grupos = agruparPorCiudad(acopios);
       </>
     )
   }
+  </div>
 </BaseLayout>
 
 <script>
   import { haversineKm } from "../lib/geo";
+  import { fetchCatalogo } from "../lib/datos";
+  import { renderAcopiosPagina } from "../lib/render-catalogos";
+  import type { Acopio } from "../lib/catalogs";
 
-  const checkOficiales = document.getElementById("filtro-oficiales") as HTMLInputElement | null;
-  const selectCiudad = document.getElementById("filtro-ciudad") as HTMLSelectElement | null;
+  let ultimaPos: { latitude: number; longitude: number } | null = null;
 
-  function filtrar() {
-    const ciudad = selectCiudad?.value ?? "";
-    const soloOficiales = checkOficiales?.checked ?? false;
-    document.querySelectorAll<HTMLElement>(".ciudad-grupo").forEach((grupo) => {
-      const coincideCiudad = !ciudad || grupo.dataset.ciudad === ciudad;
-      let visibles = 0;
-      grupo.querySelectorAll<HTMLElement>(".card-item").forEach((card) => {
-        const esOficial = card.dataset.verificacion === "oficial";
-        const coincideOficial = !soloOficiales || esOficial;
-        card.style.display = coincideOficial ? "" : "none";
-        if (coincideOficial) visibles++;
+  function bindFiltros() {
+    const checkOficiales = document.getElementById("filtro-oficiales") as HTMLInputElement | null;
+    const selectCiudad = document.getElementById("filtro-ciudad") as HTMLSelectElement | null;
+
+    function filtrar() {
+      const ciudad = selectCiudad?.value ?? "";
+      const soloOficiales = checkOficiales?.checked ?? false;
+      document.querySelectorAll<HTMLElement>(".ciudad-grupo").forEach((grupo) => {
+        const coincideCiudad = !ciudad || grupo.dataset.ciudad === ciudad;
+        let visibles = 0;
+        grupo.querySelectorAll<HTMLElement>(".card-item").forEach((card) => {
+          const esOficial = card.dataset.verificacion === "oficial";
+          const coincideOficial = !soloOficiales || esOficial;
+          card.style.display = coincideOficial ? "" : "none";
+          if (coincideOficial) visibles++;
+        });
+        grupo.style.display = coincideCiudad && visibles > 0 ? "" : "none";
       });
-      grupo.style.display = coincideCiudad && visibles > 0 ? "" : "none";
-    });
+    }
+
+    selectCiudad?.addEventListener("change", filtrar);
+    checkOficiales?.addEventListener("change", filtrar);
+    return filtrar;
   }
 
-  selectCiudad?.addEventListener("change", filtrar);
-  checkOficiales?.addEventListener("change", filtrar);
+  let filtrar = bindFiltros();
 
-  // Geolocation: reorder city sections by proximity
+  function reordenarPorProximidad(latitude: number, longitude: number) {
+    const secciones = Array.from(document.querySelectorAll<HTMLElement>(".ciudad-grupo"));
+    if (secciones.length < 2) return;
+
+    const distancias = secciones.map((s) => {
+      const lat = Number(s.dataset.lat);
+      const lng = Number(s.dataset.lng);
+      return { seccion: s, km: haversineKm(latitude, longitude, lat, lng) };
+    });
+
+    distancias.sort((a, b) => a.km - b.km);
+    const padre = secciones[0].parentNode;
+    const primera = distancias[0].seccion;
+
+    for (const d of distancias) {
+      padre?.appendChild(d.seccion);
+    }
+
+    const ciudad = primera.dataset.ciudad;
+    const indicador = document.createElement("p");
+    indicador.className = "geo-indicador";
+    indicador.textContent = `Mostrando ${ciudad} primero (más cercana a ti)`;
+    primera.insertBefore(indicador, primera.querySelector(".grid"));
+  }
+
   if (navigator.geolocation) {
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        const { latitude, longitude } = pos.coords;
-        const secciones = Array.from(document.querySelectorAll<HTMLElement>(".ciudad-grupo"));
-        if (secciones.length < 2) return;
-
-        const distancias = secciones.map((s) => {
-          const lat = Number(s.dataset.lat);
-          const lng = Number(s.dataset.lng);
-          return { seccion: s, km: haversineKm(latitude, longitude, lat, lng) };
-        });
-
-        distancias.sort((a, b) => a.km - b.km);
-        const padre = secciones[0].parentNode;
-        const primera = distancias[0].seccion;
-
-        for (const d of distancias) {
-          padre?.appendChild(d.seccion);
-        }
-
-        const ciudad = primera.dataset.ciudad;
-        const indicador = document.createElement("p");
-        indicador.className = "geo-indicador";
-        indicador.textContent = `Mostrando ${ciudad} primero (más cercana a ti)`;
-        primera.insertBefore(indicador, primera.querySelector(".grid"));
+        ultimaPos = { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
+        reordenarPorProximidad(ultimaPos.latitude, ultimaPos.longitude);
       },
       () => {},
       { enableHighAccuracy: false, timeout: 10000 }
     );
   }
+
+  // Refresco runtime (desacoplar-datos-deploy): datos frescos del API con
+  // fallback al SSG. Si el API falla, la página queda como se renderizó.
+  async function refrescar() {
+    const data = await fetchCatalogo<{ acopios: Acopio[] }>("acopios");
+    if (!data || !Array.isArray(data.acopios)) return;
+    const cont = document.getElementById("contenido-acopios");
+    if (!cont) return;
+    const previo = (document.getElementById("filtro-ciudad") as HTMLSelectElement | null)?.value ?? "";
+    cont.innerHTML = renderAcopiosPagina(data.acopios);
+    filtrar = bindFiltros();
+    const select = document.getElementById("filtro-ciudad") as HTMLSelectElement | null;
+    if (previo && select && Array.from(select.options).some((o) => o.value === previo)) {
+      select.value = previo;
+    }
+    filtrar();
+    if (ultimaPos) reordenarPorProximidad(ultimaPos.latitude, ultimaPos.longitude);
+  }
+  void refrescar();
 </script>

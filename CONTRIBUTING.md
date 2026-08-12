@@ -22,7 +22,10 @@ La validación automática (`npm run validate:data`) corre en cada PR y **bloque
    - Publicaciones de la Cruz Roja Colombiana, Defensa Civil o el SGC.
    - Notas de prensa de medios nacionales serios (El Tiempo, El Espectador, RCN, Caracol, etc.).
 4. Abre el PR. Un mantenedor revisa contra la fuente y lo fusiona.
-5. Al fusionar, CI despliega automáticamente la web y el API.
+5. Al fusionar, los datos se publican en la plataforma en **~1–2 min sin esperar un deploy**:
+   el API los sirve directo desde el repo con caché de 60 s (`GET /api/datos/:catalogo`).
+   El deploy automático solo corre cuando cambia código (web, worker o schemas); no hace
+   falta correr ningún comando local ni configurar nada (se reutiliza el KV existente).
 
 ## Reglas de seguridad (no negociables)
 
@@ -56,10 +59,11 @@ deslizamiento, rescate en curso) con **ubicación exacta** y **necesidades**, de
 
 **Cómo funciona:** el formulario envía a `POST /api/puntos`; el worker valida, geocodifica
 (Nominatim con caché KV) y commitea la entrada a `web/public/datos/reportes-puntos.json` con
-un token de bot unificado (`GITHUB_TOKEN`, fine-grained PAT con `contents:write` e `issues:write` sobre el repo). El push a main dispara
-el deploy Pages (~1-3 min) y el punto aparece en el mapa y en la pestaña Rescates del
-dashboard. No hay D1 nuevo: el archivo ES el registro, y cualquier contribuidor puede verlo,
-corregirlo o archivarlo por PR.
+un token de bot unificado (`GITHUB_TOKEN`, fine-grained PAT con `contents:write` e `issues:write` sobre el repo). El push a main **no dispara deploy**: el worker actualiza la
+caché KV del API al commitear (write-through) y el punto aparece en el mapa y en la pestaña
+Rescates del dashboard en **~1 min**, vía `GET /api/datos/registro`. Sin comandos extra
+para contribuidores: la plataforma reutiliza el KV existente. No hay D1 nuevo: el archivo
+ES el registro, y cualquier contribuidor puede verlo, corregirlo o archivarlo por PR.
 
 **Estados y ciclo de vida:**
 
@@ -73,11 +77,11 @@ corregirlo o archivarlo por PR.
   `confirmado` real lo fija un mantenedor tras verificar contra fuente.
 - **3 reportes de falso** (`flags` en la entrada) ocultan el punto del mapa; sigue visible en
   el archivo para auditoría. Un admin puede marcarlo `falso`, `resuelto` o `promovido`.
-- **Promoción a catálogo verificado:** cuando un punto se confirma contra fuente oficial,
-  cópialo a `data/puntos-rescate.json` con `fuente`, `verificado_por`, `fecha_verificacion`
-  y `reporte_id` (regla de oro; CI lo exige), abre el PR y, al fusionar, marca la entrada
-  original `promovido` (deja de mostrarse en vivo). El punto verificado sobrevive a una API
-  caída porque se renderiza desde el build.
+- **Promoción a punto verificado:** cuando un punto se confirma contra fuente oficial,
+  edita su entrada **en el propio registro** (`web/public/datos/reportes-puntos.json`)
+  agregando `nombre`, `fuente`, `verificado_por`, `fecha_verificacion` y `verificacion`
+  (regla de oro; CI lo exige) — sin moverlo a otro archivo. Abre el PR y, al fusionar,
+  el admin marca la entrada `promovido` (deja de mostrarse como punto activo en vivo).
 
 **Secreto requerido:** `GITHUB_TOKEN` (un solo fine-grained PAT con `contents:write` e
 `issues:write` sobre el repo) como secreto del worker:

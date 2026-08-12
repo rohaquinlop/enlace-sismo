@@ -2330,6 +2330,22 @@ ul.picklist-list li:hover:not(.selected) {
   color: var(--color-muted);
   font-size: var(--text-sm);
 }
+/* Filtro por zona activa del panel Rescates (clic en una zona → sus rescates) */
+.rescate-filtro {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-xs);
+  margin: var(--space-2xs) 0 var(--space-xs);
+  font-size: var(--text-sm);
+  color: var(--color-ink);
+}
+.rescate-fila[data-volar-rescate] {
+  cursor: pointer;
+}
+.rescate-fila[data-volar-rescate]:hover {
+  background: var(--color-paper-2);
+}
 .rescate-fila {
   display: block;
   padding: var(--space-sm) 0;

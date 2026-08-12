@@ -133,6 +133,7 @@ import { NECESIDADES, TIPOS_PUNTO } from "../lib/necesidades";
 
 <script>
   import { apiUrl } from "../lib/api";
+  import { fetchCatalogo } from "../lib/datos";
   import { haversineKm } from "../lib/geo";
   import { puntoActivo, type PuntoVivo } from "../lib/puntos-rescate";
   import { etiquetaTipo, etiquetaNecesidad, ESTADOS_PUNTO } from "../lib/necesidades";
@@ -184,15 +185,27 @@ import { NECESIDADES, TIPOS_PUNTO } from "../lib/necesidades";
   }) as EventListener);
 
   // ---------- Dedupe: punto ya reportado a ≤150 m ----------
+  // Registro en vivo: API primero (fresco, caché KV del worker), copia
+  // estática desplegada como respaldo (desacoplar-datos-deploy).
   async function cargarVivos() {
+    const data = await fetchCatalogo<PuntoVivo[]>("registro");
+    if (Array.isArray(data)) {
+      vivos = data;
+      return;
+    }
     try {
       const res = await fetch("/datos/reportes-puntos.json");
-      if (!res.ok) return;
-      const data = (await res.json()) as PuntoVivo[];
-      if (Array.isArray(data)) vivos = data;
+      if (res.ok) {
+        const estatico = (await res.json()) as PuntoVivo[];
+        if (Array.isArray(estatico)) {
+          vivos = estatico;
+          return;
+        }
+      }
     } catch {
-      vivos = [];
+      // Sin red: dedupe deshabilitado (el formulario igual funciona).
     }
+    vivos = [];
   }
   void cargarVivos();
 

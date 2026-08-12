@@ -6,6 +6,7 @@ import reportes from "./reportes";
 import upload from "./upload";
 import puntos from "./puntos";
 import geocodificar from "./geocodificar";
+import datos from "./datos";
 
 type Env = {
   DB: D1Database;
@@ -67,6 +68,9 @@ app.route("/api/puntos", puntos);
 
 // ---------- Geocodificación para el formulario de reporte ----------
 app.route("/api/geocodificar", geocodificar);
+
+// ---------- Lectura de catálogos y registro en vivo (GitHub como almacén) ----------
+app.route("/api/datos", datos);
 
 app.notFound((c) => c.json({ error: "No encontrado" }, 404));
 

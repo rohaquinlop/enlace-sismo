@@ -3,6 +3,9 @@ name: Deploy
 on:
   push:
     branches: [main]
+  # Refresco manual del baseline SSG: reconstruye la web con los datos
+  # actuales del repo sin esperar un deploy de código (desacoplar-datos-deploy).
+  workflow_dispatch:
 
 jobs:
   deploy:
@@ -11,18 +14,56 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Despliegue selectivo (desacoplar-datos-deploy): los cambios SOLO de
+      # datos — catálogos (data/** sin data/schema/**) y el registro en vivo
+      # (web/public/datos/**, commiteado por el worker) — se publican vía
+      # GET /api/datos/:catalogo sin deploy (GitHub como almacén + caché KV).
+      # El pipeline corre solo con cambios de código o por workflow_dispatch.
+      - name: ¿Cambios de código?
+        id: filtro
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "desplegar=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [ "${{ github.event.before }}" = "0000000000000000000000000000000000000000" ]; then
+            echo "desplegar=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          ARCHIVOS="$(git diff --name-only "${{ github.event.before }}" "${{ github.sha }}")"
+          echo "Archivos en este push:"
+          echo "$ARCHIVOS"
+          if [ -z "$ARCHIVOS" ]; then
+            echo "desplegar=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          while IFS= read -r f; do
+            case "$f" in
+              # Los schemas los importa el worker en build: su cambio SÍ despliega.
+              data/schema/*) echo "desplegar=true" >> "$GITHUB_OUTPUT"; exit 0 ;;
+              data/*) ;;
+              web/public/datos/*) ;;
+              *) echo "desplegar=true" >> "$GITHUB_OUTPUT"; exit 0 ;;
+            esac
+          done <<< "$ARCHIVOS"
+          echo "desplegar=false" >> "$GITHUB_OUTPUT"
+
       - uses: actions/setup-node@v4
+        if: steps.filtro.outputs.desplegar == 'true'
         with:
           node-version: 22
           cache: npm
 
       - name: Instalar dependencias
+        if: steps.filtro.outputs.desplegar == 'true'
         run: npm ci
 
       - name: Validar datos
+        if: steps.filtro.outputs.desplegar == 'true'
         run: npm run validate:data
 
       - name: Migraciones D1
+        if: steps.filtro.outputs.desplegar == 'true'
         working-directory: worker
         run: npx wrangler d1 migrations apply enlace-sismo --remote
         env:
@@ -30,6 +71,7 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
       - name: Publicar worker (API)
+        if: steps.filtro.outputs.desplegar == 'true'
         working-directory: worker
         run: npx wrangler deploy
         env:
@@ -37,6 +79,7 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
       - name: Publicar web (Pages)
+        if: steps.filtro.outputs.desplegar == 'true'
         working-directory: web
         run: |
           npm run build
