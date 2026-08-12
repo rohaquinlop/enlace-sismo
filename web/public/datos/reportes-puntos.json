@@ -7,15 +7,12 @@
     "coordenadas_nivel": "premisa",
     "descripcion": "Edificio colapsado, posibles personas",
     "necesidades": [
-      "agua",
-      "linternas",
       "palas",
       "picos",
       "mascarillas",
       "cuerdas",
       "botiquin",
-      "mantas",
-      "voluntarios"
+      "mantas"
     ],
     "estado": "sin-confirmar",
     "confirmaciones": [],
@@ -24,7 +21,13 @@
     "ip_hash": "eff8e7ca506627fe15dda5e0e512fcaad70b6d520f37cc76597fdb4f2d83a1a3",
     "created_at": "2026-08-11T23:57:08.016Z",
     "direccion": "Carrera 58 con Calle 4ta",
-    "ciudad": "Cali"
+    "ciudad": "Cali",
+    "ediciones": [
+      {
+        "ip_hash": "eff8e7ca506627fe15dda5e0e512fcaad70b6d520f37cc76597fdb4f2d83a1a3",
+        "created_at": "2026-08-12T01:58:49.167Z"
+      }
+    ]
   },
   {
     "id": "p-mspesiqt-fncs",
