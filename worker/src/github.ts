@@ -13,70 +13,6 @@ const RUTA = "web/public/datos/reportes-puntos.json";
 const UA = "enlace-sismo/1.0 (https://enlacesismo.com)";
 const MAX_INTENTOS = 3;
 
-// ---------- Modo dev local (WORKER_ENV=development) ----------
-// Lee y escribe directamente al archivo en disco. Los cambios persisten
-// entre requests y se reflejan de inmediato al recargar la página.
-import { readFileSync, writeFileSync, existsSync } from "node:fs";
-import { resolve } from "node:path";
-
-// wrangler dev puede correr desde worker/ o desde la raíz del monorepo.
-// Probamos ambas rutas para encontrar el archivo local.
-function devFilePath(): string {
-  const candidatos = [
-    resolve("web/public/datos/reportes-puntos.json"),        // cwd = raíz
-    resolve("../web/public/datos/reportes-puntos.json"),     // cwd = worker/
-  ];
-  for (const p of candidatos) {
-    if (existsSync(p)) return p;
-  }
-  throw new RegistroError(
-    `No se pudo leer el registro local (dev). ¿Existe web/public/datos/reportes-puntos.json? Buscado en: ${candidatos.join(", ")}`,
-    503
-  );
-}
-let _devFile: string | null = null;
-function getDevFile(): string {
-  if (!_devFile) _devFile = devFilePath();
-  return _devFile;
-}
-
-function leerRegistroDev(): { entradas: EntradaPunto[]; sha: string } {
-  let raw: string;
-  try {
-    raw = readFileSync(getDevFile(), "utf8");
-  } catch {
-    throw new RegistroError("No se pudo leer el registro local (dev). ¿Existe web/public/datos/reportes-puntos.json?", 503);
-  }
-  let entradas: unknown;
-  try {
-    entradas = JSON.parse(raw);
-  } catch {
-    throw new RegistroError("El registro local no es JSON válido", 503);
-  }
-  if (!Array.isArray(entradas)) throw new RegistroError("El registro local no es un arreglo", 503);
-  return { entradas: entradas as EntradaPunto[], sha: "dev" };
-}
-
-function escribirRegistroDev(
-  mutar: (entradas: EntradaPunto[]) => EntradaPunto[]
-): void {
-  const { entradas } = leerRegistroDev();
-  const nuevas = mutar(entradas);
-  for (const e of nuevas) {
-    if (!valida(e)) {
-      const err = valida.errors?.[0];
-      throw new RegistroError(
-        `El registro resultante no valida: ${err?.instancePath ?? "/"} ${err?.message ?? "desconocido"}`,
-        503
-      );
-    }
-  }
-  writeFileSync(getDevFile(), JSON.stringify(nuevas, null, 2) + "\n", "utf8");
-}
-
-function esModoDev(c: Context<Bindings>): boolean {
-  return c.env.WORKER_ENV === "development";
-}
 
 export interface Confirmacion {
   bucket: string;
@@ -171,7 +107,6 @@ const repoDe = (c: Context<Bindings>): string => c.env.GITHUB_REPO ?? REPO_DEFAU
 
 /** Lee el registro en vivo (contenido + sha para el commit optimista). */
 export async function leerRegistro(c: Context<Bindings>): Promise<{ entradas: EntradaPunto[]; sha: string }> {
-  if (esModoDev(c)) return leerRegistroDev();
   const res = await apiGithub(c, `/repos/${repoDe(c)}/contents/${RUTA}`);
   if (!res.ok) throw new RegistroError(`No se pudo leer el registro (${res.status})`, 503);
   const data = (await res.json()) as { content: string; sha: string };
@@ -196,8 +131,6 @@ export async function escribirRegistro(
   c: Context<Bindings>,
   mutar: (entradas: EntradaPunto[]) => EntradaPunto[]
 ): Promise<void> {
-  if (esModoDev(c)) return escribirRegistroDev(mutar);
-
   let ultimo: RegistroError | null = null;
   for (let intento = 0; intento < MAX_INTENTOS; intento++) {
     const { entradas, sha } = await leerRegistro(c);

@@ -20,9 +20,6 @@ type Env = {
   GITHUB_TOKEN: string;
   // Repo destino del registro (solo para deploys desde fork; default abajo).
   GITHUB_REPO?: string;
-  // Ambiente de ejecución: "development" | "production". En development lee/escribe
-  // puntos en memoria (desde el JSON local) en vez de commitear a GitHub.
-  WORKER_ENV?: string;
 };
 
 export type Bindings = { Bindings: Env };
