@@ -12,7 +12,7 @@ routes = [
 # Luego reemplaza id con el valor generado.
 [[kv_namespaces]]
 binding = "KV"
-id = "REPLACE_WITH_KV_NAMESPACE_ID"
+id = "d2cff2fc01b148d9bb11581d63c4e3f5"
 
 # Crea el bucket R2 con: wrangler r2 bucket create enlace-sismo-imagenes
 # Luego el binding ya está configurado abajo.
