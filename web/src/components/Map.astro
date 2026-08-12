@@ -159,18 +159,30 @@ const eventoJson = JSON.stringify({ fecha: evento.fecha.slice(0, 10) });
   const el = document.getElementById("mapa-libre") as HTMLDivElement;
   const contenedor = el.closest<HTMLElement>(".dash");
 
-  // El rail se posiciona bajo la barra de evento. Se mide en runtime para no
-  // depender de cálculos frágiles (zoom de fuente, contenido dinámico como
-  // la línea de distancia al geolocalizar). Fallback CSS: --barra-h.
-  let medirBarra: (() => void) | null = null;
+  // El nav y la barra de evento flotan sobre el mapa (modo app): la barra se
+  // posiciona bajo el nav, el rail bajo el nav y los controles de zoom bajo
+  // la barra. Se miden en runtime para no depender de cálculos frágiles
+  // (wrap del nav, safe-area, contenido dinámico como la línea de distancia
+  // al geolocalizar). Fallback CSS: --nav-h / --barra-h.
+  // El header expandido en móvil es un dropdown: no desplaza la barra;
+  // se congela la altura colapsada (marca + toggle) mientras esté abierto.
+  let medirCabecera: (() => void) | null = null;
+  const nav = document.querySelector<HTMLElement>(".site-nav");
   const barra = document.querySelector<HTMLElement>(".barra-evento");
-  if (contenedor && barra && "ResizeObserver" in window) {
+  let navAltoColapsado: number | null = null;
+  if (contenedor && "ResizeObserver" in window) {
     const medir = () => {
-      contenedor.style.setProperty("--barra-h-real", `${barra.getBoundingClientRect().height}px`);
+      const alto = nav?.getBoundingClientRect().height ?? 0;
+      const expandido = nav?.getAttribute("data-expandido") === "true";
+      if (!expandido) navAltoColapsado = alto;
+      contenedor.style.setProperty("--nav-h-real", `${expandido && navAltoColapsado ? navAltoColapsado : alto}px`);
+      contenedor.style.setProperty("--barra-h-real", `${barra?.getBoundingClientRect().height ?? 0}px`);
     };
-    medirBarra = medir;
+    medirCabecera = medir;
     medir();
-    new ResizeObserver(medir).observe(barra);
+    const obs = new ResizeObserver(medir);
+    if (nav) obs.observe(nav);
+    if (barra) obs.observe(barra);
     window.addEventListener("resize", medir);
   }
 
@@ -209,9 +221,10 @@ const eventoJson = JSON.stringify({ fecha: evento.fecha.slice(0, 10) });
 
   function activarMapa() {
     if (!fallido && contenedor) contenedor.classList.add("con-mapa");
-    // La barra pasa de tarjeta (flujo) a barra superior: re-medir en el mismo
-    // frame para que el rail no quede desalineado ni un instante
-    medirBarra?.();
+    // El nav y la barra pasan a flotar sobre el mapa: re-medir en el mismo
+    // frame para que barra, rail y controles no queden desalineados ni un
+    // instante
+    medirCabecera?.();
   }
 
   const tieneWebGL = (() => {
@@ -306,7 +319,9 @@ const eventoJson = JSON.stringify({ fecha: evento.fecha.slice(0, 10) });
       zoom: 6,
     });
 
-    map.addControl(new maplibre.NavigationControl({ showCompass: false }), "top-right");
+    // top-left bajo la barra de evento: en modo app el borde derecho lo ocupa
+    // el rail y el borde superior el nav (top-right quedaría oculto)
+    map.addControl(new maplibre.NavigationControl({ showCompass: false }), "top-left");
 
     // Centrar el mapa tras abrir un popup, midiendo su altura real.
     // En móvil (panel colapsado): calcula el offset para que el popup completo

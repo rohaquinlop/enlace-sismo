@@ -93,11 +93,11 @@ const CIUDADES = [
           <span class="hamburguesa-linea"></span>
           <span class="hamburguesa-linea"></span>
         </button>
-        <a class="btn btn-primary" href="https://colombiatebusca.com" target="_blank" rel="noopener noreferrer">
-          <span class="btn-cta-full">Buscar o reportar desaparecidos</span>
-          <span class="btn-cta-movil" aria-hidden="true">Desaparecidos</span>
-        </a>
       </div>
+      <a class="btn btn-primary" href="https://colombiatebusca.com" target="_blank" rel="noopener noreferrer">
+        <span class="btn-cta-full">Buscar o reportar desaparecidos</span>
+        <span class="btn-cta-movil" aria-hidden="true">Desaparecidos</span>
+      </a>
     </header>
 
     <aside class="nav-sidebar" id="nav-sidebar" aria-hidden="true">
@@ -149,11 +149,27 @@ const CIUDADES = [
         (mapa ?? document.body).scrollIntoView({ behavior: "smooth", block: "start" });
       });
 
-      // Sidebar móvil
+      // Sidebar móvil (páginas normales) / header colapsable (modo app del mapa)
       const btnHamburguesa = document.getElementById("nav-hamburguesa");
       const sidebar = document.getElementById("nav-sidebar");
       const backdrop = document.getElementById("nav-sidebar-backdrop");
       const btnCerrar = document.getElementById("nav-sidebar-cerrar");
+      const siteNav = document.querySelector(".site-nav");
+
+      function esModoApp() {
+        return document.querySelector(".dash")?.classList.contains("con-mapa") ?? false;
+      }
+      function colapsarNavApp() {
+        siteNav?.setAttribute("data-expandido", "false");
+        btnHamburguesa?.setAttribute("aria-expanded", "false");
+        btnHamburguesa?.setAttribute("aria-label", "Abrir menú");
+      }
+      function alternarNavApp() {
+        const expandido = siteNav?.getAttribute("data-expandido") === "true";
+        siteNav?.setAttribute("data-expandido", expandido ? "false" : "true");
+        btnHamburguesa?.setAttribute("aria-expanded", String(!expandido));
+        btnHamburguesa?.setAttribute("aria-label", expandido ? "Abrir menú" : "Cerrar menú");
+      }
 
       function abrirSidebar() {
         sidebar?.setAttribute("aria-hidden", "false");
@@ -168,11 +184,21 @@ const CIUDADES = [
         document.body.style.overflow = "";
       }
 
-      btnHamburguesa?.addEventListener("click", abrirSidebar);
+      btnHamburguesa?.addEventListener("click", () => {
+        if (esModoApp()) alternarNavApp();
+        else abrirSidebar();
+      });
       btnCerrar?.addEventListener("click", cerrarSidebar);
       backdrop?.addEventListener("click", cerrarSidebar);
+      // Clic en una sección del header expandido (modo app): colapsar
+      siteNav?.addEventListener("click", (e) => {
+        if (esModoApp() && e.target instanceof Element && e.target.closest("a")) colapsarNavApp();
+      });
       document.addEventListener("keydown", (e) => {
-        if (e.key === "Escape") cerrarSidebar();
+        if (e.key === "Escape") {
+          if (esModoApp() && siteNav?.getAttribute("data-expandido") === "true") colapsarNavApp();
+          else cerrarSidebar();
+        }
       });
     </script>
   </body>
