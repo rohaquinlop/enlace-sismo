@@ -1,6 +1,7 @@
-// Registro en vivo de puntos de rescate (web/public/datos/reportes-puntos.json)
-// y catálogo verificado (data/puntos-rescate.json).
-// Tipos y reglas de visibilidad compartidos por el dashboard y el formulario.
+// Registro unificado de puntos de rescate (web/public/datos/reportes-puntos.json).
+// Un punto comienza como reporte ciudadano; cuando un mantenedor lo verifica,
+// agrega nombre, fuente, verificado_por, fecha_verificacion y verificacion
+// en el mismo registro.
 
 export interface ConfirmacionViva {
   bucket: string;
@@ -14,7 +15,12 @@ export interface FlagVivo {
   created_at: string;
 }
 
-/** Entrada del registro en vivo: reporte ciudadano sin verificación. */
+export interface EdicionViva {
+  ip_hash: string;
+  created_at: string;
+}
+
+/** Punto de rescate (registro unificado: ciudadano + verificado). */
 export interface PuntoVivo {
   id: string;
   tipo: string;
@@ -31,28 +37,15 @@ export interface PuntoVivo {
   confirmaciones: ConfirmacionViva[];
   flags: FlagVivo[];
   ultima_confirmacion?: string;
+  ediciones?: EdicionViva[];
   ip_hash: string;
   created_at: string;
-}
-
-/** Entrada del catálogo verificado (promovida tras verificación contra fuente). */
-export interface PuntoVerificado {
-  id: string;
-  nombre: string;
-  tipo: string;
-  ciudad: string;
-  lat: number;
-  lng: number;
-  coordenadas_nivel?: "premisa" | "via" | "barrio";
-  direccion: string;
-  descripcion?: string;
-  necesidades?: string[];
-  otras_necesidades?: string;
-  contacto?: string;
-  estado: "confirmado" | "en-curso" | "resuelto";
-  reporte_id?: string;
-  created_at?: string;
-  fuente: string;
+  // Campos de verificación (opcionales: se agregan al promover)
+  nombre?: string;
+  fuente?: string;
+  verificado_por?: string;
+  fecha_verificacion?: string;
+  verificacion?: "oficial" | "confirmado" | "sin-confirmar";
 }
 
 export const HORAS_ACTIVO = 72;

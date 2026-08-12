@@ -8,7 +8,6 @@ import ZonasLista from "../components/ZonasLista.astro";
 import StatusBadge from "../components/StatusBadge.astro";
 import { acopios, albergues, centrosSalud, jornadasSangre, todasLasCiudades } from "../lib/catalogs";
 import { zonas } from "../lib/zonas";
-import puntosRescateData from "../../../data/puntos-rescate.json";
 import { puntoActivo, agregarNecesidades, type PuntoVivo } from "../lib/puntos-rescate";
 import { agruparCiudades, fusionarCiudadesSelect, nombreCiudadNormalizado, type CiudadReportada } from "../lib/ciudades";
 import { etiquetaTipo, etiquetaNecesidad, ESTADOS_PUNTO, etiquetaPrecision } from "../lib/necesidades";
@@ -65,7 +64,7 @@ const enlaceMaps = (lat: number, lng: number) =>
          (evento → zonas → secciones → leyenda). Solo cuando el mapa carga,
          .con-mapa posiciona esos bloques como overlays sobre el mapa. -->
     <section class="dash" id="mapa" aria-label="Mapa de ayuda">
-      <Map acopios={acopios} albergues={albergues} centros={centrosSalud} jornadas={jornadasSangre} zonas={zonas} puntosRescate={puntosRescateData} ciudadesReportadas={ciudadesReportadas} />
+      <Map acopios={acopios} albergues={albergues} centros={centrosSalud} jornadas={jornadasSangre} zonas={zonas} ciudadesReportadas={ciudadesReportadas} />
 
       <DatosEvento />
 

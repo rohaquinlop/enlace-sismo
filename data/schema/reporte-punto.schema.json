@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://enlacesismo.com/schemas/reporte-punto.schema.json",
-  "title": "Reporte ciudadano de punto de rescate (registro en vivo)",
-  "description": "Entrada de web/public/datos/reportes-puntos.json. Es un reporte ciudadano SIN verificación: su procedencia interna es created_at + ip_hash + confirmaciones + flags. La regla de oro (fuente, verificado_por, fecha_verificacion) aplica al catálogo promovido (punto-rescate.schema.json), no a este archivo.",
+  "title": "Punto de rescate (registro en vivo)",
+  "description": "Entrada de web/public/datos/reportes-puntos.json. Un punto comienza como reporte ciudadano (sin verificación). Cuando un mantenedor lo verifica contra fuente oficial, agrega nombre, fuente, verificado_por, fecha_verificacion y verificacion — en el mismo registro, sin moverlo a otro archivo.",
   "type": "object",
   "properties": {
     "id": { "type": "string", "pattern": "^p-[a-z0-9-]{6,20}$" },
@@ -42,8 +42,39 @@
       "items": { "$ref": "#/$defs/flag" }
     },
     "ultima_confirmacion": { "type": "string", "minLength": 10 },
+    "ediciones": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/edicion" },
+      "description": "Historial de IPs que han actualizado este reporte."
+    },
     "ip_hash": { "type": "string", "minLength": 8 },
-    "created_at": { "type": "string", "minLength": 10 }
+    "created_at": { "type": "string", "minLength": 10 },
+    "nombre": {
+      "type": "string",
+      "minLength": 3,
+      "description": "Nombre legible asignado por un mantenedor al verificar el punto."
+    },
+    "fuente": {
+      "type": "string",
+      "format": "uri",
+      "description": "URL de la fuente oficial que respalda el punto. Se agrega al verificar."
+    },
+    "verificado_por": {
+      "type": "string",
+      "minLength": 2,
+      "description": "Nombre o handle de quien verificó el dato contra la fuente."
+    },
+    "fecha_verificacion": {
+      "type": "string",
+      "format": "date",
+      "description": "Fecha en que se verificó (YYYY-MM-DD)."
+    },
+    "verificacion": {
+      "type": "string",
+      "enum": ["oficial", "confirmado", "sin-confirmar"],
+      "default": "sin-confirmar",
+      "description": "oficial = entidad oficial · confirmado = verificado por 2+ revisores · sin-confirmar = pendiente."
+    }
   },
   "$defs": {
     "confirmacion": {
@@ -63,6 +94,14 @@
         "created_at": { "type": "string", "minLength": 10 }
       },
       "required": ["detalle", "ip_hash", "created_at"]
+    },
+    "edicion": {
+      "type": "object",
+      "properties": {
+        "ip_hash": { "type": "string", "minLength": 8 },
+        "created_at": { "type": "string", "minLength": 10 }
+      },
+      "required": ["ip_hash", "created_at"]
     }
   },
   "required": ["id", "tipo", "lat", "lng", "coordenadas_nivel", "descripcion", "necesidades", "estado", "confirmaciones", "flags", "ip_hash", "created_at"],
