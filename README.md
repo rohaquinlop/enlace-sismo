@@ -58,7 +58,7 @@ equivocado**, así que la precisión es parte del protocolo.
 | API | Hono (TypeScript) | Cloudflare Workers |
 | Base de datos dinámica | D1 (SQLite) | Cloudflare D1 |
 | Límites y caché | Cloudflare KV | Cloudflare KV |
-| Datos verificados | JSON en este repo, validados en CI | Build |
+| Datos verificados | JSON en este repo, validados en CI | Repo (GitHub) + API `/api/datos/:catalogo` |
 
 ## Desarrollo local
 
@@ -71,7 +71,15 @@ npm run validate:data
 
 ## Despliegue (mantenedores)
 
-El push a `main` despliega automáticamente web y API (GitHub Actions → Cloudflare).
+El push a `main` despliega automáticamente web y API (GitHub Actions → Cloudflare)
+**solo cuando cambia código** (`web/src/`, `worker/`, workflows, `data/schema/**`). Los
+cambios que tocan únicamente datos (`data/**` sin schemas, o el registro en vivo
+`web/public/datos/**`) **no despliegan**: el API sirve esos JSON directo desde el repo con
+caché KV (`GET /api/datos/:catalogo`), así que un PR de datos es visible en ~1–2 min sin
+deploy. Para refrescar la fotografía estática (SSG) que ven los usuarios sin JS y los
+crawlers, dispara el workflow `Deploy` manualmente (botón *Run workflow* → el baseline se
+reconstruye con los datos actuales).
+
 La configuración de D1/KV/secretos y los pasos manuales viven en
 `.github/workflows/` y `worker/wrangler.toml`.
 
