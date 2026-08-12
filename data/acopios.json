@@ -795,6 +795,30 @@
       "fecha_verificacion": "2026-08-10",
       "verificacion": "sin-confirmar",
       "coordenadas_nivel": "premisa"
+    },
+    {
+      "id": "cali-escuela-deporte",
+      "nombre": "Escuela Nacional del Deporte",
+      "ciudad": "Cali",
+      "departamento": "Valle del Cauca",
+      "direccion": "Calle 9 #34-01",
+      "lat": 3.426298,
+      "lng": -76.536251,
+      "necesidades": [
+        "alimentos-no-perecederos",
+        "agua",
+        "ropa",
+        "medicamentos",
+        "cobijas",
+        "colchonetas"
+      ],
+      "estado": "sin-confirmar",
+      "detalles": "Entre los artículos se necesita: Agua, víveres, colchonetas, sábanas, cobijas, comida ya preparada tipo sándwich, dulces, Electrolit, alcohol, gasas, vendas, ropa para adultos y niños, cascos, guantes de construcción, bolsas, tapabocas, linternas de cabeza, linternas normales, baños móviles.",
+      "fuente": "https://www.elpais.com.co/cali/alcaldia-habilita-nuevos-espacios-para-recibir-ayudas-y-atender-a-afectados-en-cali-1154.html",
+      "verificado_por": "equipo-enlacesismo (extracción web 2026-08-11)",
+      "fecha_verificacion": "2026-08-11",
+      "verificacion": "sin-confirmar",
+      "coordenadas_nivel": "premisa"
     }
   ]
 }
