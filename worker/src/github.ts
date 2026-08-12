@@ -4,6 +4,7 @@
 // Los contribuidores editan el mismo archivo por PR; el CI lo protege.
 import type { Context } from "hono";
 import Ajv2020 from "ajv/dist/2020.js";
+import addFormats from "ajv-formats";
 import type { Bindings } from "./index";
 // Schema compartido con el repo (data/schema/reporte-punto.schema.json).
 import reportePuntoSchema from "../../data/schema/reporte-punto.schema.json";
@@ -73,6 +74,9 @@ export class RegistroError extends Error {
 }
 
 const ajv = new Ajv2020({ allErrors: true, strict: false });
+// Formatos uri/date del schema de verificación: sin addFormats, Ajv los
+// ignora con warning y la fuente/fecha del registro no se validan.
+addFormats(ajv);
 const valida = ajv.compile(reportePuntoSchema as never);
 
 // Workers no tiene Buffer: base64 ↔ UTF-8 con TextEncoder/Decoder.
