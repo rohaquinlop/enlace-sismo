@@ -136,7 +136,7 @@ const dedupeDatos: DedupeItem[] = centrosSaludData.centros.map((c) => ({
     </div>
   </form>
 
-  <div class="modal-resultado" id="modal-resultado" data-tipo="">
+  <div class="modal-resultado" id="modal-resultado" data-tipo="" role="dialog" aria-modal="true" aria-labelledby="modal-titulo">
     <div class="modal-resultado-card">
       <div class="modal-resultado-icono" id="modal-icono"></div>
       <div class="modal-resultado-titulo" id="modal-titulo"></div>
@@ -195,6 +195,8 @@ const dedupeDatos: DedupeItem[] = centrosSaludData.centros.map((c) => ({
       modalMensaje.textContent = mensaje;
       if (modalAcciones) modalAcciones.innerHTML = accionesHtml;
       modal.dataset.open = "true";
+      // Diálogo modal: el foco entra al control de cierre (mismo patrón que /reportar).
+      requestAnimationFrame(() => modalCerrar?.focus());
     }
 
     // Compartir (review de diseño): acción secundaria del modal de éxito.
@@ -356,7 +358,7 @@ const dedupeDatos: DedupeItem[] = centrosSaludData.centros.map((c) => ({
           form.reset();
           document.dispatchEvent(new CustomEvent(EVENTO_REINICIAR));
         } else {
-          mostrarModal("error", "No se pudo enviar", data?.error ?? "Intentá nuevamente más tarde.");
+          mostrarModal("error", "No se pudo enviar", data?.error ?? "Intenta nuevamente más tarde.");
         }
       });
     }

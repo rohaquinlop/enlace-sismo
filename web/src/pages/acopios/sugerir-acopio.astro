@@ -98,9 +98,8 @@ const dedupeDatos: DedupeItem[] = acopiosData.acopios.map((a) => ({
     </div>
 
     <div class="form-group">
-      <label>Necesidades (opcional)</label>
       <fieldset class="form-group necesidades">
-        <legend class="visually-hidden">¿Qué necesita este punto de acopio?</legend>
+        <legend>Necesidades (opcional)</legend>
         <div class="necesidades-grid">
           <label class="necesidad-chip"><input type="checkbox" value="alimentos-no-perecederos" /><span>Alimentos no perecederos</span></label>
           <label class="necesidad-chip"><input type="checkbox" value="agua" /><span>Agua</span></label>
@@ -168,7 +167,7 @@ const dedupeDatos: DedupeItem[] = acopiosData.acopios.map((a) => ({
     </div>
   </form>
 
-  <div class="modal-resultado" id="modal-resultado" data-tipo="">
+  <div class="modal-resultado" id="modal-resultado" data-tipo="" role="dialog" aria-modal="true" aria-labelledby="modal-titulo">
     <div class="modal-resultado-card">
       <div class="modal-resultado-icono" id="modal-icono"></div>
       <div class="modal-resultado-titulo" id="modal-titulo"></div>
@@ -247,6 +246,8 @@ const dedupeDatos: DedupeItem[] = acopiosData.acopios.map((a) => ({
       modalMensaje.textContent = mensaje;
       if (modalAcciones) modalAcciones.innerHTML = accionesHtml;
       modal.dataset.open = "true";
+      // Diálogo modal: el foco entra al control de cierre (mismo patrón que /reportar).
+      requestAnimationFrame(() => modalCerrar?.focus());
     }
 
     // Compartir (review de diseño): acción secundaria del modal de éxito.
@@ -421,7 +422,7 @@ const dedupeDatos: DedupeItem[] = acopiosData.acopios.map((a) => ({
           document.dispatchEvent(new CustomEvent(EVENTO_REINICIAR));
           if (imagenPreview) imagenPreview.innerHTML = "";
         } else {
-          mostrarModal("error", "No se pudo enviar", data?.error ?? "Intentá nuevamente más tarde.");
+          mostrarModal("error", "No se pudo enviar", data?.error ?? "Intenta nuevamente más tarde.");
         }
       });
     }

@@ -145,7 +145,7 @@ const dedupeDatos: DedupeItem[] = alberguesData.albergues.map((a) => ({
     </div>
   </form>
 
-  <div class="modal-resultado" id="modal-resultado" data-tipo="">
+  <div class="modal-resultado" id="modal-resultado" data-tipo="" role="dialog" aria-modal="true" aria-labelledby="modal-titulo">
     <div class="modal-resultado-card">
       <div class="modal-resultado-icono" id="modal-icono"></div>
       <div class="modal-resultado-titulo" id="modal-titulo"></div>
@@ -204,6 +204,8 @@ const dedupeDatos: DedupeItem[] = alberguesData.albergues.map((a) => ({
       modalMensaje.textContent = mensaje;
       if (modalAcciones) modalAcciones.innerHTML = accionesHtml;
       modal.dataset.open = "true";
+      // Diálogo modal: el foco entra al control de cierre (mismo patrón que /reportar).
+      requestAnimationFrame(() => modalCerrar?.focus());
     }
 
     // Compartir (review de diseño): acción secundaria del modal de éxito.
@@ -372,7 +374,7 @@ const dedupeDatos: DedupeItem[] = alberguesData.albergues.map((a) => ({
           lng: Number(getVal("lng")),
           coordenadas_nivel: getVal("coordenadas_nivel") || "via",
           tipo: (document.getElementById("tipo") as HTMLSelectElement | null)?.value || "",
-          capacidad: Number(getVal("capacidad")) || undefined,
+          capacidad: getVal("capacidad") !== "" ? Number(getVal("capacidad")) : undefined,
           ocupacion: getVal("ocupacion") !== "" ? Number(getVal("ocupacion")) : undefined,
           estado: (document.getElementById("estado") as HTMLSelectElement | null)?.value || "sin-confirmar",
           admite_mascotas: admiteMascotasVal === "" ? undefined : admiteMascotasVal === "true",
@@ -400,7 +402,7 @@ const dedupeDatos: DedupeItem[] = alberguesData.albergues.map((a) => ({
           form.reset();
           document.dispatchEvent(new CustomEvent(EVENTO_REINICIAR));
         } else {
-          mostrarModal("error", "No se pudo enviar", data?.error ?? "Intentá nuevamente más tarde.");
+          mostrarModal("error", "No se pudo enviar", data?.error ?? "Intenta nuevamente más tarde.");
         }
       });
     }

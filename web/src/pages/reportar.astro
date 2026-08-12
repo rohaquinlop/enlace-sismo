@@ -265,7 +265,7 @@ import { NECESIDADES, TIPOS_PUNTO } from "../lib/necesidades";
           if (dedupePanel) dedupePanel.hidden = true;
           mostrarModal("ok", "Punto confirmado", "Gracias por verificar desde el lugar. La confirmación renueva el punto en el mapa.");
         } else {
-          mostrarModal("error", "No se pudo confirmar", data?.error ?? "Intentá nuevamente más tarde.");
+          mostrarModal("error", "No se pudo confirmar", data?.error ?? "Intenta nuevamente más tarde.");
         }
       },
       (err) => {
@@ -295,15 +295,17 @@ import { NECESIDADES, TIPOS_PUNTO } from "../lib/necesidades";
     requestAnimationFrame(() => modalCerrar?.focus());
   }
 
-  function cerrarModal() {
+  // Tras un envío exitoso, solo el botón "Cerrar" lleva al mapa; Escape o el
+  // clic en el overlay solo cierran (no secuestran la navegación).
+  function cerrarModal(irAlMapa = false) {
     if (!modal) return;
     modal.dataset.open = "false";
-    if (modal.dataset.enviado === "true") {
+    if (irAlMapa && modal.dataset.enviado === "true") {
       window.location.href = "/#mapa";
     }
   }
 
-  modalCerrar?.addEventListener("click", cerrarModal);
+  modalCerrar?.addEventListener("click", () => cerrarModal(true));
   modal?.addEventListener("click", (e) => {
     if (e.target === modal) cerrarModal();
   });
@@ -441,7 +443,7 @@ import { NECESIDADES, TIPOS_PUNTO } from "../lib/necesidades";
               `<button type="button" class="btn" data-compartir>Compartir</button>`
           );
         } else {
-          mostrarModal("error", "No se pudo publicar", data?.error ?? "Intentá nuevamente más tarde.");
+          mostrarModal("error", "No se pudo publicar", data?.error ?? "Intenta nuevamente más tarde.");
         }
       } catch (err) {
         // fetch rechazado = error de red/CORS (TypeError); lo demás es interno.
@@ -455,8 +457,8 @@ import { NECESIDADES, TIPOS_PUNTO } from "../lib/necesidades";
           esRed && esLocal
             ? `No hay conexión con el servidor de reportes (${apiUrl("/api/puntos")}). En desarrollo, corre también “npm run dev:api” en otra terminal.`
             : esRed
-              ? "No hay conexión con el servidor de reportes. Intentá nuevamente en unos minutos."
-              : "Ocurrió un error inesperado al enviar el reporte. Intentá nuevamente."
+              ? "No hay conexión con el servidor de reportes. Intenta nuevamente en unos minutos."
+              : "Ocurrió un error inesperado al enviar el reporte. Intenta nuevamente."
         );
       }
 

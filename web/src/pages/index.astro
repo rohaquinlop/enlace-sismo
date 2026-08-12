@@ -120,8 +120,10 @@ const enlaceMaps = (lat: number, lng: number) =>
                 <p>¿Ves un lugar donde se necesita ayuda? Publícalo con ubicación exacta y necesidades.</p>
               </a>
               <!-- Contenido re-renderizado por el refresco runtime y por el
-                   filtro de zona activa (clic en una zona → sus rescates). -->
-              <div id="rescate-panel">
+                   filtro de zona activa (clic en una zona → sus rescates).
+                   data-registro: el SSG alimenta el filtro desde el primer
+                   momento (antes del primer refresco del API). -->
+              <div id="rescate-panel" data-registro={JSON.stringify(vivos)}>
                 {
                   activos.length === 0 ? (
                     <p class="rescate-vacio">
@@ -297,8 +299,9 @@ const enlaceMaps = (lat: number, lng: number) =>
     activarZonaRescates(z && z.tipo !== "epicentro" ? z.nombre : null, !!z && z.tipo !== "epicentro");
   });
 
-  // Popup de zona abierto en el mapa: mismo filtro (el epicentro limpia;
-  // el clic en el epicentro no cambia de pestaña).
+  // Popup de zona abierto en el mapa (marcador o select de ciudad): filtra
+  // el panel SIN cambiar de pestaña — el usuario está explorando el mapa; el
+  // salto a Rescates es solo del clic explícito en las filas (volar-zona).
   window.addEventListener("enlace:mapa:zona-activa", (e) => {
     const id = (e as CustomEvent<{ id?: string }>).detail?.id;
     if (!id) {
@@ -306,7 +309,7 @@ const enlaceMaps = (lat: number, lng: number) =>
       return;
     }
     const z = zonasActuales.find((x) => x.id === id);
-    activarZonaRescates(z && z.tipo !== "epicentro" ? z.nombre : null, !!z && z.tipo !== "epicentro");
+    activarZonaRescates(z && z.tipo !== "epicentro" ? z.nombre : null);
   });
   window.addEventListener("enlace:mapa:ciudad-reportada", (e) => {
     const nombre = (e as CustomEvent<{ nombre?: string }>).detail?.nombre;
@@ -446,7 +449,24 @@ const enlaceMaps = (lat: number, lng: number) =>
     jornadas: JornadaSangre[];
   } = { acopios, albergues, centros: centrosSalud, jornadas: jornadasSangre };
   let zonasActuales: Zona[] = zonas;
+  // Registro en vivo: arranca con el SSG del build (panel ya renderizado) y
+  // se actualiza con cada refresco del API o con la copia estática si cae.
+  // Declarado arriba: lo usan los listeners de zona→rescates (TDZ-safe).
   let ultimoRegistro: PuntoVivo[] | null = null;
+  const registroSSG = document.getElementById("rescate-panel")?.getAttribute("data-registro");
+  if (registroSSG) {
+    try {
+      const p = JSON.parse(registroSSG) as unknown;
+      if (Array.isArray(p)) ultimoRegistro = p as PuntoVivo[];
+    } catch {
+      // SSG sin registro (primer clon): el refresco lo llenará.
+    }
+  }
+  // Zona activa que filtra el panel Rescates (null = todas).
+  let zonaRescates: string | null = null;
+  // Huella del último render de la sección de ciudades reportadas (evita
+  // re-renders duplicados en el mismo ciclo de refresco).
+  let ultimaHuellaCiudades = "";
 
   const slotZonas = document.getElementById("zonas-slot");
   const ciudadesSSG: CiudadReportada[] = slotZonas
@@ -485,9 +505,6 @@ const enlaceMaps = (lat: number, lng: number) =>
     slot.innerHTML = renderZonasListaHTML(zonasActuales, ciudades, fechaZonas);
     window.dispatchEvent(new CustomEvent("enlace:zonas:re-render"));
   }
-
-  /** Zona activa que filtra el panel Rescates (null = todas). */
-  let zonaRescates: string | null = null;
 
   /** Fila del panel Rescates (mismo markup SSG; clic en la fila = ver en el mapa). */
   /** Badge de verificación en HTML (mismo mapeo que el SSG, sin inventar). */
@@ -537,7 +554,7 @@ const enlaceMaps = (lat: number, lng: number) =>
     }
     return (
       filtro +
-      `${agregado.length > 0 ? `<span class="rescate-agregado" id="rescate-agregado">${activos.length} punto${activos.length === 1 ? "" : "s"} necesitan: ${agregado.slice(0, 4).map((a) => `${etiquetaNecesidad(a.id)} ×${a.cuenta}`).join(", ")}</span>` : ""}` +
+      `${agregado.length > 0 ? `<span class="rescate-agregado" id="rescate-agregado">${activos.length} punto${activos.length === 1 ? "" : "s"} necesitan: ${agregado.slice(0, 4).map((a) => `${escapar(etiquetaNecesidad(a.id))} ×${a.cuenta}`).join(", ")}</span>` : ""}` +
       `<div id="rescate-lista">${activos.map(filaRescateHTML).join("")}</div>`
     );
   }
@@ -562,16 +579,20 @@ const enlaceMaps = (lat: number, lng: number) =>
     const conteo = document.querySelector<HTMLSpanElement>(".leyenda-tira input[value='rescates'] ~ .tira-label");
     if (conteo) conteo.textContent = `Rescates (${vivos.filter((p) => puntoActivo(p)).length})`;
 
-    // Ciudades reportadas: sección del panel Zonas + opciones del select
+    // Ciudades reportadas: sección del panel Zonas + opciones del select.
+    // Guard de huella: el mismo ciclo de refresco ya re-renderizó el panel
+    // Zonas (reRenderZonas) — no repetir el render con contenido idéntico.
     const reportadas = ciudadesReportadasActuales();
+    const huellaCiudades = JSON.stringify(reportadas);
     const seccion = document.getElementById("zonas-ciudadanas");
-    if (seccion) {
+    if (seccion && huellaCiudades !== ultimaHuellaCiudades) {
+      ultimaHuellaCiudades = huellaCiudades;
       seccion.hidden = reportadas.length === 0;
       if (reportadas.length > 0) {
         seccion.innerHTML =
           `<div class="zonas-ciudadanas-head">` +
           `<span class="zonas-ciudadanas-label">Ciudades con reportes ciudadanos</span>` +
-          `<span class="zonas-count">${reportadas.length}</span></div>` +
+          `<span class="zonas-count" aria-label="${reportadas.length} ciudades reportadas">${reportadas.length}</span></div>` +
           reportadas
             .map(
               (c) =>
