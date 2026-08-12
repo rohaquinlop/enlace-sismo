@@ -27,10 +27,13 @@ const grupos = agruparPorCiudad(jornadasSangre);
           Las jornadas oficiales están siendo confirmadas por la Cruz Roja y las alcaldías.
           Este es un proyecto open-source: si tienes un dato verificado, súbelo y publícalo.
         </p>
-        <a class="btn btn-primary" href="https://github.com/rohaquinlop/enlace-sismo/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener">Agregar una jornada (guía)</a>
+        <a class="btn btn-primary" href="/donar-sangre/sugerir-jornada">Sugerir una jornada</a>
       </div>
     ) : (
       <>
+        <div class="filtros">
+          <a class="btn btn-primary" href="/donar-sangre/sugerir-jornada">Sugerir una jornada</a>
+        </div>
         {grupos.map((grupo) => (
           <section class="ciudad-grupo" data-ciudad={grupo.ciudad} data-lat={grupo.lat} data-lng={grupo.lng}>
             <h2 class="ciudad-titulo">{grupo.ciudad}</h2>

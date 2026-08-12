@@ -395,4 +395,135 @@ app.post("/acopio", async (c) => {
   }
 });
 
+// ---------- Sugerencias de jornada de donación de sangre ----------
+
+interface SugerenciaJornadaSangreBody {
+  organizador: string;
+  punto: string;
+  ciudad: string;
+  departamento: string;
+  direccion: string;
+  lat: number;
+  lng: number;
+  coordenadas_nivel: "premisa" | "via" | "barrio";
+  fecha_inicio: string;
+  fecha_fin?: string;
+  horario: string;
+  grupos?: string[];
+  estado: "activa" | "finalizada" | "sin-confirmar";
+  contacto?: string;
+  fuente: string;
+  website?: string;
+}
+
+app.post("/donacion-sangre", async (c) => {
+  const body = await c.req.json().catch(() => null);
+  if (!body) return c.json({ error: "JSON inválido" }, 400);
+
+  if (body.website) return c.json({ ok: true });
+
+  if (!(await rateLimit(c, "rl:donacion-sangre", 5))) {
+    return c.json({ error: "Demasiadas sugerencias. Intenta en una hora." }, 429);
+  }
+
+  const { organizador, punto, ciudad, departamento, direccion, lat, lng, coordenadas_nivel, fecha_inicio, fecha_fin, horario, grupos, estado, contacto, fuente } =
+    body as SugerenciaJornadaSangreBody;
+
+  if (!organizador || String(organizador).length < 3) return c.json({ error: "organizador es obligatorio (mínimo 3 caracteres)" }, 400);
+  if (!punto || String(punto).length < 3) return c.json({ error: "punto es obligatorio (mínimo 3 caracteres)" }, 400);
+  if (!ciudad || String(ciudad).length < 2) return c.json({ error: "ciudad es obligatoria (mínimo 2 caracteres)" }, 400);
+  if (!departamento || String(departamento).length < 2) return c.json({ error: "departamento es obligatorio (mínimo 2 caracteres)" }, 400);
+  if (!direccion || String(direccion).length < 5) return c.json({ error: "dirección es obligatoria (mínimo 5 caracteres)" }, 400);
+  if (lat == null || typeof lat !== "number" || lat < -90 || lat > 90) return c.json({ error: "lat es obligatoria (entre -90 y 90)" }, 400);
+  if (lng == null || typeof lng !== "number" || lng < -180 || lng > 180) return c.json({ error: "lng es obligatoria (entre -180 y 180)" }, 400);
+  const NIVELES = ["premisa", "via", "barrio"];
+  if (!coordenadas_nivel || !NIVELES.includes(coordenadas_nivel)) return c.json({ error: "coordenadas_nivel es obligatorio (premisa/via/barrio)" }, 400);
+  if (!fecha_inicio || !/^\d{4}-\d{2}-\d{2}$/.test(fecha_inicio)) return c.json({ error: "fecha_inicio es obligatoria (formato YYYY-MM-DD)" }, 400);
+  if (fecha_fin && !/^\d{4}-\d{2}-\d{2}$/.test(fecha_fin)) return c.json({ error: "fecha_fin debe tener formato YYYY-MM-DD" }, 400);
+  if (!horario || String(horario).length < 3) return c.json({ error: "horario es obligatorio (mínimo 3 caracteres)" }, 400);
+  if (grupos != null && !Array.isArray(grupos)) return c.json({ error: "grupos debe ser un arreglo" }, 400);
+
+  const ESTADOS = ["activa", "finalizada", "sin-confirmar"];
+  if (estado && !ESTADOS.includes(estado)) return c.json({ error: "estado inválido" }, 400);
+  if (!fuente || !/^https?:\/\//.test(fuente)) return c.json({ error: "fuente debe ser una URL válida" }, 400);
+
+  const sOrganizador = md(String(organizador).slice(0, 200));
+  const sPunto = md(String(punto).slice(0, 200));
+  const sCiudad = md(String(ciudad).slice(0, 80));
+  const sDepto = md(String(departamento).slice(0, 80));
+  const sDir = md(String(direccion).slice(0, 300));
+  const sHorario = md(String(horario).slice(0, 200));
+  const sContacto = contacto ? md(String(contacto).slice(0, 200)) : undefined;
+  const sFuente = md(String(fuente).slice(0, 500));
+  const sEstado = estado && ESTADOS.includes(estado) ? estado : "sin-confirmar";
+  const sNivel = String(coordenadas_nivel);
+  const sGrupos = grupos ? grupos.map((g) => md(String(g).slice(0, 20))).slice(0, 10) : [];
+  const ip = c.req.header("cf-connecting-ip") ?? "local-dev";
+  const ahora = new Date().toISOString();
+
+  const fechas = fecha_fin ? `${fecha_inicio} a ${fecha_fin}` : `desde ${fecha_inicio}`;
+
+  const issueBody = [
+    `## Sugerencia de jornada de donación de sangre`,
+    ``,
+    `> **${sPunto}** — ${sCiudad}, ${sDepto}`,
+    ``,
+    `### Datos de la jornada`,
+    ``,
+    `| Campo | Valor |`,
+    `|-------|-------|`,
+    `| **Organizador** | ${sOrganizador} |`,
+    `| **Punto de donación** | ${sPunto} |`,
+    `| **Ciudad** | ${sCiudad} |`,
+    `| **Departamento** | ${sDepto} |`,
+    `| **Dirección** | ${sDir} |`,
+    `| **Latitud** | ${lat} |`,
+    `| **Longitud** | ${lng} |`,
+    `| **Nivel de precisión** | ${sNivel} |`,
+    `| **Fechas** | ${fechas} |`,
+    `| **Horario** | ${sHorario} |`,
+    `| **Grupos solicitados** | ${sGrupos.length ? sGrupos.join(", ") : "todos"} |`,
+    `| **Estado** | ${sEstado} |`,
+    `| **Contacto** | ${sContacto || "no proporcionado"} |`,
+    `| **Fuente** | [${sFuente}](<${sFuente}>) |`,
+    ``,
+    `---`,
+    `*Enviado por: ${ip} — ${ahora}*`,
+    ``,
+    `> Esta jornada será publicada como **sin confirmar** hasta que un mantenedor verifique la fuente.`,
+  ].join("\n");
+
+  const issueTitle = `[donacion-sangre] ${sPunto} — ${sCiudad}`;
+
+  try {
+    const ghRes = await fetch("https://api.github.com/repos/rohaquinlop/enlace-sismo/issues", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${c.env.GITHUB_TOKEN}`,
+        Accept: "application/vnd.github+json",
+        "Content-Type": "application/json",
+        "User-Agent": "enlace-sismo/1.0",
+        "X-GitHub-Api-Version": "2022-11-28",
+      },
+      body: JSON.stringify({
+        title: issueTitle,
+        body: issueBody,
+        labels: ["sugerencia-donacion-sangre", "sin-verificar"],
+      }),
+    });
+
+    if (!ghRes.ok) {
+      const ghErr = await ghRes.text().catch(() => "sin detalle");
+      console.error("GitHub API error:", ghRes.status, ghErr);
+      return c.json({ error: "No se pudo crear el reporte. Intenta más tarde." }, 502);
+    }
+
+    const ghData = (await ghRes.json()) as { html_url: string };
+    return c.json({ ok: true, issue_url: ghData.html_url }, 201);
+  } catch (err) {
+    console.error("Error al crear issue:", err);
+    return c.json({ error: "No se pudo crear el reporte. Intenta más tarde." }, 502);
+  }
+});
+
 export default app;
