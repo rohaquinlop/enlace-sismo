@@ -5,7 +5,6 @@ import Map from "../components/Map.astro";
 import MapLegend from "../components/MapLegend.astro";
 import DatosEvento from "../components/DatosEvento.astro";
 import ZonasLista from "../components/ZonasLista.astro";
-import IndiceSecciones from "../components/IndiceSecciones.astro";
 import StatusBadge from "../components/StatusBadge.astro";
 import { acopios, albergues, centrosSalud, jornadasSangre, todasLasCiudades } from "../lib/catalogs";
 import { zonas } from "../lib/zonas";
@@ -79,18 +78,12 @@ const enlaceMaps = (lat: number, lng: number) =>
             <button type="button" class="rail-tab" role="tab" id="tab-zonas" aria-controls="panel-zonas" aria-selected="true">
               Zonas
             </button>
-            <button type="button" class="rail-tab" role="tab" id="tab-secciones" aria-controls="panel-secciones" aria-selected="false" tabindex="-1">
-              Secciones
-            </button>
             <button type="button" class="rail-tab" role="tab" id="tab-rescates" aria-controls="panel-rescates" aria-selected="false" tabindex="-1">
               Rescates
             </button>
           </div>
           <div class="rail-panel" role="tabpanel" id="panel-zonas" aria-labelledby="tab-zonas">
             <ZonasLista zonas={zonas} ciudadesReportadas={ciudadesReportadas} />
-          </div>
-          <div class="rail-panel" role="tabpanel" id="panel-secciones" aria-labelledby="tab-secciones">
-            <IndiceSecciones />
           </div>
           <!-- Puntos de rescate: reportes ciudadanos en vivo (registro
                commiteado por el worker; la lista es SSG, el script la
