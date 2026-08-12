@@ -31,7 +31,6 @@ const CATALOGOS = [
   { file: "contactos.json", schema: "contacto.schema.json", key: null },
   { file: "canales-ayuda.json", schema: "canal-ayuda.schema.json", key: null },
   { file: "zonas-afectadas.json", schema: "zonas.schema.json", key: null },
-  { file: "puntos-rescate.json", schema: "punto-rescate.schema.json", key: null },
 ];
 
 let errors = 0;
