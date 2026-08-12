@@ -56,6 +56,7 @@
     },
     "fuente": {
       "type": "string",
+      "format": "uri",
       "description": "URL de la fuente oficial que respalda el punto. Se agrega al verificar."
     },
     "verificado_por": {
@@ -65,11 +66,13 @@
     },
     "fecha_verificacion": {
       "type": "string",
+      "format": "date",
       "description": "Fecha en que se verificó (YYYY-MM-DD)."
     },
     "verificacion": {
       "type": "string",
       "enum": ["oficial", "confirmado", "sin-confirmar"],
+      "default": "sin-confirmar",
       "description": "oficial = entidad oficial · confirmado = verificado por 2+ revisores · sin-confirmar = pendiente."
     }
   },
