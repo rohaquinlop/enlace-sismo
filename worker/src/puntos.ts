@@ -212,6 +212,77 @@ app.post("/:id/flag", async (c) => {
   return c.json({ ok: true });
 });
 
+// ---------- Actualizar reporte (autor original por IP) ----------
+app.patch("/:id", async (c) => {
+  const id = c.req.param("id");
+  const body = await c.req.json().catch(() => null);
+  if (!body) return c.json({ error: "JSON inválido" }, 400);
+  // Honeypot
+  if (body.website) return c.json({ ok: true });
+  if (!(await rateLimit(c, "rl:actualizar", 5))) {
+    return c.json({ error: "Demasiadas actualizaciones. Intenta en una hora." }, 429);
+  }
+
+  const ip = c.req.header("cf-connecting-ip") ?? "local-dev";
+  const ipHash = await hashIp(ip);
+
+  // Validar campos opcionales enviados
+  const cambios: Partial<Pick<EntradaPunto, "descripcion" | "necesidades" | "otras_necesidades" | "contacto">> = {};
+
+  if (body.descripcion !== undefined) {
+    const desc = String(body.descripcion ?? "").trim();
+    if (desc.length < 3) return c.json({ error: "descripcion debe tener mínimo 3 caracteres" }, 400);
+    cambios.descripcion = desc.slice(0, MAX_DESCRIPCION);
+  }
+
+  if (body.necesidades !== undefined) {
+    const necesidades = Array.isArray(body.necesidades) ? body.necesidades.map(String) : [];
+    for (const n of necesidades) {
+      if (!NECESIDADES.includes(n)) return c.json({ error: `necesidad inválida: ${n}` }, 400);
+    }
+    if (new Set(necesidades).size !== necesidades.length) {
+      return c.json({ error: "necesidades duplicadas" }, 400);
+    }
+    cambios.necesidades = Array.from(new Set(necesidades));
+  }
+
+  if (body.otras_necesidades !== undefined) {
+    cambios.otras_necesidades = String(body.otras_necesidades ?? "").slice(0, 300) || undefined;
+  }
+
+  if (body.contacto !== undefined) {
+    cambios.contacto = body.contacto ? String(body.contacto).slice(0, 200) : undefined;
+  }
+
+  if (Object.keys(cambios).length === 0) {
+    return c.json({ error: "No se enviaron campos para actualizar" }, 400);
+  }
+
+  try {
+    await escribirRegistro(c, (entradas) => {
+      const punto = entradas.find((p) => p.id === id);
+      if (!punto) throw new RegistroError("Punto no encontrado", 404);
+      if (!ESTADOS_ACTIVOS.includes(punto.estado)) {
+        throw new RegistroError("Este punto ya no está activo");
+      }
+      // Aplicar cambios
+      if (cambios.descripcion !== undefined) punto.descripcion = cambios.descripcion;
+      if (cambios.necesidades !== undefined) punto.necesidades = cambios.necesidades;
+      if (cambios.otras_necesidades !== undefined) punto.otras_necesidades = cambios.otras_necesidades;
+      else if ("otras_necesidades" in cambios) delete punto.otras_necesidades;
+      if (cambios.contacto !== undefined) punto.contacto = cambios.contacto;
+      else if ("contacto" in cambios) delete punto.contacto;
+      // Registrar la edición
+      if (!punto.ediciones) punto.ediciones = [];
+      punto.ediciones.push({ ip_hash: ipHash, created_at: new Date().toISOString() });
+      return entradas;
+    });
+  } catch (e) {
+    return manejarRegistroError(c, e);
+  }
+  return c.json({ ok: true });
+});
+
 // ---------- Estado (admin): resuelto / falso / promovido / confirmado / en-curso ----------
 app.post("/:id/estado", async (c) => {
   const token = c.req.header("Authorization")?.replace("Bearer ", "");

@@ -17,7 +17,6 @@ import jornadaSangreSchema from "../../data/schema/jornada-sangre.schema.json";
 import canalAyudaSchema from "../../data/schema/canal-ayuda.schema.json";
 import zonasSchema from "../../data/schema/zonas.schema.json";
 import contactoSchema from "../../data/schema/contacto.schema.json";
-import puntoRescateSchema from "../../data/schema/punto-rescate.schema.json";
 import reportePuntoSchema from "../../data/schema/reporte-punto.schema.json";
 
 const REPO_DEFAULT = "rohaquinlop/enlace-sismo";
@@ -57,7 +56,9 @@ const CATALOGOS: Record<string, DefCatalogo> = {
   "canales-ayuda": { ruta: "data/canales-ayuda.json", campo: null, valida: compilar(canalAyudaSchema) },
   "zonas-afectadas": { ruta: "data/zonas-afectadas.json", campo: null, valida: compilar(zonasSchema) },
   contactos: { ruta: "data/contactos.json", campo: null, valida: compilar(contactoSchema) },
-  "puntos-rescate": { ruta: "data/puntos-rescate.json", campo: null, valida: compilar(puntoRescateSchema) },
+  // Nota: data/puntos-rescate.json fue unificado en el registro en vivo
+  // (PR #75): los puntos verificados viven en reportes-puntos.json con
+  // nombre/fuente y se sirven vía el catálogo `registro`.
   evento: {
     ruta: "data/evento.json",
     campo: null,

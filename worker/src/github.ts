@@ -30,6 +30,11 @@ export interface Flag {
   created_at: string;
 }
 
+export interface Edicion {
+  ip_hash: string;
+  created_at: string;
+}
+
 export interface EntradaPunto {
   id: string;
   tipo: string;
@@ -46,8 +51,15 @@ export interface EntradaPunto {
   confirmaciones: Confirmacion[];
   flags: Flag[];
   ultima_confirmacion?: string;
+  ediciones?: Edicion[];
   ip_hash: string;
   created_at: string;
+  // Campos de verificación (opcionales: se agregan al promover)
+  nombre?: string;
+  fuente?: string;
+  verificado_por?: string;
+  fecha_verificacion?: string;
+  verificacion?: "oficial" | "confirmado" | "sin-confirmar";
 }
 
 /** Error de dominio del registro; lleva el status HTTP que debe devolver la ruta. */

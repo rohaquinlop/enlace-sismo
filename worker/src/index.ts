@@ -40,7 +40,7 @@ app.use(
       ];
       return allowed.includes(origin) ? origin : "https://enlacesismo.com";
     },
-    allowMethods: ["GET", "POST"],
+    allowMethods: ["GET", "POST", "PATCH"],
   })
 );
 

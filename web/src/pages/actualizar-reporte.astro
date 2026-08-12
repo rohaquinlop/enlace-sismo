@@ -1,0 +1,391 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import { NECESIDADES } from "../lib/necesidades";
+---
+
+<BaseLayout
+  title="Actualizar reporte — Enlace Sismo"
+  description="Actualiza la descripción, necesidades o contacto de un punto de rescate que reportaste."
+>
+  <section class="seccion-titulo">
+    <h1>Actualizar reporte</h1>
+    <p>
+      Modifica la descripción, las necesidades o el contacto de un punto de rescate
+      que reportaste previamente. Solo el autor original (misma IP) puede actualizar.
+    </p>
+  </section>
+
+  <noscript>
+    <div class="aviso danger">
+      <strong>Este formulario necesita JavaScript.</strong>
+      Mientras tanto, reporta por los canales oficiales: Defensa Civil (144), Bomberos (119),
+      Cruz Roja (132) o la línea de emergencia <strong>123</strong>.
+    </div>
+  </noscript>
+
+  <div class="aviso" id="aviso-carga" hidden>
+    <strong>Cargando datos del reporte…</strong>
+  </div>
+
+  <div class="aviso danger" id="aviso-error" hidden></div>
+
+  <form id="form-actualizar" class="panel form-punto" novalidate hidden>
+    <div class="resumen-punto" id="resumen-punto"></div>
+
+    <h2>Descripcion</h2>
+    <div class="form-group">
+      <label for="descripcion">Descripcion *</label>
+      <textarea id="descripcion" name="descripcion" rows="3" minlength="3" required placeholder="Describe la situacion actual del punto…"></textarea>
+      <span class="helper" id="helper-descripcion"></span>
+    </div>
+
+    <fieldset class="form-group necesidades">
+      <legend>Necesidades actuales</legend>
+      <div class="necesidades-grid">
+        {NECESIDADES.map((n) => (
+          <label class="necesidad-chip">
+            <input type="checkbox" value={n.id} />
+            <span>{n.label}</span>
+          </label>
+        ))}
+      </div>
+    </fieldset>
+
+    <div class="form-group">
+      <label for="otras_necesidades">Otras necesidades</label>
+      <input type="text" id="otras_necesidades" name="otras_necesidades" placeholder="P. ej. cuerdas de 30 m, comida para perros de rescate…" maxlength="300" />
+    </div>
+
+    <div class="form-group">
+      <label for="contacto">Contacto (opcional)</label>
+      <input type="text" id="contacto" name="contacto" placeholder="Telefono o WhatsApp para coordinar la llegada" maxlength="200" />
+    </div>
+
+    <!-- Honeypot -->
+    <div class="form-honeypot" aria-hidden="true">
+      <label for="website">Website</label>
+      <input type="text" id="website" name="website" tabindex="-1" autocomplete="off" />
+    </div>
+
+    <div class="form-acciones">
+      <button type="submit" class="btn btn-primary" id="btn-enviar">Guardar cambios</button>
+      <a class="btn" href="/#mapa">Cancelar</a>
+    </div>
+  </form>
+
+  <div class="modal-resultado" id="modal-resultado" data-tipo="" role="dialog" aria-modal="true" aria-labelledby="modal-titulo">
+    <div class="modal-resultado-card">
+      <div class="modal-resultado-icono" id="modal-icono"></div>
+      <div class="modal-resultado-titulo" id="modal-titulo"></div>
+      <div class="modal-resultado-mensaje" id="modal-mensaje"></div>
+      <div class="modal-acciones" id="modal-acciones"></div>
+      <button class="btn btn-primary" id="modal-cerrar">Cerrar</button>
+    </div>
+  </div>
+</BaseLayout>
+
+<script>
+  import { apiUrl } from "../lib/api";
+  import { etiquetaTipo, ESTADOS_PUNTO } from "../lib/necesidades";
+  import type { PuntoVivo } from "../lib/puntos-rescate";
+
+  // ---------- Referencias del DOM ----------
+  const form = document.getElementById("form-actualizar") as HTMLFormElement | null;
+  const btnEnviar = document.getElementById("btn-enviar") as HTMLButtonElement | null;
+  const avisoCarga = document.getElementById("aviso-carga") as HTMLDivElement | null;
+  const avisoError = document.getElementById("aviso-error") as HTMLDivElement | null;
+  const resumenEl = document.getElementById("resumen-punto") as HTMLDivElement | null;
+  const modal = document.getElementById("modal-resultado") as HTMLDivElement | null;
+  const modalIcono = document.getElementById("modal-icono") as HTMLDivElement | null;
+  const modalTitulo = document.getElementById("modal-titulo") as HTMLDivElement | null;
+  const modalMensaje = document.getElementById("modal-mensaje") as HTMLDivElement | null;
+  const modalAcciones = document.getElementById("modal-acciones") as HTMLDivElement | null;
+  const modalCerrar = document.getElementById("modal-cerrar") as HTMLButtonElement | null;
+
+  const ICONO_OK = `<svg viewBox="0 0 16 16" width="22" height="22" aria-hidden="true" fill="none"><path d="M2.5 8.5 6 12l7.5-8" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+  const ICONO_ERROR = `<svg viewBox="0 0 16 16" width="22" height="22" aria-hidden="true" fill="none"><path d="m3.5 3.5 9 9m0-9-9 9" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>`;
+
+  // ---------- Obtener ID del reporte desde la URL ----------
+  const params = new URLSearchParams(window.location.search);
+  const puntoId = params.get("id");
+
+  if (!puntoId) {
+    mostrarError("No se especifico un reporte para actualizar. Vuelve al mapa y selecciona un punto.");
+  } else {
+    void cargarReporte(puntoId);
+  }
+
+  async function cargarReporte(id: string) {
+    if (avisoCarga) avisoCarga.hidden = false;
+    try {
+      const res = await fetch("/datos/reportes-puntos.json");
+      if (!res.ok) {
+        mostrarError("No se pudieron cargar los reportes. Intenta mas tarde.");
+        return;
+      }
+      const datos = (await res.json()) as PuntoVivo[];
+      const punto = datos.find((p) => p.id === id);
+      if (!punto) {
+        mostrarError("Reporte no encontrado. Puede que haya sido archivado o eliminado.");
+        return;
+      }
+      rellenarFormulario(punto);
+    } catch {
+      mostrarError("Error de conexion. Intenta mas tarde.");
+    } finally {
+      if (avisoCarga) avisoCarga.hidden = true;
+    }
+  }
+
+  function rellenarFormulario(punto: PuntoVivo) {
+    if (!form || !resumenEl) return;
+
+    // Mostrar resumen del punto
+    const escapar = (s: string) =>
+      s.replace(/[&<>"']/g, (c) =>
+        ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!
+      );
+    resumenEl.innerHTML =
+      `<p class="resumen-meta"><strong>${escapar(etiquetaTipo(punto.tipo))}</strong>` +
+      ` · <span class="badge">${escapar(ESTADOS_PUNTO[punto.estado] ?? punto.estado)}</span>` +
+      `${punto.ciudad ? ` · ${escapar(punto.ciudad)}` : ""}</p>` +
+      `${punto.direccion ? `<p class="resumen-dir">${escapar(punto.direccion)}</p>` : ""}`;
+
+    // Rellenar campos
+    const descEl = document.getElementById("descripcion") as HTMLTextAreaElement | null;
+    if (descEl) descEl.value = punto.descripcion;
+
+    const otrasEl = document.getElementById("otras_necesidades") as HTMLInputElement | null;
+    if (otrasEl) otrasEl.value = punto.otras_necesidades ?? "";
+
+    const contactoEl = document.getElementById("contacto") as HTMLInputElement | null;
+    if (contactoEl) contactoEl.value = punto.contacto ?? "";
+
+    // Marcar checkboxes de necesidades
+    const checkboxes = form.querySelectorAll<HTMLInputElement>(".necesidades-grid input[type='checkbox']");
+    checkboxes.forEach((cb) => {
+      cb.checked = punto.necesidades.includes(cb.value);
+    });
+
+    form.hidden = false;
+  }
+
+  function mostrarError(msg: string) {
+    if (avisoError) {
+      avisoError.textContent = msg;
+      avisoError.hidden = false;
+    }
+  }
+
+  // ---------- Modal ----------
+  function mostrarModal(tipo: "ok" | "error", titulo: string, mensaje: string, accionesHtml = "") {
+    if (!modal || !modalIcono || !modalTitulo || !modalMensaje || !modalAcciones) return;
+    modal.dataset.tipo = tipo;
+    modalIcono.innerHTML = tipo === "ok" ? ICONO_OK : ICONO_ERROR;
+    modalTitulo.textContent = titulo;
+    modalMensaje.textContent = mensaje;
+    modalAcciones.innerHTML = accionesHtml;
+    modal.dataset.open = "true";
+    requestAnimationFrame(() => modalCerrar?.focus());
+  }
+
+  function cerrarModal() {
+    if (!modal) return;
+    modal.dataset.open = "false";
+    if (modal.dataset.enviado === "true") {
+      window.location.href = "/#mapa";
+    }
+  }
+
+  modalCerrar?.addEventListener("click", cerrarModal);
+  modal?.addEventListener("click", (e) => {
+    if (e.target === modal) cerrarModal();
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && modal?.dataset.open === "true") cerrarModal();
+  });
+
+  // ---------- Validacion y envio ----------
+  function limpiarErrores() {
+    if (!form) return;
+    form.querySelectorAll<HTMLElement>("[aria-invalid]").forEach((el) => el.removeAttribute("aria-invalid"));
+    form.querySelectorAll<HTMLElement>(".helper.error").forEach((el) => el.classList.remove("error"));
+  }
+
+  function errorCampo(id: string, msg: string) {
+    const input = document.getElementById(id) as HTMLInputElement | HTMLTextAreaElement | null;
+    const helper = document.getElementById(`helper-${id}`);
+    if (input) input.setAttribute("aria-invalid", "true");
+    if (helper) {
+      helper.textContent = msg;
+      helper.classList.add("error");
+    }
+  }
+
+  function validar(): boolean {
+    let ok = true;
+    const descripcion = (document.getElementById("descripcion") as HTMLTextAreaElement | null)?.value.trim() ?? "";
+    if (descripcion.length < 3) {
+      errorCampo("descripcion", "Describe que paso (minimo 3 caracteres)");
+      ok = false;
+    }
+    return ok;
+  }
+
+  if (form) {
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      limpiarErrores();
+      if (!validar()) return;
+
+      if (btnEnviar) {
+        btnEnviar.disabled = true;
+        btnEnviar.setAttribute("aria-busy", "true");
+        btnEnviar.textContent = "Guardando…";
+      }
+
+      const necesidades = Array.from(
+        form.querySelectorAll<HTMLInputElement>(".necesidades-grid input[type='checkbox']:checked")
+      ).map((c) => c.value);
+
+      const getVal = (id: string) =>
+        (document.getElementById(id) as HTMLInputElement | HTMLTextAreaElement | null)?.value.trim() ?? "";
+
+      const body = {
+        descripcion: getVal("descripcion"),
+        necesidades,
+        otras_necesidades: getVal("otras_necesidades") || undefined,
+        contacto: getVal("contacto") || undefined,
+        website: getVal("website"), // honeypot
+      };
+
+      try {
+        const res = await fetch(apiUrl(`/api/puntos/${puntoId}`), {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        const data = (await res.json().catch(() => null)) as { ok?: boolean; error?: string } | null;
+
+        if (res.ok && data?.ok) {
+          if (modal) modal.dataset.enviado = "true";
+          mostrarModal(
+            "ok",
+            "Reporte actualizado",
+            "Los cambios se publicaran en el mapa en unos minutos.",
+            `<a class="btn btn-primary" href="/#mapa">Ver en el mapa</a>`
+          );
+        } else {
+          const msg = data?.error ?? "No se pudo actualizar. Intenta mas tarde.";
+          mostrarModal("error", "Error al actualizar", msg);
+        }
+      } catch (err) {
+        console.error("enlace-sismo: error al actualizar el reporte", err);
+        const esRed = err instanceof TypeError;
+        const esLocal = location.hostname === "localhost" || location.hostname === "127.0.0.1";
+        mostrarModal(
+          "error",
+          "No se pudo actualizar",
+          esRed && esLocal
+            ? `No hay conexion con el servidor (${apiUrl(`/api/puntos/${puntoId}`)}). En desarrollo, corre tambien "npm run dev:api".`
+            : esRed
+              ? "No hay conexion con el servidor. Intenta en unos minutos."
+              : "Ocurrio un error inesperado. Intenta nuevamente."
+        );
+      }
+
+      if (btnEnviar) {
+        btnEnviar.disabled = false;
+        btnEnviar.removeAttribute("aria-busy");
+        btnEnviar.textContent = "Guardar cambios";
+      }
+    });
+  }
+</script>
+
+<style>
+  .resumen-punto {
+    border: 1px solid var(--color-rule);
+    border-radius: var(--radius-md);
+    padding: var(--space-sm) var(--space-md);
+    background: var(--color-paper-2);
+    margin-bottom: var(--space-md);
+  }
+  .resumen-meta {
+    margin: 0;
+    font-size: var(--text-sm);
+  }
+  .resumen-dir {
+    margin: var(--space-2xs) 0 0;
+    font-size: var(--text-sm);
+    color: var(--color-ink-2);
+  }
+  .badge {
+    display: inline-block;
+    padding: 0.1em 0.5em;
+    border-radius: var(--radius-sm);
+    background: var(--color-paper-2);
+    border: var(--rule-hair) solid var(--color-rule);
+    font-size: var(--text-xs);
+    font-weight: 500;
+  }
+  .form-group.necesidades {
+    border: 0;
+    padding: 0;
+    margin: 0 0 var(--space-md);
+    min-width: 0;
+  }
+  .form-group.necesidades legend {
+    display: block;
+    font-weight: 500;
+    font-size: var(--text-sm);
+    margin-bottom: var(--space-2xs);
+  }
+  .necesidades-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-xs);
+  }
+  .necesidad-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2xs);
+    min-height: 44px;
+    padding: var(--space-xs) var(--space-sm);
+    border: var(--rule-hair) solid var(--color-rule);
+    border-radius: var(--radius-sm);
+    background: var(--color-paper);
+    font-size: var(--text-sm);
+    white-space: nowrap;
+    cursor: pointer;
+    transition: border-color var(--dur-micro) var(--ease-out),
+      background-color var(--dur-micro) var(--ease-out);
+  }
+  .necesidad-chip:hover {
+    border-color: var(--color-rule-2);
+  }
+  .necesidad-chip:has(input:checked) {
+    border-color: var(--color-accent);
+    background: var(--color-paper-2);
+  }
+  .necesidad-chip:has(input:focus-visible) {
+    outline: 2px solid var(--color-focus);
+    outline-offset: 2px;
+  }
+  .necesidad-chip input {
+    width: 1rem;
+    height: 1rem;
+    min-height: 0;
+    flex: none;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: none;
+    outline: none;
+    accent-color: var(--color-accent);
+  }
+  .modal-acciones {
+    margin-bottom: var(--space-sm);
+  }
+</style>

@@ -25,5 +25,30 @@
     "created_at": "2026-08-11T23:57:08.016Z",
     "direccion": "Carrera 58 con Calle 4ta",
     "ciudad": "Cali"
+  },
+  {
+    "id": "p-mspesiqt-fncs",
+    "tipo": "derrumbe",
+    "lat": 3.414716,
+    "lng": -76.541692,
+    "coordenadas_nivel": "premisa",
+    "descripcion": "Edificio desplomado, no hay insumos, herramientas ni alimentos",
+    "necesidades": [
+      "linternas",
+      "palas",
+      "picos",
+      "mascarillas",
+      "cuerdas",
+      "botiquin",
+      "voluntarios"
+    ],
+    "estado": "sin-confirmar",
+    "confirmaciones": [],
+    "flags": [],
+    "ultima_confirmacion": "2026-08-12T01:26:55.205Z",
+    "ip_hash": "eff8e7ca506627fe15dda5e0e512fcaad70b6d520f37cc76597fdb4f2d83a1a3",
+    "created_at": "2026-08-12T01:26:55.205Z",
+    "direccion": "Calle 8B #45-17",
+    "ciudad": "Cali"
   }
 ]

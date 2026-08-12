@@ -747,7 +747,7 @@ h2 {
   display: none;
 }
 
-/* Rail derecho con pestañas (Zonas · Secciones) */
+/* Rail derecho con pestañas (Zonas · Rescates) */
 .rail {
   display: flex;
   flex-direction: column;
@@ -1278,8 +1278,7 @@ h2 {
 }
 
 /* Filas de zona (ZonasLista): mismas reglas de layout que dash-row, con su
-   propia nomenclatura (.zona-fila-*) — portadas aquí para que la lista del
-   rail no dependa de clases de IndiceSecciones */
+   propia nomenclatura (.zona-fila-*) */
 .zona-fila .zona-fila-top {
   display: flex;
   align-items: baseline;
