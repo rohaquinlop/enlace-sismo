@@ -26,6 +26,8 @@ body {
   line-height: 1.6;
   background: var(--color-paper);
   color: var(--color-ink-2);
+  /* viewport-fit=cover: el nav sticky nunca queda bajo la barra del sistema */
+  padding-top: env(safe-area-inset-top, 0px);
   padding-inline: max(1rem, env(safe-area-inset-left));
   padding-bottom: max(1rem, env(safe-area-inset-bottom));
 }
@@ -159,14 +161,20 @@ a:hover {
   border-color: var(--color-accent);
 }
 
-@media (hover: hover) and (pointer: fine) and (min-width: 60rem) {
-  .nav-secciones {
-    flex-wrap: wrap;
-    overflow-x: visible;
-  }
+/* Colapso por ajuste (JS añade .nav-overflow): cuando las secciones no
+   caben en una sola fila, la barra queda en marca + hamburguesa y las
+   secciones viven en el panel desplegable — mismo patrón en todas las
+   páginas y anchos (no envuelve a dos filas ni scrollea oculto). */
+.site-nav.nav-overflow .nav-secciones,
+.site-nav.nav-overflow > .btn {
+  display: none;
 }
 
-/* Hamburguesa — solo visible en móvil */
+.site-nav.nav-overflow .nav-hamburguesa {
+  display: flex;
+}
+
+/* Hamburguesa */
 .nav-hamburguesa {
   display: none;
   flex-direction: column;
@@ -186,112 +194,52 @@ a:hover {
   height: 2px;
   background: var(--color-ink);
   border-radius: 1px;
+  transition:
+    transform var(--dur-micro) var(--ease-out),
+    opacity var(--dur-micro) var(--ease-out);
 }
 
-@media (max-width: 60rem) {
-  .nav-hamburguesa {
-    display: flex;
-  }
-
-  .nav-secciones {
-    display: none;
-  }
+/* Panel desplegable: secciones en columna scrolleable + CTA a todo el ancho */
+.site-nav[data-expandido="true"] {
+  align-items: stretch;
+  flex-wrap: wrap;
 }
 
-/* Sidebar móvil */
-.nav-sidebar {
-  position: fixed;
-  top: 0;
-  left: 0;
-  bottom: 0;
-  width: min(85vw, 20rem);
-  z-index: var(--z-modal);
-  background: var(--color-paper);
-  border-right: var(--rule-hair) solid var(--color-rule-2);
-  transform: translateX(-100%);
-  transition: transform var(--dur-micro) var(--ease-out);
+.site-nav[data-expandido="true"] .nav-secciones {
   display: flex;
   flex-direction: column;
+  align-items: stretch;
+  flex: none;
+  flex-basis: 100%;
+  order: 2;
+  max-height: 40dvh;
   overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
 }
 
-.nav-sidebar[aria-hidden="false"] {
-  transform: translateX(0);
-}
-
-.nav-sidebar-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: var(--space-md);
-  border-bottom: var(--rule-hair) solid var(--color-rule);
-}
-
-.nav-sidebar-titulo {
-  font-family: var(--font-display);
-  font-weight: 600;
-  font-size: var(--text-md);
-}
-
-.nav-sidebar-cerrar {
-  width: 44px;
-  height: 44px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.5rem;
-  color: var(--color-muted);
-  background: none;
-  border: none;
-  cursor: pointer;
-}
-
-.nav-sidebar-cerrar:hover {
-  color: var(--color-ink);
-}
-
-.nav-sidebar-links {
-  display: flex;
-  flex-direction: column;
-  padding: var(--space-sm);
-}
-
-.nav-sidebar-links a {
-  font-family: var(--font-outlier);
-  font-size: var(--text-sm);
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-  color: var(--color-ink-2);
-  padding: var(--space-sm) var(--space-md);
-  border-radius: var(--radius-xs);
+.site-nav[data-expandido="true"] .nav-secciones a {
+  justify-content: flex-start;
   min-height: 44px;
-  display: flex;
-  align-items: center;
 }
 
-.nav-sidebar-links a:hover {
-  background: var(--color-paper-2);
-  text-decoration: none;
+.site-nav[data-expandido="true"] > .btn {
+  display: inline-flex;
+  order: 3;
+  width: 100%;
 }
 
-.nav-sidebar-links a.active {
-  color: var(--color-accent);
-  background: var(--color-paper-2);
+/* La hamburguesa pasa a X al expandir */
+.site-nav[data-expandido="true"] .hamburguesa-linea:nth-child(1) {
+  transform: translateY(6px) rotate(45deg);
 }
 
-.nav-sidebar-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: calc(var(--z-modal) - 1);
-  background: oklch(24% 0.02 258 / 0.4);
+.site-nav[data-expandido="true"] .hamburguesa-linea:nth-child(2) {
   opacity: 0;
-  pointer-events: none;
-  transition: opacity var(--dur-micro) var(--ease-out);
 }
 
-.nav-sidebar-backdrop[data-open="true"] {
-  opacity: 1;
-  pointer-events: auto;
+.site-nav[data-expandido="true"] .hamburguesa-linea:nth-child(3) {
+  transform: translateY(-6px) rotate(-45deg);
 }
 
 /* ============================================================
@@ -302,11 +250,6 @@ main {
   max-width: 68rem;
   margin: 0 auto;
   padding: 0 0 var(--space-2xl);
-}
-
-main.wide {
-  max-width: none;
-  padding: 0;
 }
 
 .seccion {
@@ -1011,11 +954,55 @@ h2 {
   line-height: 1.5;
 }
 
-/* Con mapa: dashboard superpuesto — todo sobre el mapa */
+/* ---- Modo app: el mapa ES la página (solo con JS + WebGL) ----   Con el mapa cargado (.con-mapa), el dashboard ocupa el viewport
+   completo: el nav flota sobre el mapa, la barra de evento es una
+   tarjeta bajo el nav, el rail se apoya en el borde derecho y la
+   tira de leyenda en la base izquierda. Sin footer: la página no
+   scrollea y nada compite con la lectura del territorio. */
+
+/* Superficie: el mapa llena el viewport (100dvh; fallback 100vh).
+   El nav es fixed (fuera de flujo): ya no se descuenta su altura
+   con un calc frágil que se rompía cuando el nav envolví a dos filas. */
 .dash.con-mapa {
+  --nav-h: calc(4.25rem + env(safe-area-inset-top, 0px));
   --barra-h: 3.25rem;
-  height: calc(100dvh - 4.5rem);
-  min-height: 34rem;
+  height: 100vh;
+  height: 100dvh;
+}
+
+/* La página entera pasa a modo app: sin paddings del body, sin footer,
+   y el main de BaseLayout full-bleed (sin el max-width 68rem ni el
+   padding vertical que añadían scroll). El nav flotante es la única
+   cabecera. */
+body:has(.dash.con-mapa) {
+  padding: 0;
+}
+
+body:has(.dash.con-mapa) main {
+  max-width: none;
+  margin: 0;
+  padding: 0;
+}
+
+body:has(.dash.con-mapa) .site-footer {
+  display: none;
+}
+
+/* Nav flotante sobre el mapa: translúcida + blur, hairline, contenido
+   con padding del sistema (safe-area). Las secciones no envuelven:
+   una sola fila, scrolleable si no caben. */
+body:has(.dash.con-mapa) .site-nav {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  padding: max(var(--space-sm), env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right)) var(--space-sm) max(1rem, env(safe-area-inset-left));
+  background: color-mix(in oklab, var(--color-paper) 85%, transparent);
+  backdrop-filter: blur(12px);
+}
+
+body:has(.dash.con-mapa) .nav-secciones {
+  flex-wrap: nowrap;
 }
 
 .dash.con-mapa .mapa-full {
@@ -1039,21 +1026,22 @@ h2 {
   pointer-events: auto;
 }
 
-/* Barra de estado — superior, full-width, translúcida. z-index por encima
-   del rail: la cabecera nunca se tapa, pase lo que pase. */
+/* Barra de estado — tarjeta graphite flotante bajo el nav, esquina
+   superior izquierda: el mapa se lee alrededor. Medida en runtime
+   (Map.astro): --nav-h-real / --barra-h-real ganan; los fallbacks
+   cubren navegadores sin ResizeObserver. */
 .dash.con-mapa .barra-evento {
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
+  top: calc(var(--nav-h-real, var(--nav-h)) + var(--space-sm));
+  left: max(var(--space-sm), env(safe-area-inset-left));
   max-width: none;
   margin: 0;
-  border-radius: 0;
+  border: var(--rule-hair) solid var(--color-graphite-2);
+  border-radius: var(--radius-sm);
   padding: var(--space-2xs) var(--space-md);
   gap: var(--space-2xs);
-  background: color-mix(in oklab, var(--color-graphite) 92%, transparent);
+  background: color-mix(in oklab, var(--color-graphite) 94%, transparent);
   backdrop-filter: blur(8px);
-  border-bottom: var(--rule-hair) solid var(--color-graphite-2);
   z-index: var(--z-dropdown);
 }
 
@@ -1064,6 +1052,8 @@ h2 {
 
 .dash.con-mapa .barra-fila-2 {
   display: none;
+  border-top: none;
+  padding-top: 0;
 }
 
 .dash.con-mapa .barra-evento h2 {
@@ -1078,13 +1068,19 @@ h2 {
   white-space: nowrap;
 }
 
-/* Rail derecho — un solo contenedor con pestañas */
+/* Controles de MapLibre: bajo la barra de evento (nunca bajo el nav,
+   el rail ni la hoja inferior — top-right quedaba oculto en ambos) */
+.dash.con-mapa .maplibregl-ctrl-top-left {
+  top: calc(var(--nav-h-real, var(--nav-h)) + var(--space-sm) + var(--barra-h-real, var(--barra-h)) + var(--space-sm));
+  left: max(var(--space-sm), env(safe-area-inset-left));
+}
+
+/* Rail derecho — un solo contenedor con pestañas, bajo el nav (la
+   barra de evento queda a la izquierda: no compiten por altura) */
 .dash.con-mapa .rail {
   position: absolute;
-  /* Medido en runtime (Map.astro): --barra-h-real gana; el fallback cubre
-     navegadores sin ResizeObserver */
-  top: var(--barra-h-real, var(--barra-h));
-  right: 0;
+  top: calc(var(--nav-h-real, var(--nav-h)) + var(--space-sm));
+  right: env(safe-area-inset-right, 0px);
   bottom: 0;
   width: 19rem;
   max-width: calc(100% - 2rem);
@@ -1127,8 +1123,8 @@ h2 {
 /* Tira de leyenda — base izquierda */
 .dash.con-mapa .leyenda-tira {
   position: absolute;
-  left: var(--space-sm);
-  bottom: var(--space-sm);
+  left: max(var(--space-sm), env(safe-area-inset-left));
+  bottom: max(var(--space-sm), env(safe-area-inset-bottom));
   max-width: calc(100% - 21rem);
 }
 
@@ -2523,9 +2519,9 @@ ul.picklist-list li:hover:not(.selected) {
   .dash.con-mapa .mapa-overlays {
     position: absolute;
     top: auto;
-    left: var(--space-sm);
-    right: var(--space-sm);
-    bottom: var(--space-sm);
+    left: max(var(--space-sm), env(safe-area-inset-left));
+    right: max(var(--space-sm), env(safe-area-inset-right));
+    bottom: max(var(--space-sm), env(safe-area-inset-bottom));
     max-height: 50dvh;
     overflow: hidden;
     display: flex;
@@ -2540,13 +2536,8 @@ ul.picklist-list li:hover:not(.selected) {
   }
 
   .dash.con-mapa .barra-evento {
-    position: absolute;
-    top: var(--space-sm);
-    left: var(--space-sm);
-    right: var(--space-sm);
+    right: max(var(--space-sm), env(safe-area-inset-right));
     padding: var(--space-xs) var(--space-sm);
-    border-radius: var(--radius-sm);
-    border-bottom: none;
   }
 
   .dash.con-mapa .barra-fila-1 {
@@ -2568,6 +2559,22 @@ ul.picklist-list li:hover:not(.selected) {
 
   .dash.con-mapa .barra-evento h2 {
     font-size: var(--text-sm);
+  }
+
+  /* ---- Nav en modo app (móvil): píldora ----
+     El colapso (ocultar secciones + panel desplegable) lo decide el ajuste
+     de contenido vía .nav-overflow (JS), no el ancho de viewport: en modo
+     app solo queda el estilo de píldora flotante. */
+  body:has(.dash.con-mapa) .site-nav {
+    top: max(var(--space-sm), env(safe-area-inset-top));
+    left: max(var(--space-sm), env(safe-area-inset-left));
+    right: max(var(--space-sm), env(safe-area-inset-right));
+    flex-wrap: wrap;
+    gap: var(--space-2xs);
+    padding: var(--space-2xs) var(--space-sm);
+    border: var(--rule-hair) solid var(--color-rule-2);
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-lift);
   }
 
   .dash.con-mapa .leyenda-tira {
@@ -2683,6 +2690,12 @@ ul.picklist-list li:hover:not(.selected) {
   .dash.con-mapa {
     /* Fallback con colchón: la medición real (--barra-h-real) lo supera */
     --barra-h: 5.75rem;
+  }
+
+  /* La tarjeta de evento no invade el carril del rail y se lee como
+     tarjeta, no como barra ancha (cap 42rem) */
+  .dash.con-mapa .barra-evento {
+    max-width: min(42rem, calc(100% - 21rem - 2 * var(--space-sm)));
   }
 
   .dash.con-mapa .barra-fila-2 {

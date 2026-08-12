@@ -60,11 +60,12 @@ const enlaceMaps = (lat: number, lng: number) =>
   title="Enlace Sismo — Información verificada para el sismo en Colombia"
   description="Mapa de zonas afectadas y epicentro del sismo M7.4 del 10 de agosto de 2026: intensidad, distancias y puntos de ayuda cerca de ti. Cada dato tiene fuente verificable."
 >
-  <main class="wide">
-    <!-- Progresivo: sin JavaScript o sin mapa, el contenido se lee en flujo
-         (evento → zonas → secciones → leyenda). Solo cuando el mapa carga,
-         .con-mapa posiciona esos bloques como overlays sobre el mapa. -->
-    <section class="dash" id="mapa" aria-label="Mapa de ayuda">
+  <!-- Progresivo: sin JavaScript o sin mapa, el contenido se lee en flujo
+       (evento → zonas → secciones → leyenda). Solo cuando el mapa carga,
+       .con-mapa posiciona esos bloques como overlays sobre el mapa.
+       (Sin <main> propio: BaseLayout ya lo aporta; un main anidado
+       constreñía el mapa al ancho de 68rem y añadía scroll vertical.) -->
+  <section class="dash" id="mapa" aria-label="Mapa de ayuda">
       <Map acopios={acopios} albergues={albergues} centros={centrosSalud} jornadas={jornadasSangre} zonas={zonas} ciudadesReportadas={ciudadesReportadas} />
 
       <DatosEvento />
@@ -180,7 +181,6 @@ const enlaceMaps = (lat: number, lng: number) =>
         <MapLegend ciudades={ciudadesFiltro} mostrarZonas mostrarRescates rescatesActivos={activos.length} />
       </div>
     </section>
-  </main>
 
 <script>
   import { apiUrl } from "../lib/api";
