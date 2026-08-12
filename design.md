@@ -38,18 +38,20 @@ datos legibles en segundos, cero metáforas editoriales.
 Semánticos de datos (viven en `tokens.css`, nunca como acento — el acento es
 solo cobalto): `--color-error` · `--color-ok` · `--color-sangre` ·
 `--color-rescate` (violeta 290, fuera de la rama Mercalli) · rama `--mercalli-*`
-(intensidad sísmica I–XII).
+(intensidad sísmica I–XII) · `--color-warning-*` (amarillo, avisos de fuente oficial).
 
 Sin `#fff` puro, sin `#000`. Sin serif en ninguna parte.
 
 ## Typography
 
-- Display: Space Grotesk, 500/600/700, normal (nunca itálica)
-- Body: Inter, 400/500/600
-- Mono (registro de lectura de máquina): JetBrains Mono 400/500/600 —
-  etiquetas, meta, estados, tablas, teclas ⌘K
+- Una sola familia: Inter, 400/500/600/700 — toda la experiencia (display, body,
+  etiquetas y estados). La jerarquía se construye con tamaño, peso, line height y
+  spacing, nunca con fuentes adicionales. Sin serif en ninguna parte.
 - Tracking display: -0.02em a -0.035em · escala mayor-tercera 1.25
 - `--text-display` = clamp(2rem, 3.5vw + 0.75rem, 3.25rem)
+- Capitalización: sentence case en toda la UI (primera letra en mayúscula, resto en
+  minúscula, salvo nombres propios). Nada de mayúsculas sostenidas en títulos, botones,
+  estados, badges o tags.
 
 ## Spacing
 
@@ -70,23 +72,25 @@ Escala 4 pt nombrada en `tokens.css`. Nunca valores sueltos.
 
 ## CTA voice
 
-- Primario: botón cobalto sólido, radio 6px, texto `--color-accent-ink`,
+- Primario: botón cobalto sólido, radio 8px (`--radius-btn`), texto `--color-accent-ink`,
   verbo concreto ("Reportar desaparecido", "Ver el código")
 - Secundario: link tipográfico con subrayado o botón delineado
+- Badges y tags: radio 8 px (`--radius-badge`), padding 4 px, contenido centrado;
+  botones: radio 8 px, padding 8/12 px, altura mínima 44 px
 
 ## Per-page allowances
 
 - Página de inicio: NINGUNA decoración — el mapa es la superficie
 - Páginas de app: sin enriquecimiento — la función lleva la página
 - El único momento oscuro por página: la tarjeta graphite de lectura
-  del evento (datos SGC en mono)
+  del evento (datos SGC)
 
 ## What pages MUST share
 
 - Wordmark "Enlace Sismo" en Space Grotesk con punto cobalto
 - El acento cobalto y su colocación (≤ 5 % por viewport)
-- Tipografía display + body + mono
-- Voz de CTA, radios 6px, ritmo de padding
+- Tipografía única: Inter (jerarquía por tamaño/peso/spacing)
+- Voz de CTA, radios 8px en badges/chips/botones, ritmo de padding
 - La barra de navegación con borde hairline + paleta ⌘K funcional
 
 ## What pages MAY differ on
@@ -97,7 +101,9 @@ Escala 4 pt nombrada en `tokens.css`. Nunca valores sueltos.
 ## Exports
 
 ### tokens.css
-Ver `/tokens.css` — fuente única de verdad del sistema.
+Ver `/tokens.css` — fuente única de verdad del sistema. Una sola familia (`--font-body`),
+radios de badge/chip/botón en 8 px, tokens de warning y saturación de estados de
+verificación definidos aquí.
 
 ### Tailwind v4 `@theme`
 ```css
@@ -105,9 +111,7 @@ Ver `/tokens.css` — fuente única de verdad del sistema.
   --color-paper: oklch(98.5% 0.004 250);
   --color-ink:   oklch(24% 0.02 258);
   --color-accent: oklch(54% 0.19 256);
-  --font-display: "Space Grotesk", sans-serif;
   --font-body: "Inter", sans-serif;
-  --font-mono: "JetBrains Mono", monospace;
 }
 ```
 
@@ -120,9 +124,7 @@ Ver `/tokens.css` — fuente única de verdad del sistema.
     "accent": { "$value": "oklch(54% 0.19 256)", "$type": "color" }
   },
   "font": {
-    "display": { "$value": "Space Grotesk", "$type": "fontFamily" },
-    "body":    { "$value": "Inter", "$type": "fontFamily" },
-    "mono":    { "$value": "JetBrains Mono", "$type": "fontFamily" }
+    "body": { "$value": "Inter", "$type": "fontFamily" }
   }
 }
 ```

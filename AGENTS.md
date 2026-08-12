@@ -22,7 +22,7 @@
 enlace-sismo/
 ├── data/                    # Datos verificados (fuente obligatoria)
 │   ├── acopios.json         # 36 puntos de acopio verificados (18 oficiales)
-│   ├── albergues.json       # 6 refugios de Pereira (oficiales)
+│   ├── albergues.json       # 6 refugios de Pereira (oficiales; `tipo: albergue|refugio` obligatorio)
 │   ├── donacion-sangre.json # Jornadas de donación de sangre (fechas + horario + grupos)
 │   ├── centros-salud.json   # Red hospitalaria: 7 hospitales verificados (OSM + portales), estado sin-confirmar
 │   ├── contactos.json       # Líneas oficiales de emergencia
@@ -44,7 +44,8 @@ enlace-sismo/
 │   │                        # (NOTA: /mapa fue eliminado → 301 a /#mapa)
 │   ├── src/components/      # Map, MapLegend (tira de chips), DatosEvento (barra
 │   │                        # de estado), IndiceSecciones, ZonasLista, CatalogCard,
-│   │                        # JornadaSangreCard, StatusBadge
+│   │                        # JornadaSangreCard, StatusBadge, Breadcrumb (pantallas
+│   │                        # secundarias), UbicacionPicker
 │   ├── src/lib/             # catalogs.ts, zonas.ts, geo.ts (haversine),
 │   │                        # color.ts (oklch→hex para MapLibre), api.ts,
 │   │                        # necesidades.ts, puntos-rescate.ts, ciudades.ts,
@@ -120,11 +121,11 @@ cd worker && npx wrangler secret put GITHUB_TOKEN
 - **Tokens de diseño:** todo color/fuente vía `var(--token)` de `tokens.css` — nunca valores sueltos (oklch/hex) en el CSS de la web
 - **MapLibre no acepta `oklch()`:** el mapa convierte tokens con `web/src/lib/color.ts` (oklch→hex en runtime); `tokens.css` sigue siendo la única fuente de color
 - **Sin emojis como iconos** en la UI (anti-pattern del sistema); etiquetas tipográficas o SVG propio
-- Headings romanos (sin itálica), fuente del sistema Cobalt: Space Grotesk + Inter + JetBrains Mono
+- Headings romanos (sin itálica), una sola familia: Inter (jerarquía por tamaño/peso/spacing); sentence case en toda la UI (sin mayúsculas sostenidas en títulos, botones, estados, badges o tags)
 
 ## Key Files
 
-- `design.md` — sistema de diseño bloqueado (modern-minimal · Cobalt · Workbench); leer antes de tocar UI; solo él y `tokens.css` definen color/tipografía
+- `design.md` — sistema de diseño bloqueado (modern-minimal · Cobalt · Workbench); leer antes de tocar UI; solo él y `tokens.css` definen color/tipografía; una familia (Inter), sentence case, radios 8 px en badges/chips/botones, `.aviso.warning` amarillo para avisos de fuente oficial
 - `data/schema/verificado.schema.json` — campos obligatorios de toda entrada (`fuente`, `verificado_por`, `fecha_verificacion`, `verificacion`); `fuente_secundaria` opcional (URL adicional que respalda el dato)
 - `data/schema/jornada-sangre.schema.json` — jornadas de donación: `fecha_inicio` obligatoria, `fecha_fin` opcional, `horario`, `grupos`, `estado: activa|finalizada|sin-confirmar`
 - `scripts/validate-data.mjs` — validador; incluye regla de seguridad: cuentas bancarias solo con `estado: oficial`
