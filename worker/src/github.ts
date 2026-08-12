@@ -124,8 +124,6 @@ export async function leerRegistro(c: Context<Bindings>): Promise<{ entradas: En
  * Lee, muta, valida y commitea el registro en un solo paso.
  * La mutación lanza RegistroError para abortar sin escribir (no se reintenta);
  * un 409 del PUT (conflicto concurrente) se reintenta hasta MAX_INTENTOS.
- *
- * En modo dev (WORKER_ENV=development) lee/escribe al archivo local en disco.
  */
 export async function escribirRegistro(
   c: Context<Bindings>,
