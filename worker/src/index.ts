@@ -3,6 +3,7 @@ import { cors } from "hono/cors";
 import sugerencias from "./sugerencias";
 import upload from "./upload";
 import puntos from "./puntos";
+import ayuda from "./ayuda";
 import geocodificar from "./geocodificar";
 import datos from "./datos";
 
@@ -11,6 +12,8 @@ type Env = {
   IMAGENES: R2Bucket;
   ADMIN_TOKEN: string;
   PUBLIC_ORIGIN: string;
+  // Base de datos de los puntos de ayuda (D1): migración 0001_puntos-ayuda.
+  ENLACE_SISMO_DB: D1Database;
   // Un solo fine-grained PAT sobre el repo: issues de sugerencias (salud y
   // acopios, sugerencias.ts) y commit del registro en vivo de puntos de rescate
   // (github.ts → web/public/datos/reportes-puntos.json). Configurar como secreto
@@ -61,8 +64,11 @@ app.route("/api/imagen", upload);
 // ---------- Sugerencias (issues de GitHub) ----------
 app.route("/api/sugerencias", sugerencias);
 
-// ---------- Puntos de rescate (registro en vivo) ----------
+// ---------- Puntos de rescate (registro en vivo, GitHub como almacén) ----------
 app.route("/api/puntos", puntos);
+
+// ---------- Puntos de ayuda (registro en vivo, D1 + API público) ----------
+app.route("/api/ayuda", ayuda);
 
 // ---------- Geocodificación para el formulario de reporte ----------
 app.route("/api/geocodificar", geocodificar);

@@ -20,6 +20,13 @@ id = "d2cff2fc01b148d9bb11581d63c4e3f5"
 binding = "IMAGENES"
 bucket_name = "enlace-sismo-imagenes"
 
+# Crea la base con: wrangler d1 create enlace-sismo
+# Luego reemplaza id con el valor generado.
+[[d1_databases]]
+binding = "ENLACE_SISMO_DB"
+database_name = "enlace-sismo"
+database_id = "336dc46e-f776-4855-aa46-44f187059118"
+
 [vars]
 PUBLIC_ORIGIN = "https://enlacesismo.com"
 
