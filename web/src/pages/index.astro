@@ -29,6 +29,13 @@ try {
 }
 const visibles = vivos.filter((p) => puntoAyudaVisible(p)).sort((a, b) => b.ultima_actualizacion.localeCompare(a.ultima_actualizacion));
 
+// Conteos por tipo para la tira de leyenda del mapa (Acopios/Albergues/
+// Salud/Otro): mismos puntos visibles que el panel y las capas del mapa.
+const ayudaConteos = { acopio: 0, albergue: 0, hospital: 0, otro: 0 };
+for (const p of visibles) {
+  if (p.tipo in ayudaConteos) ayudaConteos[p.tipo as keyof typeof ayudaConteos]++;
+}
+
 // Ciudades del filtro = unión de las que tienen puntos (incluye las de los
 // catálogos sembrados), las zonas afectadas y las jornadas de sangre.
 const catalogadas = Array.from(
@@ -216,7 +223,7 @@ const lineaDestino = (p: PuntoAyuda): string => {
           </div>
         </aside>
 
-        <MapLegend ciudades={ciudadesFiltro} mostrarZonas mostrarAyuda ayudaActivos={visibles.length} />
+        <MapLegend ciudades={ciudadesFiltro} mostrarZonas mostrarAyuda ayudaConteos={ayudaConteos} />
       </div>
     </section>
 
@@ -393,17 +400,25 @@ const lineaDestino = (p: PuntoAyuda): string => {
   });
   window.addEventListener("enlace:mapa:posicion", () => tabZonas && activar(tabZonas));
 
-  // Chip "Ayuda" ↔ pestaña del rail: marcado muestra el panel, desmarcado
+  // Chips de tipo (Acopios/Albergues/Salud/Otro) ↔ pestaña del rail: al
+  // marcar cualquiera se muestra el panel Ayuda; al desmarcar todos se
   // vuelve a Zonas si la pestaña activa era Ayuda.
-  const chipAyuda = document.querySelector<HTMLInputElement>(".leyenda-tira input[value='ayuda']");
+  const chipsAyuda = Array.from(
+    document.querySelectorAll<HTMLInputElement>(
+      ".leyenda-tira input[value='acopio'], .leyenda-tira input[value='albergue'], .leyenda-tira input[value='hospital'], .leyenda-tira input[value='otro']"
+    )
+  );
   const tabAyuda = tabs.find((t) => t.id === "tab-ayuda");
-  chipAyuda?.addEventListener("change", () => {
-    if (chipAyuda.checked) {
-      if (tabAyuda) activar(tabAyuda);
-    } else if (tabAyuda?.getAttribute("aria-selected") === "true") {
-      if (tabZonas) activar(tabZonas);
-    }
-  });
+  for (const chip of chipsAyuda) {
+    chip.addEventListener("change", () => {
+      const algunoMarcado = chipsAyuda.some((c) => c.checked);
+      if (algunoMarcado) {
+        if (tabAyuda) activar(tabAyuda);
+      } else if (tabAyuda?.getAttribute("aria-selected") === "true") {
+        if (tabZonas) activar(tabZonas);
+      }
+    });
+  }
 
   const panelAyuda = document.getElementById("panel-ayuda");
 
@@ -802,8 +817,9 @@ const lineaDestino = (p: PuntoAyuda): string => {
       conteoPanel.textContent = String(n);
       conteoPanel.setAttribute("aria-label", `${n} puntos activos`);
     }
-    const conteo = document.querySelector<HTMLSpanElement>(".leyenda-tira input[value='ayuda'] ~ .tira-label");
-    if (conteo) conteo.textContent = `Ayuda (${vivos.filter((p) => puntoAyudaVisible(p)).length})`;
+    // Los conteos por tipo de la tira (Acopios/Albergues/Salud/Otro) los
+    // actualiza el mapa en el mismo ciclo (datos-frescos →
+    // actualizarConteosAyuda), desde los mismos puntos visibles.
 
     // Ciudades reportadas: sección del panel Zonas + opciones del select.
     // Guard de huella: el mismo ciclo de refresco ya re-renderizó el panel
@@ -871,15 +887,11 @@ const lineaDestino = (p: PuntoAyuda): string => {
     window.dispatchEvent(new CustomEvent("enlace:mapa:datos-frescos", { detail: detalle }));
   }
 
-  const CONTEOS_LEYENDA: Record<string, string> = {
-    sangre: "Donar sangre",
-  };
-
   function actualizarConteoLeyenda(tipo: string, n: number) {
-    const label = document.querySelector<HTMLSpanElement>(
-      `.leyenda-tira input[value='${tipo}'] ~ .tira-label`
+    const span = document.querySelector<HTMLSpanElement>(
+      `.leyenda-tira input[value='${tipo}'] ~ .tira-label [data-ayuda-conteo='${tipo}']`
     );
-    if (label && CONTEOS_LEYENDA[tipo]) label.textContent = `${CONTEOS_LEYENDA[tipo]} (${n})`;
+    if (span) span.textContent = String(n);
   }
 
   /** Barra de estado: lectura del boletín SGC con el evento fresco. */
