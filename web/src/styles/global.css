@@ -2613,7 +2613,7 @@ body:has(.dash.con-mapa) .nav-secciones {
 }
 .quick-add-caja h3 {
   font-size: var(--text-md);
-  letter-spacing: -0.01em;
+  letter-spacing: -0.02em; /* mismo tracking que los demás títulos (display) */
   margin: 0;
 }
 .quick-add-contexto {
@@ -2626,6 +2626,12 @@ body:has(.dash.con-mapa) .nav-secciones {
   padding: 0;
   margin: 0;
   min-width: 0;
+}
+.quick-add-caja fieldset legend {
+  display: block;
+  font-weight: 500;
+  font-size: var(--text-sm);
+  margin-bottom: var(--space-2xs); /* mismo estilo que .form-group.necesidades legend */
 }
 .quick-add-caja .helper {
   font-size: var(--text-xs);
@@ -2641,9 +2647,6 @@ body:has(.dash.con-mapa) .nav-secciones {
   justify-content: flex-end;
   gap: var(--space-xs);
   margin-top: var(--space-2xs);
-}
-.quick-add-acciones .btn {
-  min-height: 44px; /* targets táctiles ≥ 44 px (design.md) */
 }
 
 /* Botón de acción dentro de los popups del mapa (quick-add) */
