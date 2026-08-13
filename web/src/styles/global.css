@@ -2582,6 +2582,78 @@ body:has(.dash.con-mapa) .nav-secciones {
 }
 
 /* ============================================================
+   Quick-add de ayuda desde el mapa (popup → mini-formulario modal)
+   Mismo patrón que .dialogo-accion: overlay fijo, caja centrada,
+   cierre por Escape/overlay. Reusa .form-group, .necesidad-chip,
+   .modalidad-opcion y .btn del sistema (definidos arriba).
+   ============================================================ */
+.quick-add {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  display: grid;
+  place-items: center;
+  background: var(--color-modal-overlay);
+  padding: var(--space-md);
+}
+.quick-add[hidden] {
+  display: none;
+}
+.quick-add-caja {
+  width: min(30rem, 100%);
+  max-height: min(90dvh, 42rem);
+  overflow: auto;
+  background: var(--color-paper);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-modal);
+  padding: var(--space-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+.quick-add-caja h3 {
+  font-size: var(--text-md);
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+.quick-add-contexto {
+  font-size: var(--text-sm);
+  color: var(--color-ink-2);
+  margin: 0;
+}
+.quick-add-caja fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+.quick-add-caja .helper {
+  font-size: var(--text-xs);
+}
+.quick-add-msg {
+  font-size: var(--text-sm);
+  color: var(--color-error);
+  min-height: 1.2em;
+  margin: 0;
+}
+.quick-add-acciones {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-xs);
+  margin-top: var(--space-2xs);
+}
+.quick-add-acciones .btn {
+  min-height: 44px; /* targets táctiles ≥ 44 px (design.md) */
+}
+
+/* Botón de acción dentro de los popups del mapa (quick-add) */
+.popup-accion {
+  width: 100%;
+  margin-top: var(--space-sm);
+  text-align: center;
+}
+
+/* ============================================================
    Formulario de reporte — búsqueda de dirección (estilo Google Maps)
    Los resultados se crean dinámicamente por JS: estos estilos son
    GLOBALES a propósito (el scope de Astro no alcanza nodos nuevos).

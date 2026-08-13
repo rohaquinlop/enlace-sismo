@@ -2,6 +2,7 @@
 import { readFileSync } from "node:fs";
 import BaseLayout from "../layouts/BaseLayout.astro";
 import Map from "../components/Map.astro";
+import QuickAddAyuda from "../components/QuickAddAyuda.astro";
 import MapLegend from "../components/MapLegend.astro";
 import DatosEvento from "../components/DatosEvento.astro";
 import ZonasLista from "../components/ZonasLista.astro";
@@ -224,6 +225,10 @@ const lineaDestino = (p: PuntoAyuda): string => {
       </div>
     </div>
 
+    <!-- Mini-formulario de ayuda desde el mapa (quick-add): lo abre el botón
+         "Declarar necesidad u oferta" de los popups del mapa. -->
+    <QuickAddAyuda />
+
 <script>
   import { apiUrl } from "../lib/api";
   import { fetchCatalogo, fetchPuntosAyuda } from "../lib/datos";
@@ -236,6 +241,29 @@ const lineaDestino = (p: PuntoAyuda): string => {
   import type { Acopio, Albergue, CentroSalud, JornadaSangre } from "../lib/catalogs";
   import { zonas } from "../lib/zonas";
   import type { Zona } from "../lib/zonas";
+
+  // Quick-add desde el mapa: el punto se publicó (QuickAddAyuda guardó el
+  // token). Refrescar el panel, volar al punto nuevo para abrir su popup y
+  // resaltar SU tarjeta (sin esto, el panel conserva el resaltado del punto
+  // anterior — información vieja). El popup del quick-add, al cerrarse,
+  // devuelve el mapa a la vista completa (desdeQuickAdd).
+  window.addEventListener("enlace:ayuda:publicado", (e) => {
+    const id = (e as CustomEvent<{ id?: string }>).detail?.id;
+    if (!id) return;
+    void (async () => {
+      await refrescarAyuda();
+      if (!(ultimoAyuda ?? []).some((x) => x.id === id)) {
+        // El POST fue ok pero el refresco no trajo el punto (blip de red):
+        // reintentar una vez antes de rendirse, o el vuelo/resaltado
+        // quedarían en silencio y el punto recién publicado no aparecería
+        // hasta el próximo poll de 60 s.
+        await new Promise((r) => setTimeout(r, 1200));
+        await refrescarAyuda();
+      }
+      window.dispatchEvent(new CustomEvent("enlace:mapa:volar-ayuda", { detail: { id, desdeQuickAdd: true } }));
+      window.dispatchEvent(new CustomEvent("enlace:mapa:punto-ayuda-activo", { detail: { id } }));
+    })();
+  });
 
   // Tokens de edición de los puntos creados desde este navegador (localStorage).
   // El token se entrega al crear y permite editar/cerrar el punto desde
@@ -399,14 +427,35 @@ const lineaDestino = (p: PuntoAyuda): string => {
   // Clic en un punto de ayuda del mapa → el panel Ayuda muestra su tarjeta:
   // activa la pestaña, resalta la fila y la trae a la vista (misma dirección
   // que volar-ayuda, pero disparada por el mapa). El resaltado se conserva
-  // tras los re-renders del refresco (ultimoPuntoActivo).
+  // tras los re-renders del refresco (ultimoPuntoActivo). Un id vacío (clic
+  // en un punto del catálogo, que no tiene tarjeta en el panel) limpia el
+  // resaltado: un punto viejo marcado sería información engañosa.
   let ultimoPuntoActivo: string | null = null;
   window.addEventListener("enlace:mapa:punto-ayuda-activo", (e) => {
-    const id = (e as CustomEvent<{ id?: string }>).detail?.id;
-    if (!id) return;
+    const detalle = (e as CustomEvent<{ id?: string; ciudad?: string }>).detail;
+    const id = detalle?.id;
+    if (!id) {
+      ultimoPuntoActivo = null;
+      document.querySelectorAll<HTMLElement>(".ayuda-fila.activa").forEach((f) => f.classList.remove("activa"));
+      document.querySelectorAll<HTMLElement>(".ayuda-fila[aria-current]").forEach((f) => f.removeAttribute("aria-current"));
+      return;
+    }
     ultimoPuntoActivo = id;
-    const tabAyudaAct = document.getElementById("tab-ayuda") as HTMLButtonElement | null;
-    if (tabAyudaAct) activar(tabAyudaAct);
+    // Clic en un punto del mapa → el panel muestra los puntos de SU ciudad
+    // (misma semántica que una fila de zona: el punto pertenece a una zona).
+    // Sin esto, un punto en una ciudad distinta al filtro activo no aparece
+    // en el panel y el resaltado falla en silencio (información vieja).
+    const punto = (ultimoAyuda ?? []).find((x) => x.id === id);
+    const ciudad = detalle?.ciudad ?? punto?.ciudad;
+    if (ciudad) {
+      activarZonaAyuda(ciudad, true);
+    } else {
+      // Punto sin ciudad (geocoder caído al crearlo): un filtro de panel
+      // activo lo ocultaría en silencio — limpiar el filtro para mostrarlo.
+      activarZonaAyuda(null);
+      const tabAyudaAct = document.getElementById("tab-ayuda") as HTMLButtonElement | null;
+      if (tabAyudaAct) activar(tabAyudaAct);
+    }
     resaltarPuntoAyuda(id);
   });
 

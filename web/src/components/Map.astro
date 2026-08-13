@@ -26,6 +26,7 @@ type Punto = {
   ciudad: string;
   direccion: string;
   fuente: string;
+  coordenadas_nivel?: string;
   detalle?: string;
 };
 
@@ -36,9 +37,9 @@ const fmtDia = (iso: string) => {
 };
 
 const puntos: Punto[] = [
-  ...acopios.map((e) => ({ id: e.id, nombre: e.nombre, lat: e.lat, lng: e.lng, tipo: "acopio" as const, estado: e.estado, ciudad: e.ciudad, direccion: e.direccion, fuente: e.fuente })),
-  ...albergues.map((e) => ({ id: e.id, nombre: e.nombre, lat: e.lat, lng: e.lng, tipo: "albergue" as const, estado: e.estado, ciudad: e.ciudad, direccion: e.direccion, fuente: e.fuente })),
-  ...centros.map((e) => ({ id: e.id, nombre: e.nombre, lat: e.lat, lng: e.lng, tipo: "salud" as const, estado: e.estado, ciudad: e.ciudad, direccion: e.direccion, fuente: e.fuente })),
+  ...acopios.map((e) => ({ id: e.id, nombre: e.nombre, lat: e.lat, lng: e.lng, tipo: "acopio" as const, estado: e.estado, ciudad: e.ciudad, direccion: e.direccion, fuente: e.fuente, coordenadas_nivel: e.coordenadas_nivel })),
+  ...albergues.map((e) => ({ id: e.id, nombre: e.nombre, lat: e.lat, lng: e.lng, tipo: "albergue" as const, estado: e.estado, ciudad: e.ciudad, direccion: e.direccion, fuente: e.fuente, coordenadas_nivel: e.coordenadas_nivel })),
+  ...centros.map((e) => ({ id: e.id, nombre: e.nombre, lat: e.lat, lng: e.lng, tipo: "salud" as const, estado: e.estado, ciudad: e.ciudad, direccion: e.direccion, fuente: e.fuente, coordenadas_nivel: e.coordenadas_nivel })),
   ...jornadas.map((e) => ({
     id: e.id,
     nombre: e.punto,
@@ -49,6 +50,7 @@ const puntos: Punto[] = [
     ciudad: e.ciudad,
     direccion: e.direccion,
     fuente: e.fuente,
+    coordenadas_nivel: e.coordenadas_nivel,
     detalle: `${e.fecha_fin ? `${fmtDia(e.fecha_inicio)} → ${fmtDia(e.fecha_fin)}` : `Desde ${fmtDia(e.fecha_inicio)}`} · ${e.horario}`,
   })),
 ];
@@ -90,6 +92,7 @@ const eventoJson = JSON.stringify({ fecha: evento.fecha.slice(0, 10) });
     ciudad: string;
     direccion: string;
     fuente: string;
+    coordenadas_nivel?: string;
     detalle?: string;
   };
 
@@ -120,23 +123,28 @@ const eventoJson = JSON.stringify({ fecha: evento.fecha.slice(0, 10) });
     nombre: string;
     lat: number;
     lng: number;
-    puntos: PuntoCiudadMap[];
+    puntosJson: string;
   };
 
   const aCiudadMap = (c: CiudadReportada): CiudadReportadaMap => ({
     nombre: c.nombre,
     lat: c.lat,
     lng: c.lng,
-    puntos: c.puntos.map((p) => ({
-      id: p.id,
-      etiqueta: `${p.nombre ?? etiquetaTipo(p.tipo)}${p.direccion ? ` — ${p.direccion}` : ""}`,
-      lat: p.lat,
-      lng: p.lng,
-      items: p.items,
-      modalidad: p.modalidad,
-      flags: p.flags,
-      estado: p.estado,
-    })),
+    // GeoJSON no acepta propiedades anidadas: la lista de puntos se aplana a
+    // JSON (mismo patrón que itemsJson/destinoJson de los puntos de ayuda) y
+    // el popup del marcador la parsea al abrir.
+    puntosJson: JSON.stringify(
+      c.puntos.map((p) => ({
+        id: p.id,
+        etiqueta: `${p.nombre ?? etiquetaTipo(p.tipo)}${p.direccion ? ` — ${p.direccion}` : ""}`,
+        lat: p.lat,
+        lng: p.lng,
+        items: p.items,
+        modalidad: p.modalidad,
+        flags: p.flags,
+        estado: p.estado,
+      }))
+    ),
   });
   // Punto de ayuda del registro en vivo (proyección pública del API).
   // Los campos anidados (items, destino) se aplanan a JSON para GeoJSON;
@@ -146,11 +154,13 @@ const eventoJson = JSON.stringify({ fecha: evento.fecha.slice(0, 10) });
     nombre: string;
     lat: number;
     lng: number;
+    tipo: string;
     estado: string;
     modalidad: string;
     ciudad: string;
     direccion: string;
     descripcion: string;
+    coordenadas_nivel: string;
     itemsJson: string;
     destinoJson: string;
     horario: string;
@@ -433,6 +443,11 @@ const eventoJson = JSON.stringify({ fecha: evento.fecha.slice(0, 10) });
     }
 
     let popupActivo: maplibre.Popup | null = null;
+    // El popup abierto es el resultado de un quick-add (publicación desde el
+    // mapa). Al cerrarlo el usuario (X o clic fuera) la vista vuelve al
+    // estado completo (enlace:mapa:reiniciar) — sin esto, el mapa queda
+    // clavado en zoom 13 en la ciudad del punto publicado.
+    let popupQuickAdd = false;
 
     function abrirPopupZona(z: Zona) {
       const intensidad = z.intensidad
@@ -441,6 +456,11 @@ const eventoJson = JSON.stringify({ fecha: evento.fecha.slice(0, 10) });
       const distancia = z.distEpicentroKm
         ? `A ${formatearDistancia(z.distEpicentroKm)} del epicentro`
         : "";
+      // El usuario eligió otra cosa en el mapa: el popup quick-add (si estaba
+      // abierto) deja de ser el contexto activo y el panel limpia el resaltado
+      // (la fila de un punto viejo sería información engañosa).
+      popupQuickAdd = false;
+      window.dispatchEvent(new CustomEvent("enlace:mapa:punto-ayuda-activo", { detail: { id: "" } }));
       popupActivo?.remove();
       popupActivo = new maplibre.Popup({ offset: 16 })
         .setLngLat([z.lng, z.lat])
@@ -474,11 +494,14 @@ const eventoJson = JSON.stringify({ fecha: evento.fecha.slice(0, 10) });
     // Compartido por el clic en el mapa y por el vuelo desde el panel Ayuda.
     // Al abrirse desde el mapa, sincroniza el panel (evento → el rail resalta
     // la tarjeta del punto y muestra la pestaña Ayuda).
-    function abrirPopupAyuda(p: PuntoAyudaMap, coords: [number, number], desdePanel = false) {
+    // quickAdd = true solo para el vuelo post-publicación: el cierre de ese
+    // popup devuelve la vista al estado completo.
+    function abrirPopupAyuda(p: PuntoAyudaMap, coords: [number, number], desdePanel = false, quickAdd = false) {
+      popupQuickAdd = quickAdd;
       window.dispatchEvent(new CustomEvent("enlace:mapa:punto-click"));
       if (!desdePanel) {
         window.dispatchEvent(
-          new CustomEvent("enlace:mapa:punto-ayuda-activo", { detail: { id: p.id } })
+          new CustomEvent("enlace:mapa:punto-ayuda-activo", { detail: { id: p.id, ciudad: p.ciudad } })
         );
       }
       popupActivo?.remove();
@@ -510,6 +533,8 @@ const eventoJson = JSON.stringify({ fecha: evento.fecha.slice(0, 10) });
         : p.verificacion === "confirmado"
           ? "Confirmado"
           : "Reporte ciudadano";
+      // Quick-add: el tipo ya está en el vocabulario de puntos de ayuda.
+      const botonQuickAdd = `<button type="button" class="btn popup-accion" data-quick-add data-qa-lat="${p.lat}" data-qa-lng="${p.lng}" data-qa-tipo="${escapar(p.tipo)}" data-qa-ciudad="${escapar(p.ciudad)}" data-qa-nombre="${escapar(p.nombre)}" data-qa-nivel="${escapar(p.coordenadas_nivel)}">Declarar necesidad u oferta</button>`;
       popupActivo = new maplibre.Popup({ offset: 16 })
         .setLngLat(coords)
         .setHTML(
@@ -520,11 +545,42 @@ const eventoJson = JSON.stringify({ fecha: evento.fecha.slice(0, 10) });
             `${chips}${destino}${horario}${contacto}${flags}` +
             `<p class="popup-fuente">${p.fuente ? `Fuente: <a href="${escapar(p.fuente)}" target="_blank" rel="noopener">ver fuente</a> · ` : `${escapar(verif)} · `}` +
             `<a href="https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}" target="_blank" rel="noopener">Cómo llegar</a></p>` +
+            `${botonQuickAdd}` +
             `</div>`
         )
         .addTo(map);
+      if (quickAdd) {
+        // El usuario cerró el popup del punto recién publicado (X o clic en
+        // el mapa): volver a la vista completa. Un reemplazo programático
+        // (clic en otro punto) no lo dispara: popupQuickAdd ya es false.
+        popupActivo.on("close", () => {
+          if (!popupQuickAdd) return;
+          popupQuickAdd = false;
+          window.dispatchEvent(new CustomEvent("enlace:mapa:reiniciar"));
+        });
+      }
       centrarEnPopup(coords);
     }
+
+    // Quick-add de ayuda desde un popup (catálogo o registro en vivo): el botón
+    // del popup abre el mini-formulario modal (QuickAddAyuda.astro) sin salir
+    // del mapa. Los datos viajan en data-* del botón (escapados al renderizar).
+    document.addEventListener("click", (e) => {
+      const btn = (e.target as HTMLElement).closest<HTMLElement>("[data-quick-add]");
+      if (!btn || !btn.dataset.qaLat || !btn.dataset.qaLng) return;
+      window.dispatchEvent(
+        new CustomEvent("enlace:mapa:quick-add-ayuda", {
+          detail: {
+            lat: Number(btn.dataset.qaLat),
+            lng: Number(btn.dataset.qaLng),
+            tipo: btn.dataset.qaTipo ?? "otro",
+            ciudad: btn.dataset.qaCiudad ?? "",
+            nombre: btn.dataset.qaNombre ?? "",
+            coordenadas_nivel: btn.dataset.qaNivel ?? "premisa",
+          },
+        })
+      );
+    });
 
     // Última ciudad elegida: volar a la ciudad solo cuando cambia el filtro
     let ciudadFiltro = "";
@@ -618,9 +674,9 @@ const eventoJson = JSON.stringify({ fecha: evento.fecha.slice(0, 10) });
       const [, m, d] = iso.split("-").map(Number);
       return `${d} ${MESES[m - 1]}`;
     };
-    const aPuntoAcopio = (e: Acopio): Punto => ({ id: e.id, nombre: e.nombre, lat: e.lat, lng: e.lng, tipo: "acopio", estado: e.estado, ciudad: e.ciudad, direccion: e.direccion, fuente: e.fuente });
-    const aPuntoAlbergue = (e: Albergue): Punto => ({ id: e.id, nombre: e.nombre, lat: e.lat, lng: e.lng, tipo: "albergue", estado: e.estado, ciudad: e.ciudad, direccion: e.direccion, fuente: e.fuente });
-    const aPuntoSalud = (e: CentroSalud): Punto => ({ id: e.id, nombre: e.nombre, lat: e.lat, lng: e.lng, tipo: "salud", estado: e.estado, ciudad: e.ciudad, direccion: e.direccion, fuente: e.fuente });
+    const aPuntoAcopio = (e: Acopio): Punto => ({ id: e.id, nombre: e.nombre, lat: e.lat, lng: e.lng, tipo: "acopio", estado: e.estado, ciudad: e.ciudad, direccion: e.direccion, fuente: e.fuente, coordenadas_nivel: e.coordenadas_nivel });
+    const aPuntoAlbergue = (e: Albergue): Punto => ({ id: e.id, nombre: e.nombre, lat: e.lat, lng: e.lng, tipo: "albergue", estado: e.estado, ciudad: e.ciudad, direccion: e.direccion, fuente: e.fuente, coordenadas_nivel: e.coordenadas_nivel });
+    const aPuntoSalud = (e: CentroSalud): Punto => ({ id: e.id, nombre: e.nombre, lat: e.lat, lng: e.lng, tipo: "salud", estado: e.estado, ciudad: e.ciudad, direccion: e.direccion, fuente: e.fuente, coordenadas_nivel: e.coordenadas_nivel });
     const aPuntoSangre = (e: JornadaSangre): Punto => ({
       id: e.id,
       nombre: e.punto,
@@ -631,6 +687,7 @@ const eventoJson = JSON.stringify({ fecha: evento.fecha.slice(0, 10) });
       ciudad: e.ciudad,
       direccion: e.direccion,
       fuente: e.fuente,
+      coordenadas_nivel: e.coordenadas_nivel,
       detalle: `${e.fecha_fin ? `${fmtDia(e.fecha_inicio)} → ${fmtDia(e.fecha_fin)}` : `Desde ${fmtDia(e.fecha_inicio)}`} · ${e.horario}`,
     });
     const conDistancia = (zs: ZonaCatalogo[]): Zona[] => {
@@ -655,11 +712,13 @@ const eventoJson = JSON.stringify({ fecha: evento.fecha.slice(0, 10) });
           nombre: p.nombre ?? `${etiquetaTipo(p.tipo)}${p.direccion ? ` — ${p.direccion}` : ""}`,
           lat: p.lat,
           lng: p.lng,
+          tipo: p.tipo,
           estado: p.estado,
           modalidad: p.modalidad,
           ciudad: p.ciudad ?? "",
           direccion: p.direccion ?? "",
           descripcion: p.descripcion,
+          coordenadas_nivel: p.coordenadas_nivel ?? "premisa",
           itemsJson: JSON.stringify(p.items ?? []),
           destinoJson: p.destino ? JSON.stringify(p.destino) : "",
           horario: p.horario ?? "",
@@ -1076,7 +1135,21 @@ const eventoJson = JSON.stringify({ fecha: evento.fecha.slice(0, 10) });
         const p = f.properties as unknown as Punto;
         const coords = (f.geometry as { type: "Point"; coordinates: [number, number] }).coordinates;
         window.dispatchEvent(new CustomEvent("enlace:mapa:punto-click"));
+        // El usuario eligió un punto del catálogo: el popup quick-add deja de
+        // ser el contexto activo y el panel limpia su resaltado (no hay tarjeta
+        // de catálogo en el panel Ayuda; un resaltado viejo sería engañoso).
+        popupQuickAdd = false;
+        window.dispatchEvent(new CustomEvent("enlace:mapa:punto-ayuda-activo", { detail: { id: "" } }));
         popupActivo?.remove();
+        // Mapeo del catálogo al vocabulario de puntos de ayuda (quick-add).
+        const TIPO_AYUDA: Record<string, string> = {
+          acopio: "acopio",
+          albergue: "albergue",
+          salud: "hospital",
+          sangre: "otro",
+        };
+        const tipoAyuda = TIPO_AYUDA[p.tipo] ?? "otro";
+        const botonQuickAdd = `<button type="button" class="btn popup-accion" data-quick-add data-qa-lat="${p.lat}" data-qa-lng="${p.lng}" data-qa-tipo="${tipoAyuda}" data-qa-ciudad="${escapar(p.ciudad)}" data-qa-nombre="${escapar(p.nombre)}" data-qa-nivel="${escapar(p.coordenadas_nivel ?? "premisa")}">Declarar necesidad u oferta</button>`;
         popupActivo = new maplibre.Popup({ offset: 16 })
           .setLngLat(coords)
           .setHTML(
@@ -1087,6 +1160,7 @@ const eventoJson = JSON.stringify({ fecha: evento.fecha.slice(0, 10) });
               `${p.detalle ? `<p class="popup-linea">${escapar(p.detalle)}</p>` : ""}` +
               `<p class="popup-fuente">Fuente: <a href="${escapar(p.fuente)}" target="_blank" rel="noopener">ver fuente</a> · ` +
               `<a href="https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}" target="_blank" rel="noopener">Cómo llegar</a></p>` +
+              `${botonQuickAdd}` +
               `</div>`
           )
           .addTo(map);
@@ -1121,10 +1195,32 @@ const eventoJson = JSON.stringify({ fecha: evento.fecha.slice(0, 10) });
         const f = e.features?.[0];
         if (!f) return;
         const c = f.properties as unknown as CiudadReportadaMap;
+        // Si debajo del clic hay un punto (catálogo o en vivo), el popup del
+        // punto gana: el marcador solo abre su popup cuando el clic no cayó
+        // en ningún punto (MapLibre dispara los handlers de TODAS las capas
+        // del clic; el del marcador corre al final y reemplazaría al punto).
+        const debajo = map.queryRenderedFeatures(e.point, { layers: ["ayuda-circulo", "puntos-circulo"] });
+        if (debajo.length > 0) return;
         const coords = (f.geometry as { type: "Point"; coordinates: [number, number] }).coordinates;
         window.dispatchEvent(new CustomEvent("enlace:mapa:punto-click"));
+        popupQuickAdd = false;
+        // El marcador es una ciudad con puntos ciudadanos: el panel Ayuda
+        // filtra a sus puntos (mismo flujo que la fila ciudadana del rail).
+        window.dispatchEvent(new CustomEvent("enlace:mapa:ciudad-reportada", { detail: { nombre: c.nombre } }));
+        // El marcador es una ciudad, no un punto: el re-render del filtro
+        // re-resaltaría el punto viejo — limpiar el resaltado.
+        window.dispatchEvent(new CustomEvent("enlace:mapa:punto-ayuda-activo", { detail: { id: "" } }));
         popupActivo?.remove();
-        const puntosHtml = c.puntos
+        // La lista viaja aplanada en puntosJson (GeoJSON no acepta
+        // propiedades anidadas): se parsea aquí, como itemsJson del popup.
+        let puntosCiudad: PuntoCiudadMap[] = [];
+        try {
+          const parsed = JSON.parse(c.puntosJson ?? "[]");
+          if (Array.isArray(parsed)) puntosCiudad = parsed as PuntoCiudadMap[];
+        } catch {
+          // Marcador sin lista válida: popup sin puntos.
+        }
+        const puntosHtml = puntosCiudad
           .map((p) => {
             const chips = p.items.length
               ? `<span class="popup-ayuda-ns">${p.items
@@ -1143,7 +1239,7 @@ const eventoJson = JSON.stringify({ fecha: evento.fecha.slice(0, 10) });
           .setHTML(
             `<div class="popup popup-punto">` +
               `<strong class="popup-titulo">${escapar(c.nombre)}</strong>` +
-              `<p class="popup-meta">Sin reporte de intensidad · ${c.puntos.length} punto${c.puntos.length === 1 ? "" : "s"} ciudadano${c.puntos.length === 1 ? "" : "s"}</p>` +
+              `<p class="popup-meta">Sin reporte de intensidad · ${puntosCiudad.length} punto${puntosCiudad.length === 1 ? "" : "s"} ciudadano${puntosCiudad.length === 1 ? "" : "s"}</p>` +
               puntosHtml +
               `</div>`
           )
@@ -1207,13 +1303,15 @@ const eventoJson = JSON.stringify({ fecha: evento.fecha.slice(0, 10) });
     );
 
     // Fila del panel Ayuda → volar al punto y abrir su popup
+    // desdeQuickAdd = true solo tras publicar desde el mapa: ese popup, al
+    // cerrarse, devuelve la vista al estado completo.
     window.addEventListener(
       "enlace:mapa:volar-ayuda",
-      ((e: CustomEvent<{ id: string }>) => {
+      ((e: CustomEvent<{ id: string; desdeQuickAdd?: boolean }>) => {
         const p = puntosAyuda.find((x) => x.id === e.detail?.id);
         if (!p) return;
         const coords: [number, number] = [p.lng, p.lat];
-        abrirPopupAyuda(p, coords, true);
+        abrirPopupAyuda(p, coords, true, Boolean(e.detail?.desdeQuickAdd));
         if (!esMovilMapa()) {
           map.flyTo({ center: coords, zoom: 13, offset: offsetCentro(), essential: true });
         } else {
@@ -1225,6 +1323,7 @@ const eventoJson = JSON.stringify({ fecha: evento.fecha.slice(0, 10) });
 
     // Marca "Enlace Sismo" en la portada: cerrar popup y volver a la vista inicial
     window.addEventListener("enlace:mapa:reiniciar", () => {
+      popupQuickAdd = false;
       popupActivo?.remove();
       popupActivo = null;
       map.flyTo({ center: [-75.6, 4.4], zoom: 6, essential: true });

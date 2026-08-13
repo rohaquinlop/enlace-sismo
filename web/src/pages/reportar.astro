@@ -185,7 +185,7 @@ import { ITEMS_AYUDA, TIPOS_AYUDA, MODALIDADES } from "../lib/items-ayuda";
   import { fetchPuntosAyuda } from "../lib/datos";
   import { haversineKm } from "../lib/geo";
   import { puntoAyudaVisible, type PuntoAyuda } from "../lib/puntos-ayuda";
-  import { etiquetaItemAyuda, etiquetaTipo, ESTADOS_AYUDA, type ItemAyuda } from "../lib/items-ayuda";
+  import { etiquetaItemAyuda, etiquetaTipo, ESTADOS_AYUDA, validarItemPersonalizado, type ItemAyuda } from "../lib/items-ayuda";
   import { nombreCiudadNormalizado } from "../lib/ciudades";
   import { acopios, albergues, centrosSalud } from "../lib/catalogs";
   import { escapar } from "../lib/render-catalogos";
@@ -254,42 +254,29 @@ import { ITEMS_AYUDA, TIPOS_AYUDA, MODALIDADES } from "../lib/items-ayuda";
     contenedorItems.innerHTML = itemsPersonalizados
       .map(
         (i, idx) =>
-          `<label class="necesidad-chip"><span>${escapar(etiquetaItemAyuda(i))}</span>` +
-          `<button type="button" class="chip-quitar" data-quitar-item="${idx}" aria-label="Quitar ${escapar(etiquetaItemAyuda(i))}">×</button></label>`
+          `<span class="necesidad-chip"><span>${escapar(etiquetaItemAyuda(i))}</span>` +
+          `<button type="button" class="chip-quitar" data-quitar-item="${idx}" aria-label="Quitar ${escapar(etiquetaItemAyuda(i))}">×</button></span>`
       )
       .join("");
   }
 
   document.getElementById("btn-agregar-item")?.addEventListener("click", () => {
     if (!inputItemNombre || !helperItem) return;
-    const nombre = inputItemNombre.value.trim();
-    if (nombre.length < 2 || nombre.length > 80) {
-      helperItem.textContent = "El nombre del ítem debe tener entre 2 y 80 caracteres.";
+    const validado = validarItemPersonalizado(
+      inputItemNombre.value,
+      inputItemCantidad?.value ?? "",
+      inputItemUnidad?.value ?? ""
+    );
+    if (!validado.ok) {
+      helperItem.textContent = validado.error;
       return;
     }
-    if (/[\u0000-\u001f\u007f]/.test(nombre)) {
-      helperItem.textContent = "Nombre inválido.";
-      return;
-    }
-    const cantidadRaw = inputItemCantidad?.value.trim() ?? "";
-    let cantidad: number | undefined;
-    if (cantidadRaw !== "") {
-      cantidad = Number(cantidadRaw);
-      if (!Number.isInteger(cantidad) || cantidad < 0 || cantidad > 999999) {
-        helperItem.textContent = "La cantidad debe ser un número entero entre 0 y 999999.";
-        return;
-      }
-    }
-    const unidad = (inputItemUnidad?.value.trim() ?? "").slice(0, 20) || undefined;
-    if (
-      itemsPersonalizados.some(
-        (i) => (i.nombre ?? "").toLowerCase() === nombre.toLowerCase()
-      )
-    ) {
+    const { item } = validado;
+    if (itemsPersonalizados.some((i) => (i.nombre ?? "").toLowerCase() === (item.nombre ?? "").toLowerCase())) {
       helperItem.textContent = "Ese ítem ya está en la lista.";
       return;
     }
-    itemsPersonalizados.push({ tipo: "personalizado", nombre, cantidad, unidad });
+    itemsPersonalizados.push(item);
     inputItemNombre.value = "";
     if (inputItemCantidad) inputItemCantidad.value = "";
     if (inputItemUnidad) inputItemUnidad.value = "";

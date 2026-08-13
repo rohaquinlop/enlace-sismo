@@ -18,6 +18,7 @@ export interface Acopio extends Verificado {
   direccion: string;
   lat: number;
   lng: number;
+  coordenadas_nivel?: "premisa" | "via" | "barrio";
   tipo?: "oficial-comunal" | "oficial-gobierno" | "no-oficial";
   horario?: string;
   necesidades?: string[];
@@ -39,6 +40,7 @@ export interface Albergue extends Verificado {
   direccion: string;
   lat: number;
   lng: number;
+  coordenadas_nivel?: "premisa" | "via" | "barrio";
   capacidad?: number;
   ocupacion?: number;
   admite_mascotas?: boolean;
@@ -56,6 +58,7 @@ export interface CentroSalud extends Verificado {
   direccion: string;
   lat: number;
   lng: number;
+  coordenadas_nivel?: "premisa" | "via" | "barrio";
   tipo: "hospital" | "clinica" | "punto-primeros-auxilios" | "puesto-vacunacion";
   estado: "operativo" | "limitado" | "cerrado" | "sin-confirmar";
   urgencias_24h?: boolean;
@@ -71,6 +74,7 @@ export interface JornadaSangre extends Verificado {
   direccion: string;
   lat: number;
   lng: number;
+  coordenadas_nivel?: "premisa" | "via" | "barrio";
   fecha_inicio: string;
   fecha_fin?: string;
   horario: string;

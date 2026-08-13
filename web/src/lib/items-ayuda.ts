@@ -40,6 +40,35 @@ export interface ItemAyuda {
   unidad?: string;
 }
 
+/**
+ * Valida un ítem personalizado (forma estándar del registro, no texto libre):
+ * nombre 2–80 sin caracteres de control, cantidad entera 0–999999, unidad
+ * ≤ 20. Compartida por /reportar y el quick-add del mapa para que no
+ * diverjan (los mensajes de error son los mismos).
+ */
+export function validarItemPersonalizado(
+  nombre: string,
+  cantidadRaw: string,
+  unidad: string
+): { ok: true; item: ItemAyuda } | { ok: false; error: string } {
+  const nombreLimpio = nombre.trim();
+  if (nombreLimpio.length < 2 || nombreLimpio.length > 80) {
+    return { ok: false, error: "El nombre del ítem debe tener entre 2 y 80 caracteres." };
+  }
+  if (/[\u0000-\u001f\u007f]/.test(nombreLimpio)) {
+    return { ok: false, error: "Nombre inválido." };
+  }
+  let cantidad: number | undefined;
+  if (cantidadRaw.trim() !== "") {
+    cantidad = Number(cantidadRaw);
+    if (!Number.isInteger(cantidad) || cantidad < 0 || cantidad > 999999) {
+      return { ok: false, error: "La cantidad debe ser un número entero entre 0 y 999999." };
+    }
+  }
+  const unidadLimpia = unidad.trim().slice(0, 20) || undefined;
+  return { ok: true, item: { tipo: "personalizado", nombre: nombreLimpio, cantidad, unidad: unidadLimpia } };
+}
+
 export const TIPOS_AYUDA = [
   { id: "acopio", label: "Punto de acopio" },
   { id: "albergue", label: "Albergue / refugio" },
