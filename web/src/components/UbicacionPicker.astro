@@ -8,6 +8,8 @@
 //
 // Comunicación con la página por CustomEvents (web/src/lib/ubicacion-picker.ts):
 //   enlace:ubicacion:fijada  → { lat, lng, direccion, coordenadas_nivel }
+//   enlace:ubicacion:fijar    → { lat, lng, precision? } (pedido de la página:
+//                               modo edición — el picker coloca el pin y vuela)
 //   enlace:ubicacion:dedupe  → { candidato } (solo si hay dedupeDatos)
 //   enlace:ubicacion:reiniciar (escuchado: la página lo dispara tras un envío)
 
@@ -104,13 +106,15 @@ const dedupeJson = JSON.stringify(dedupeDatos).replace(/</g, "\\u003c");
   import maplibre from "maplibre-gl";
   import "maplibre-gl/dist/maplibre-gl.css";
   import { apiUrl } from "../lib/api";
-  import { PRECISION_CORTA, type PrecisionPin } from "../lib/necesidades";
+  import { PRECISION_CORTA, type PrecisionPin } from "../lib/items-ayuda";
   import {
     EVENTO_FIJADA,
+    EVENTO_FIJAR,
     EVENTO_DEDUPE,
     EVENTO_REINICIAR,
     dedupeCerca,
     type DedupeItem,
+    type FijarPinEvento,
     type UbicacionFijada,
   } from "../lib/ubicacion-picker";
 
@@ -623,6 +627,16 @@ const dedupeJson = JSON.stringify(dedupeDatos).replace(/</g, "\\u003c");
     const panel = document.getElementById("dedupe-panel");
     if (panel) panel.hidden = true;
   });
+
+  // ---------- Fijar pin programáticamente (p. ej. modo edición) ----------
+  // La página despacha enlace:ubicacion:fijar con las coordenadas del punto
+  // existente; el picker coloca el marcador, vuela y corre reverse geocode +
+  // dedupe igual que un clic del usuario.
+  document.addEventListener(EVENTO_FIJAR, ((e: Event) => {
+    const d = (e as CustomEvent<FijarPinEvento>).detail;
+    if (!d || !Number.isFinite(d.lat) || !Number.isFinite(d.lng)) return;
+    fijarPin(d.lat, d.lng, true, d.precision ?? "premisa");
+  }) as EventListener);
 
   // ---------- Reinicio pedido por la página (p. ej. tras envío exitoso) ----------
   document.addEventListener(EVENTO_REINICIAR, () => {
