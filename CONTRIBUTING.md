@@ -55,45 +55,60 @@ worker/        API (Hono, Cloudflare Workers)
 .github/       CI, despliegue automático y procesamiento de sugerencias
 ```
 
-## Puntos de rescate (registro en vivo)
+## Puntos de ayuda en vivo (D1 + API público)
 
-La plataforma permite al público reportar puntos donde se necesita ayuda (derrumbe,
-deslizamiento, rescate en curso) con **ubicación exacta** y **necesidades**, desde `/reportar`.
+Pasadas las 72 h, la coordinación es entre **quién necesita** (hospitales, albergues) y
+**quién recolecta y transporta** (acopios hacia otras ciudades). Cualquier persona publica
+un punto de ayuda desde `/reportar` con **ubicación exacta**, **ítems** (catálogo o
+personalizados con cantidad/unidad) y, para quienes recolectan, **destino** (a qué
+ciudades llevarán la ayuda). El alimento es solo **no perecedero**.
 
-**Cómo funciona:** el formulario envía a `POST /api/puntos`; el worker valida, geocodifica
-(Nominatim con caché KV) y commitea la entrada a `web/public/datos/reportes-puntos.json` con
-un token de bot unificado (`GITHUB_TOKEN`, fine-grained PAT con `contents:write` e `issues:write` sobre el repo). El push a main **no dispara deploy**: el worker actualiza la
-caché KV del API al commitear (write-through) y el punto aparece en el mapa y en la pestaña
-Rescates del dashboard en **~1 min**, vía `GET /api/datos/registro`. Sin comandos extra
-para contribuidores: la plataforma reutiliza el KV existente. El archivo
-ES el registro, y cualquier contribuidor puede verlo, corregirlo o archivarlo por PR.
+**Cómo funciona:** el formulario envía a `POST /api/ayuda`; el worker valida (honeypot,
+rate limits, enums, Ajv contra `data/schema/punto-ayuda.schema.json`) y persiste en la
+base **D1** (tabla `puntos_ayuda`). El punto aparece de inmediato en el mapa, en el panel
+Ayuda del dashboard y en el **API público** `GET /api/ayuda` (filtros por `ciudad`,
+`tipo`, `modalidad`, `item` y `estado`; proyección sin datos de IP; CORS abierto — medios
+y organizaciones pueden consumirlo sin clave). El deploy regenera el snapshot SSG
+(`web/public/datos/reportes-ayuda.json`) desde el API; ese archivo es generado y **no se
+edita por PR**.
 
 **Estados y ciclo de vida:**
 
-- Un reporte nace `sin-confirmar`. Cualquiera puede **confirmarlo desde el lugar** (la API
-  verifica cercanía ≤1 km con la geolocalización del navegador; 1 confirmación por IP por
-  punto). Un punto sin reconfirmación en **72 h** deja de mostrarse (la degradación se calcula
-  en el cliente; el archivo conserva todo).
-- **Peso orientativo de las confirmaciones:** la API verifica la distancia entre la posición
-  DECLARADA por el cliente y el punto — no es una verificación criptográfica; cualquiera
-  puede declarar estar a ≤1 km. El conteo es un indicio, no una certificación: el estado
-  `confirmado` real lo fija un mantenedor tras verificar contra fuente.
-- **3 reportes de falso** (`flags` en la entrada) ocultan el punto del mapa; sigue visible en
-  el archivo para auditoría. Un admin puede marcarlo `falso`, `resuelto` o `promovido`.
-- **Promoción a punto verificado:** cuando un punto se confirma contra fuente oficial,
-  edita su entrada **en el propio registro** (`web/public/datos/reportes-puntos.json`)
-  agregando `nombre`, `fuente`, `verificado_por`, `fecha_verificacion` y `verificacion`
-  (regla de oro; CI lo exige) — sin moverlo a otro archivo. Abre el PR y, al fusionar,
-  el admin marca la entrada `promovido` (deja de mostrarse como punto activo en vivo).
+- Un punto nace `sin-confirmar`. El autor recibe un **token de edición** al crearlo
+  (queda guardado en su navegador; el worker guarda solo el hash y admite respaldo por
+  IP) y con él puede **actualizar** sus ítems/destino/horario y **cerrar su punto**
+  (estado `cerrado`) cuando el lugar ya no necesita o dejó de recolectar.
+- **La comunidad valida de forma visible:** cada tarjeta tiene "Reportar punto falso"
+  (1 flag por IP, detalle obligatorio). **3 flags ocultan el punto**; el conteo se
+  muestra en la tarjeta. Un admin puede marcar `confirmado`, `cerrado`, `falso` o
+  `promovido` vía `POST /api/ayuda/:id/estado` con `ADMIN_TOKEN`.
+- **Promoción:** cuando un punto se confirma contra fuente oficial, el mantenedor lo
+  promueve con `fuente`/`verificado_por`/`fecha_verificacion`/`verificacion` y puede
+  fijar `enlazado_a` (id de la entrada del catálogo oficial). A diferencia de los
+  rescates, el `promovido` **no oculta** el punto: la necesidad verificada sigue útil
+  hasta cerrarse.
+- **Sin degradación automática:** la vigencia la renueva el autor al actualizar
+  ("actualizado hace X") y la cierra él o el mantenedor.
 
-**Secreto requerido:** `GITHUB_TOKEN` (un solo fine-grained PAT con `contents:write` e
-`issues:write` sobre el repo) como secreto del worker:
+**Requisitos de infraestructura (mantenedores):**
 
-```bash
-cd worker && npx wrangler secret put GITHUB_TOKEN
-```
+- Base D1 creada una vez: `cd worker && npx wrangler d1 create enlace-sismo` (copiar
+  `database_id` a `worker/wrangler.toml`). Las migraciones se aplican en el deploy
+  (`wrangler d1 migrations apply enlace-sismo --remote`); el token de Cloudflare del
+  workflow necesita permiso D1 edit.
+- `ADMIN_TOKEN` (moderación: `POST /api/ayuda/:id/estado` y rescates).
+- Los puntos de ayuda **no usan** `GITHUB_TOKEN` (viven en D1); ese secreto sigue
+  existiendo para sugerencias y el registro de rescates.
 
-Nota: si `main` tiene branch protection, el token necesita bypass para pushear.
+## Registro de rescates (backend conservado)
+
+La fase de rescate se superó a las 72 h (las zonas de rescate necesitan silencio y menos
+personas), así que el front ya no muestra puntos de rescate. El backend se conserva
+intacto para reutilización futura: `POST /api/puntos` (crear/confirmar/flag/estado),
+`web/public/datos/reportes-puntos.json` como registro (lo commitea el worker con
+`GITHUB_TOKEN`, write-through a `GET /api/datos/registro`). El archivo ES el registro:
+verlo, corregirlo o archivarlo por PR sigue funcionando; la UI simplemente no lo consume.
+No reincorporar la UI sin una decisión de producto.
 
 ### Ciudades con reportes ciudadanos
 
@@ -116,10 +131,10 @@ Cuando una ciudad reportada se confirma contra fuente oficial (SGC, UNGRD, alcal
 La plataforma permite al público sugerir centros de salud mediante un formulario web.
 El flujo es: formulario → API → GitHub Issue → revisión del mantenedor → PR al catálogo → CI → merge.
 
-**Secreto requerido**: el Worker usa el mismo `GITHUB_TOKEN` de los puntos de rescate
-(un solo fine-grained PAT con `issues:write` y `contents:write` sobre el repo) configurado
-como secreto de Cloudflare Worker. Rotación: crear PAT nuevo → `wrangler secret put
-GITHUB_TOKEN` → smoke test → borrar el secreto viejo si es distinto.
+**Secreto requerido**: el Worker usa el mismo `GITHUB_TOKEN` de las sugerencias y del
+registro de rescates (un solo fine-grained PAT con `issues:write` y `contents:write`
+sobre el repo) configurado como secreto de Cloudflare Worker. Rotación: crear PAT nuevo →
+`wrangler secret put GITHUB_TOKEN` → smoke test → borrar el secreto viejo si es distinto.
 
 El formulario crea un issue etiquetado `sugerencia-salud` · `sin-verificar`. No hay
 procesamiento automático posterior: un mantenedor revisa el issue contra la fuente, añade

@@ -1,7 +1,7 @@
 # Enlace Sismo
 
 > Información verificada para el sismo en Colombia.
-> Acopios, albergues, donación de sangre, centros de salud, personas desaparecidas y canales oficiales de ayuda.
+> Acopios, albergues, donación de sangre, centros de salud, puntos de ayuda en vivo, personas desaparecidas y canales oficiales.
 
 **Sitio: [https://enlacesismo.com](https://enlacesismo.com)** — en despliegue.
 
@@ -32,10 +32,28 @@ Cada dato muestra su nivel de verificación:
 | `data/contactos.json` | Líneas de emergencia oficiales |
 | `data/canales-ayuda.json` | Canales oficiales de donación y voluntariado |
 | `data/zonas-afectadas.json` | Epicentro SGC y ciudades con intensidad Mercalli (solo con fuente) |
+| `GET /api/ayuda` (D1) | **Puntos de ayuda en vivo** — lugares que necesitan (hospitales, albergues) o que recolectan y transportan a otras zonas (acopios). API público abierto, proyección sin datos de IP |
 
 Cada punto tiene enlace "Cómo llegar" (Google Maps) y coordenadas verificadas contra
 ≥2 geocodificadores independientes — **un pin equivocado envía donantes al lugar
 equivocado**, así que la precisión es parte del protocolo.
+
+## Puntos de ayuda en vivo
+
+Pasadas las primeras 72 h del sismo, la coordinación pasó de la búsqueda y rescate a la
+**oferta y demanda de ayuda** entre ciudades. Cualquier persona puede publicar desde
+`/reportar` un punto de ayuda:
+
+- **Quién necesita** — un hospital que requiere insumos, un albergue que necesita camas o ropa.
+- **Quién recolecta** — un acopio que reúne ítems y declara **a qué ciudades los llevará**.
+
+Cada punto lleva ítems estandarizados (catálogo + ítems específicos como "insulina") con
+cantidad y unidad opcionales; el alimento es solo **no perecedero**. Los puntos se
+publican como *sin confirmar*; la comunidad los valida con el botón "Reportar punto falso"
+(3 reportes los ocultan) y el autor puede actualizar o cerrar su punto con su token de
+edición. Los datos viven en una base D1 y se sirven por un **API público**
+(`GET https://api.enlacesismo.com/api/ayuda`, con filtros por ciudad, tipo, modalidad e
+ítem) para que medios, organizaciones y otras plataformas los consuman.
 
 ## Contribuir
 
@@ -56,6 +74,7 @@ equivocado**, así que la precisión es parte del protocolo.
 |---|---|---|
 | Web (estática, PWA offline) | Astro + MapLibre GL | Cloudflare Pages |
 | API | Hono (TypeScript) | Cloudflare Workers |
+| Puntos de ayuda en vivo | D1 (SQLite) — tabla `puntos_ayuda` | Cloudflare D1 (migraciones en el deploy) |
 | Límites y caché | Cloudflare KV | Cloudflare KV |
 | Datos verificados | JSON en este repo, validados en CI | Repo (GitHub) + API `/api/datos/:catalogo` |
 
@@ -71,21 +90,24 @@ npm run validate:data
 ## Despliegue (mantenedores)
 
 El push a `main` despliega automáticamente web y API (GitHub Actions → Cloudflare)
-**solo cuando cambia código** (`web/src/`, `worker/`, workflows, `data/schema/**`). Los
-cambios que tocan únicamente datos (`data/**` sin schemas, o el registro en vivo
-`web/public/datos/**`) **no despliegan**: el API sirve esos JSON directo desde el repo con
-caché KV (`GET /api/datos/:catalogo`), así que un PR de datos es visible en ~1–2 min sin
-deploy. Para refrescar la fotografía estática (SSG) que ven los usuarios sin JS y los
-crawlers, dispara el workflow `Deploy` manualmente (botón *Run workflow* → el baseline se
+**solo cuando cambia código** (`web/src/`, `worker/`, workflows, `data/schema/**`). El
+deploy aplica las migraciones D1, publica el worker y la web, y regenera el snapshot
+SSG de los puntos de ayuda (`web/public/datos/reportes-ayuda.json`) desde el API. Los
+cambios que tocan únicamente datos (`data/**` sin schemas, o `web/public/datos/**`)
+**no despliegan**: el API sirve los catálogos directo desde el repo con caché KV
+(`GET /api/datos/:catalogo`), así que un PR de datos es visible en ~1–2 min sin deploy.
+Para refrescar la fotografía estática (SSG) que ven los usuarios sin JS y los crawlers,
+dispara el workflow `Deploy` manualmente (botón *Run workflow* → el baseline se
 reconstruye con los datos actuales).
 
-La configuración de KV/secretos y los pasos manuales viven en
+La configuración de KV/D1/secretos y los pasos manuales viven en
 `.github/workflows/` y `worker/wrangler.toml`.
 
-Secretos del worker: `ADMIN_TOKEN` (moderación de puntos) y `GITHUB_TOKEN` (un solo
-fine-grained PAT con `issues:write` + `contents:write` sobre el repo — crea issues de
-sugerencias y commitea el registro en vivo de puntos de rescate
-`web/public/datos/reportes-puntos.json`). Ver `CONTRIBUTING.md`.
+Secretos del worker: `ADMIN_TOKEN` (moderación de puntos de ayuda y rescates) y
+`GITHUB_TOKEN` (un solo fine-grained PAT con `issues:write` + `contents:write` sobre el
+repo — crea issues de sugerencias y commitea el registro de rescates
+`web/public/datos/reportes-puntos.json`, conservado en el backend; los puntos de ayuda
+viven en D1 y no usan GitHub). Ver `CONTRIBUTING.md`.
 
 ## Licencia
 
