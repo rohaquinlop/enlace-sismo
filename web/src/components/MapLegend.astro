@@ -1,5 +1,5 @@
 ---
-import { acopios, albergues, centrosSalud, jornadasSangre } from "../lib/catalogs";
+import { jornadasSangre } from "../lib/catalogs";
 
 interface Props {
   ciudades: string[];
@@ -10,10 +10,10 @@ interface Props {
 
 const { ciudades, mostrarZonas = false, mostrarAyuda = false, ayudaActivos = 0 } = Astro.props;
 
+// Los catálogos de lugares (acopios/albergues/salud) son entradas del
+// registro de ayuda: el chip "Ayuda" los cubre. La capa de catálogos solo
+// conserva las jornadas de sangre (cambio catalogos-comunitarios).
 const CATEGORIAS = [
-  { valor: "acopio", etiqueta: `Acopios (${acopios.length})`, clase: "punto-acopio" },
-  { valor: "albergue", etiqueta: `Albergues (${albergues.length})`, clase: "punto-albergue" },
-  { valor: "salud", etiqueta: `Salud (${centrosSalud.length})`, clase: "punto-salud" },
   { valor: "sangre", etiqueta: `Donar sangre (${jornadasSangre.length})`, clase: "punto-sangre" },
 ];
 
@@ -21,9 +21,6 @@ const ZONAS = [
   { valor: "zona", etiqueta: "Zonas", clase: "punto-zona" },
   { valor: "epicentro", etiqueta: "Epicentro", clase: "punto-epicentro" },
 ];
-
-const totalPuntos = acopios.length + albergues.length + centrosSalud.length + jornadasSangre.length;
-const etiquetaPuntos = totalPuntos === 1 ? "1 punto" : `${totalPuntos} puntos`;
 ---
 
 <!-- Barra de herramientas del mapa, siempre visible. Una sola instancia en el
@@ -75,10 +72,8 @@ const etiquetaPuntos = totalPuntos === 1 ? "1 punto" : `${totalPuntos} puntos`;
         </span>
       )
     }
-    <!-- Actualizado por el script del mapa al filtrar; en el fallback sin mapa
-         muestra el total del build. aria-live: el cambio de conteo se anuncia
-         al filtrar capas o ciudad. -->
-    <span class="tira-conteo" id="puntos-conteo" aria-live="polite">{etiquetaPuntos}</span>
+    <!-- Cada chip lleva su conteo ("Donar sangre (N)", "Ayuda (N)"); el
+         contador global se eliminó en el audit (duplicaba los chips). -->
   </div>
   {
     mostrarZonas && (

@@ -1,11 +1,16 @@
-// Renderizadores client-side que espejan el markup SSG de los catálogos
-// (desacoplar-datos-deploy): el refresco runtime re-renderiza las listas con
-// datos frescos del API. Mantener en sync con los componentes Astro:
-// CatalogCard, JornadaSangreCard, StatusBadge y ZonasLista.
-import type { Acopio, Albergue, CentroSalud, JornadaSangre, CanalAyuda } from "./catalogs";
+// Renderizadores client-side que espejan el markup SSG (desacoplar-datos-
+// deploy): el refresco runtime re-renderiza las listas con datos frescos del
+// API. Los catálogos de lugares comparten UNA función con el SSG de las
+// páginas (renderCatalogoPagina/cardPuntoAyudaHTML). Mantener en sync con:
+// JornadaSangreCard, StatusBadge y ZonasLista.
+import type { JornadaSangre, CanalAyuda } from "./catalogs";
 import type { Zona } from "./zonas";
 import type { CiudadReportada } from "./ciudades";
+import type { PuntoAyuda } from "./puntos-ayuda";
+import { etiquetaTipo, etiquetaModalidadCorta, etiquetaItemAyuda, ESTADOS_AYUDA, etiquetaPrecision } from "./items-ayuda";
+import { estadoVerificacion, etiquetaVerificacion } from "./verificacion";
 import { haversineKm, formatearDistancia } from "./geo";
+import { actualizadoHace } from "./puntos-ayuda";
 
 export const escapar = (s: string) =>
   s.replace(/[&<>"']/g, (c) =>
@@ -23,6 +28,7 @@ const BADGES: Record<string, { texto: string; clase: string }> = {
   oficial: { texto: "Oficial", clase: "badge-oficial" },
   confirmado: { texto: "Confirmado", clase: "badge-confirmado" },
   "sin-confirmar": { texto: "Sin confirmar", clase: "badge-sin-confirmar" },
+  promovido: { texto: "Promovido", clase: "badge-confirmado" },
 };
 
 export function badgeHTML(estado: string): string {
@@ -30,89 +36,119 @@ export function badgeHTML(estado: string): string {
   return `<span class="badge ${info.clase}">${escapar(info.texto)}</span>`;
 }
 
-// ---------- Espejo de CatalogCard.astro ----------
-const TIPOS_CARD: Record<string, string> = {
-  acopio: "Punto de acopio",
-  albergue: "Albergue",
-  salud: "Centro de salud",
-};
-const NECESIDADES: Record<string, string> = {
-  "alimentos-no-perecederos": "Alimentos no perecederos",
-  agua: "Agua",
-  ropa: "Ropa",
-  medicamentos: "Medicamentos",
-  "elementos-aseo": "Elementos de aseo",
-  cobijas: "Cobijas",
-  colchonetas: "Colchonetas",
-  "alimentos-bebe": "Alimentos para bebés",
-  mascotas: "Mascotas",
-  herramientas: "Herramientas",
-  voluntarios: "Voluntarios",
-};
-const TIPO_ACOPIO: Record<string, string> = {
-  "oficial-comunal": "Oficial comunal",
-  "oficial-gobierno": "Oficial gobierno",
-  "no-oficial": "No oficial",
-};
-const TIPO_ALBERGUE: Record<string, string> = {
-  albergue: "Albergue",
-  refugio: "Refugio",
+// ---------- Render unificado de catálogos (PuntoAyuda) ----------
+// Los catálogos de lugares (acopios, albergues, centros de salud) son vistas
+// del registro unificado de puntos de ayuda (D1): misma tarjeta en el SSG y
+// en el refresco runtime (una sola fuente de markup — render-catalogos).
+
+const CLASES_VERIF: Record<string, string> = {
+  oficial: "badge-oficial",
+  confirmado: "badge-confirmado",
+  "sin-confirmar": "badge-sin-confirmar",
 };
 
-export function cardHTML(tipo: "acopio" | "albergue" | "salud", e: Acopio | Albergue | CentroSalud): string {
-  const tipoAcopio =
-    tipo === "acopio" && "tipo" in e && e.tipo
-      ? `<p class="card-tipo-acopio">${escapar(TIPO_ACOPIO[e.tipo] ?? e.tipo)}</p>`
+/** Badges de una entrada del registro: UN badge de verificación en color +
+ *  el estado de moderación como texto apagado SOLO cuando aporta (espejo del
+ *  panel Ayuda). Un punto sin-confirmar no repite "Sin confirmar" dos veces. */
+export function badgesPuntoAyudaHTML(p: PuntoAyuda): string {
+  const v = estadoVerificacion(p);
+  const estado = ESTADOS_AYUDA[p.estado] ?? p.estado;
+  const estadoHtml =
+    estado !== etiquetaVerificacion(p) ? `<span class="ayuda-estado">${escapar(estado)}</span>` : "";
+  return `<span class="badge ${CLASES_VERIF[v] ?? "badge-sin-confirmar"}">${escapar(etiquetaVerificacion(p))}</span>${estadoHtml}`;
+}
+
+/** Etiqueta del sub-tipo para tarjetas ("refugio" → "Refugio", "clinica" → "Clínica"). */
+const ETIQUETAS_SUBTIPO: Record<string, string> = {
+  refugio: "Refugio",
+  albergue: "Albergue",
+  clinica: "Clínica",
+  hospital: "Hospital",
+  "punto-primeros-auxilios": "Punto de primeros auxilios",
+  "puesto-vacunacion": "Puesto de vacunación",
+};
+
+// Espejo de la síntesis determinista del seed (worker/src/seed-catalogos.ts
+// — mantener en sync): esas descripciones no se renderizan en la card (el
+// pie de fuente ya comunica el origen; solo el texto del autor aporta).
+const DESCRIPCION_SEED = new Set([
+  "Punto de acopio verificado — ver fuente.",
+  "Albergue verificado — ver fuente.",
+  "Refugio verificado — ver fuente.",
+  "Centro de salud verificado — ver fuente.",
+]);
+
+/** Tarjeta de una entrada del registro (espejo del panel Ayuda del dashboard). */
+export function cardPuntoAyudaHTML(p: PuntoAyuda): string {
+  // El tipo se muestra UNA sola vez: badge del sub-tipo si existe (Refugio,
+  // Clínica), texto del tipo en su ausencia (convención de CatalogCard).
+  const tipoLinea =
+    p.subtipo && p.subtipo !== p.tipo
+      ? `<p class="card-tipo"><span class="badge badge-tipo">${escapar(ETIQUETAS_SUBTIPO[p.subtipo] ?? p.subtipo)}</span></p>`
+      : `<p class="card-tipo">${escapar(etiquetaTipo(p.tipo))}</p>`;
+  // Rol (modalidad) + precisión del pin en su propia línea: la meta de la
+  // card queda corta (ciudad · Cómo llegar) y no rompe a 320 px.
+  const rol = `${escapar(etiquetaModalidadCorta(p.modalidad))}${p.coordenadas_nivel ? ` · ${escapar(etiquetaPrecision(p.coordenadas_nivel))}` : ""}`;
+  const horario = p.horario ? `<p class="card-dato"><strong>Horario:</strong> ${escapar(p.horario)}</p>` : "";
+  const chips =
+    p.items.length > 0
+      ? `<div class="chips">${p.items.map((i) => `<span class="chip">${escapar(etiquetaItemAyuda(i))}</span>`).join("")}</div>`
       : "";
-  const tipoAlbergue =
-    tipo === "albergue" && "tipo" in e && e.tipo && TIPO_ALBERGUE[e.tipo]
-      ? `<p class="card-tipo"><span class="badge badge-tipo">${escapar(TIPO_ALBERGUE[e.tipo])}</span></p>`
-      : "";
-  const horario =
-    "horario" in e && e.horario ? `<p class="card-dato"><strong>Horario:</strong> ${escapar(e.horario)}</p>` : "";
-  const necesidades =
-    "necesidades" in e && e.necesidades && e.necesidades.length > 0
-      ? `<div class="chips">${e.necesidades
-          .map((n) => `<span class="chip">${escapar(NECESIDADES[n] ?? n)}</span>`)
-          .join("")}</div>`
-      : "";
-  const detalles = "detalles" in e && e.detalles ? `<p class="card-detalles">${escapar(e.detalles)}</p>` : "";
-  const fechaLimite =
-    "fecha_limite" in e && e.fecha_limite
-      ? `<p class="card-dato"><strong>Recolección hasta:</strong> ${escapar(e.fecha_limite)}</p>`
-      : "";
+  const destino = p.destino
+    ? `<p class="card-dato"><strong>${p.destino.transporta && p.destino.ciudades.length > 0 ? `Lleva a: ${escapar(p.destino.ciudades.join(", "))}` : "Entrega solo en este punto"}</strong></p>`
+    : "";
   const capacidad =
-    "capacidad" in e && e.capacidad != null
-      ? `<p class="card-dato"><strong>Capacidad:</strong> ${e.capacidad} personas</p>`
+    p.capacidad != null
+      ? `<p class="card-dato"><strong>Capacidad:</strong> ${p.capacidad} personas${p.ocupacion != null ? ` · ocupación ${p.ocupacion}` : ""}</p>`
       : "";
   const urgencias =
-    "urgencias_24h" in e
-      ? `<p class="card-dato"><strong>${e.urgencias_24h ? "Urgencias 24 horas" : "Sin urgencias 24 horas"}</strong></p>`
+    p.urgencias_24h !== undefined
+      ? `<p class="card-dato"><strong>${p.urgencias_24h ? "Urgencias 24 horas" : "Sin urgencias 24 horas"}</strong></p>`
       : "";
-  const contacto =
-    "contacto" in e && e.contacto ? `<p class="card-dato"><strong>Contacto:</strong> ${escapar(e.contacto)}</p>` : "";
-  const imagen =
-    "imagen_url" in e && e.imagen_url
-      ? `<a href="${escapar(e.imagen_url)}" target="_blank" rel="noopener" class="card-imagen-link">Ver imagen</a>`
+  const mascotas =
+    p.admite_mascotas !== undefined
+      ? `<p class="card-dato"><strong>${p.admite_mascotas ? "Admite mascotas" : "No admite mascotas"}</strong></p>`
       : "";
+  const servicios =
+    p.servicios && p.servicios.length > 0
+      ? `<p class="card-dato"><strong>Servicios:</strong> ${escapar(p.servicios.join(", "))}</p>`
+      : "";
+  const contacto = p.contacto ? `<p class="card-dato"><strong>Contacto:</strong> ${escapar(p.contacto)}</p>` : "";
   const evidencia =
-    "evidencia_links" in e && e.evidencia_links && e.evidencia_links.length > 0
-      ? `<div class="card-evidencia"><span>Evidencia:</span>${e.evidencia_links
+    p.evidencia_links && p.evidencia_links.length > 0
+      ? `<div class="card-evidencia"><span>Evidencia:</span>${p.evidencia_links
           .map((l, i) => `<a href="${escapar(l)}" target="_blank" rel="noopener">[${i + 1}]</a>`)
           .join("")}</div>`
       : "";
+  const recoleccion =
+    p.recoleccion_periodica !== undefined
+      ? `<p class="card-dato"><strong>${p.recoleccion_periodica ? "Recolección periódica" : "Sin recolección periódica"}</strong>${p.recoleccion_detalle ? ` · ${escapar(p.recoleccion_detalle)}` : ""}</p>`
+      : "";
+  const imagen =
+    p.imagen_url
+      ? `<a href="${escapar(p.imagen_url)}" target="_blank" rel="noopener" class="card-imagen-link">Ver imagen</a>`
+      : "";
+  const flags = p.flags > 0 ? `<p class="card-dato">${p.flags} reporte(s) de falso</p>` : "";
+  const actualizado = actualizadoHace(p)
+    ? `<p class="card-dato">Actualizado ${escapar(actualizadoHace(p))}</p>`
+    : "";
+  // La descripción determinista del seed (espejo de worker/src/seed-
+  // catalogos.ts — mantener en sync) no se renderiza: el pie de fuente ya
+  // comunica el origen; solo la descripción escrita por un autor aporta.
+  const descripcion =
+    p.descripcion && !DESCRIPCION_SEED.has(p.descripcion)
+      ? `<p class="card-detalles">${escapar(p.descripcion)}</p>`
+      : "";
   return (
-    `<article class="card" id="${escapar(e.id)}">` +
-    `<div class="card-head"><h3>${escapar(e.nombre)}</h3><span class="card-badges">${badgeHTML(e.estado)}${badgeHTML(e.verificacion)}</span></div>` +
-    `${tipo === "acopio" ? `<p class="card-tipo">${TIPOS_CARD[tipo]}</p>` : ""}` +
-    tipoAcopio +
-    tipoAlbergue +
-    `<p class="card-dir">${escapar(e.direccion)}</p>` +
-    `<p class="card-ciudad">${escapar(e.ciudad)}, ${escapar(e.departamento)} · ` +
-    `<a href="https://www.google.com/maps/dir/?api=1&destination=${e.lat},${e.lng}" target="_blank" rel="noopener">Cómo llegar</a></p>` +
-    `<div class="card-body">${horario}${necesidades}${detalles}${fechaLimite}${capacidad}${urgencias}${contacto}${imagen}${evidencia}</div>` +
-    `<p class="card-fuente">Fuente: ` +
-    `<a href="${escapar(e.fuente)}" target="_blank" rel="noopener">${escapar(e.fuente)}</a></p>` +
+    `<article class="card" id="${escapar(p.id)}">` +
+    `<div class="card-head"><h3>${escapar(p.nombre ?? etiquetaTipo(p.tipo))}</h3><span class="card-badges">${badgesPuntoAyudaHTML(p)}</span></div>` +
+    tipoLinea +
+    `<p class="card-dir">${escapar(p.direccion ?? "")}</p>` +
+    `<p class="card-ciudad">${escapar(p.ciudad ?? "")}${p.departamento ? `, ${escapar(p.departamento)}` : ""} · ` +
+    `<a href="https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}" target="_blank" rel="noopener">Cómo llegar</a></p>` +
+    `<div class="card-body">${rol ? `<p class="card-dato"><strong>${rol}</strong></p>` : ""}${horario}${chips}${destino}${capacidad}${urgencias}${mascotas}${servicios}` +
+    `${descripcion}${recoleccion}${imagen}${contacto}${evidencia}${flags}${actualizado}</div>` +
+    `${p.fuente ? `<p class="card-fuente">Fuente: <a href="${escapar(p.fuente)}" target="_blank" rel="noopener">${escapar(p.fuente)}</a></p>` : ""}` +
     `</article>`
   );
 }
@@ -196,65 +232,82 @@ function gruposHTML<T extends { ciudad: string; lat: number; lng: number }>(
 const VACIO = (titulo: string, texto: string, cta?: string) =>
   `<div class="vacio"><h3>${titulo}</h3><p>${texto}</p>${cta ?? ""}</div>`;
 
-// ---------- Páginas de catálogos (espejo de acopios/albergues/salud/donar-sangre) ----------
-const FILTROS_CIUDAD = (ciudades: string[]) =>
-  `<div class="filtros"><div class="filtros-controls">` +
-  `<label for="filtro-ciudad">Filtrar por ciudad:</label>` +
-  `<select id="filtro-ciudad"><option value="">Todas</option>` +
-  ciudades.map((c) => `<option value="${escapar(c)}">${escapar(c)}</option>`).join("") +
-  `</select>`;
+// ---------- Páginas de catálogos unificadas (espejo de acopios/albergues/salud) ----------
+// Los catálogos de lugares viven en el registro de puntos de ayuda: la página
+// filtra el snapshot/régimen por tipo y renderiza la misma tarjeta del panel.
 
-export function renderAcopiosPagina(items: Acopio[]): string {
-  if (items.length === 0) {
-    return VACIO(
-      "Aún no hay puntos de acopio verificados",
-      "Los acopios oficiales están siendo confirmados por alcaldías y UNGRD. Este es un proyecto open-source: si tienes un dato verificado, súbelo y publícalo.",
-      `<a class="btn btn-primary" href="/acopios/sugerir-acopio">Sugerir un punto de acopio</a>` +
-        `<a class="btn" href="https://github.com/rohaquinlop/enlace-sismo/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener" style="margin-top:var(--space-xs)">Agregar un acopio (guía)</a>`
-    );
+const VACIOS: Record<string, { titulo: string; texto: string }> = {
+  acopio: {
+    titulo: "Aún no hay puntos de acopio",
+    texto: "Los acopios los publica la comunidad y los confirma el equipo con fuente. Si conoces uno, repórtalo con ubicación e ítems.",
+  },
+  albergue: {
+    titulo: "Aún no hay albergues ni refugios",
+    texto: "Los albergues los publica la comunidad y los confirma el equipo con fuente. Si conoces uno, repórtalo con ubicación y capacidad.",
+  },
+  hospital: {
+    titulo: "Aún no hay centros de salud",
+    texto: "Los centros de salud los publica la comunidad y los confirma el equipo con fuente. Si conoces uno, repórtalo con ubicación.",
+  },
+};
+
+const CTA_REPORTAR = `<a class="btn btn-primary" href="/reportar">Reportar una necesidad u oferta</a>`;
+
+/** Agrupa las entradas del registro por ciudad (mismo patrón que las páginas). */
+function agruparPuntos(puntos: PuntoAyuda[]) {
+  const grupos = new Map<string, PuntoAyuda[]>();
+  for (const p of puntos) {
+    const ciudad = p.ciudad ?? "";
+    if (!grupos.has(ciudad)) grupos.set(ciudad, []);
+    grupos.get(ciudad)!.push(p);
   }
-  const ciudades = agrupar(items).map((g) => g.ciudad);
-  return (
-    FILTROS_CIUDAD(ciudades) +
-    `<label class="filtro-check"><input type="checkbox" id="filtro-oficiales" /> Puntos de acopio oficiales</label>` +
-    `</div>` +
-    `<a class="btn btn-primary" href="/acopios/sugerir-acopio">Sugerir un punto de acopio</a></div>` +
-    gruposHTML(items, (e) => cardHTML("acopio", e), {
-      cardItemAttrs: (e) => ` data-verificacion="${escapar(e.verificacion ?? "")}"`,
-    })
-  );
+  return Array.from(grupos.entries())
+    .map(([ciudad, items]) => ({
+      ciudad,
+      items: [...items].sort((a, b) => (a.nombre ?? a.id).localeCompare(b.nombre ?? b.id, "es")),
+      lat: items.reduce((s, i) => s + i.lat, 0) / items.length,
+      lng: items.reduce((s, i) => s + i.lng, 0) / items.length,
+    }))
+    .sort((a, b) => a.ciudad.localeCompare(b.ciudad, "es"));
 }
 
-export function renderAlberguesPagina(items: Albergue[]): string {
-  if (items.length === 0) {
-    return VACIO(
-      "Aún no hay albergues verificados",
-      "Los albergues oficiales están siendo confirmados por alcaldías y UNGRD. ¿Tienes un dato verificado? Súbelo al repositorio.",
-      `<a class="btn btn-primary" href="/albergues/sugerir-albergue">Sugerir un albergue</a>`
-    );
+/** Contenido completo de /acopios, /albergues y /salud (SSG y refresco runtime). */
+export function renderCatalogoPagina(tipo: "acopio" | "albergue" | "hospital", puntos: PuntoAyuda[]): string {
+  const v = VACIOS[tipo];
+  if (puntos.length === 0) {
+    return VACIO(v.titulo, v.texto, CTA_REPORTAR);
   }
-  return (
-    FILTROS_CIUDAD(agrupar(items).map((g) => g.ciudad)) +
+  const grupos = agruparPuntos(puntos);
+  const filtros =
+    `<div class="filtros"><div class="filtros-controls">` +
+    `<label for="filtro-ciudad">Filtrar por ciudad:</label>` +
+    `<select id="filtro-ciudad"><option value="">Todas</option>` +
+    grupos.map((g) => `<option value="${escapar(g.ciudad)}">${escapar(g.ciudad)}</option>`).join("") +
+    `</select>` +
+    // Los acopios conservan el filtro de oficiales (verificación del dato).
+    (tipo === "acopio"
+      ? `<label class="filtro-check"><input type="checkbox" id="filtro-oficiales" /> Puntos de acopio oficiales</label>`
+      : "") +
     `</div>` +
-    `<a class="btn btn-primary" href="/albergues/sugerir-albergue">Sugerir un albergue</a></div>` +
-    gruposHTML(items, (e) => cardHTML("albergue", e))
-  );
-}
-
-export function renderSaludPagina(items: CentroSalud[]): string {
-  if (items.length === 0) {
-    return VACIO(
-      "Aún no hay centros de salud verificados",
-      "Se está confirmando el estado de la red hospitalaria con las secretarías de salud. ¿Tienes un dato verificado? Súbelo al repositorio.",
-      `<a class="btn btn-primary" href="/salud/sugerir-centro-salud">Sugerir un centro de salud</a>` +
-        `<a class="btn" href="https://github.com/rohaquinlop/enlace-sismo/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener" style="margin-top:var(--space-xs)">Agregar un centro (guía)</a>`
-    );
-  }
+    CTA_REPORTAR +
+    `</div>`;
   return (
-    FILTROS_CIUDAD(agrupar(items).map((g) => g.ciudad)) +
-    `</div>` +
-    `<a class="btn btn-primary" href="/salud/sugerir-centro-salud">Sugerir un centro de salud</a></div>` +
-    gruposHTML(items, (e) => cardHTML("salud", e))
+    filtros +
+    grupos
+      .map(
+        (g) =>
+          `<section class="ciudad-grupo" data-ciudad="${escapar(g.ciudad)}" data-lat="${g.lat}" data-lng="${g.lng}">` +
+          `<h2 class="ciudad-titulo">${escapar(g.ciudad)}</h2>` +
+          `<div class="grid">` +
+          g.items
+            .map(
+              (p) =>
+                `<div class="card-item" data-ciudad="${escapar(g.ciudad)}"${tipo === "acopio" ? ` data-verificacion="${escapar(p.verificacion ?? "")}"` : ""}>${cardPuntoAyudaHTML(p)}</div>`
+            )
+            .join("") +
+          `</div></section>`
+      )
+      .join("")
   );
 }
 

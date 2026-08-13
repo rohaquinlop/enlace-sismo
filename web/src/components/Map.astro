@@ -1,27 +1,24 @@
 ---
-import type { Acopio, Albergue, CentroSalud, JornadaSangre } from "../lib/catalogs";
+import type { JornadaSangre } from "../lib/catalogs";
 import type { Zona } from "../lib/zonas";
 import type { CiudadReportada } from "../lib/ciudades";
 import evento from "../../../data/evento.json";
 import { haversineKm } from "../lib/geo";
 
 interface Props {
-  acopios: Acopio[];
-  albergues: Albergue[];
-  centros: CentroSalud[];
   jornadas?: JornadaSangre[];
   zonas?: Zona[];
   ciudadesReportadas?: CiudadReportada[];
 }
 
-const { acopios, albergues, centros, jornadas = [], zonas = [], ciudadesReportadas = [] } = Astro.props;
+const { jornadas = [], zonas = [], ciudadesReportadas = [] } = Astro.props;
 
 type Punto = {
   id: string;
   nombre: string;
   lat: number;
   lng: number;
-  tipo: "acopio" | "albergue" | "salud" | "sangre";
+  tipo: "sangre";
   estado: string;
   ciudad: string;
   direccion: string;
@@ -36,10 +33,11 @@ const fmtDia = (iso: string) => {
   return `${d} ${MESES[m - 1]}`;
 };
 
+// Capa de catálogos: SOLO jornadas de sangre. Los catálogos de lugares
+// (acopios, albergues, centros de salud) viven en el registro de puntos de
+// ayuda: se dibujan en la capa "ayuda" con su tipo (cambio catalogos-
+// comunitarios).
 const puntos: Punto[] = [
-  ...acopios.map((e) => ({ id: e.id, nombre: e.nombre, lat: e.lat, lng: e.lng, tipo: "acopio" as const, estado: e.estado, ciudad: e.ciudad, direccion: e.direccion, fuente: e.fuente, coordenadas_nivel: e.coordenadas_nivel })),
-  ...albergues.map((e) => ({ id: e.id, nombre: e.nombre, lat: e.lat, lng: e.lng, tipo: "albergue" as const, estado: e.estado, ciudad: e.ciudad, direccion: e.direccion, fuente: e.fuente, coordenadas_nivel: e.coordenadas_nivel })),
-  ...centros.map((e) => ({ id: e.id, nombre: e.nombre, lat: e.lat, lng: e.lng, tipo: "salud" as const, estado: e.estado, ciudad: e.ciudad, direccion: e.direccion, fuente: e.fuente, coordenadas_nivel: e.coordenadas_nivel })),
   ...jornadas.map((e) => ({
     id: e.id,
     nombre: e.punto,
@@ -79,7 +77,7 @@ const eventoJson = JSON.stringify({ fecha: evento.fecha.slice(0, 10) });
   import { puntoAyudaVisible, type PuntoAyuda } from "../lib/puntos-ayuda";
   import { agruparCiudades, nombreCiudadNormalizado, type CiudadReportada } from "../lib/ciudades";
   import { etiquetaTipo, etiquetaModalidadCorta, etiquetaItemAyuda, ESTADOS_AYUDA, type ItemAyuda } from "../lib/items-ayuda";
-  import type { Acopio, Albergue, CentroSalud, JornadaSangre } from "../lib/catalogs";
+  import type { JornadaSangre } from "../lib/catalogs";
   import type { Zona as ZonaCatalogo } from "../lib/zonas";
 
   type Punto = {
@@ -87,7 +85,7 @@ const eventoJson = JSON.stringify({ fecha: evento.fecha.slice(0, 10) });
     nombre: string;
     lat: number;
     lng: number;
-    tipo: "acopio" | "albergue" | "salud" | "sangre";
+    tipo: "sangre";
     estado: string;
     ciudad: string;
     direccion: string;
@@ -611,12 +609,6 @@ const eventoJson = JSON.stringify({ fecha: evento.fecha.slice(0, 10) });
       if (srcP && "setData" in srcP) {
         (srcP as maplibre.GeoJSONSource).setData(featureCollection(puntosFiltrados));
       }
-      // Conteo de puntos visibles en la tira (instrumento: cuánto hay aquí)
-      const conteo = document.getElementById("puntos-conteo");
-      if (conteo) {
-        conteo.textContent =
-          puntosFiltrados.length === 1 ? "1 punto" : `${puntosFiltrados.length} puntos`;
-      }
       const srcZ = map.getSource("zonas");
       if (srcZ && "setData" in srcZ) {
         (srcZ as maplibre.GeoJSONSource).setData(featureCollectionZonas(zonasFiltradas));
@@ -660,9 +652,6 @@ const eventoJson = JSON.stringify({ fecha: evento.fecha.slice(0, 10) });
     // desde /api/datos/:catalogo y los comparte con el mapa. Sin datos
     // frescos, el mapa conserva los del build (SSG).
     interface DatosFrescos {
-      acopios?: Acopio[];
-      albergues?: Albergue[];
-      centros?: CentroSalud[];
       jornadas?: JornadaSangre[];
       zonas?: ZonaCatalogo[];
       evento?: { fecha?: string };
@@ -674,9 +663,6 @@ const eventoJson = JSON.stringify({ fecha: evento.fecha.slice(0, 10) });
       const [, m, d] = iso.split("-").map(Number);
       return `${d} ${MESES[m - 1]}`;
     };
-    const aPuntoAcopio = (e: Acopio): Punto => ({ id: e.id, nombre: e.nombre, lat: e.lat, lng: e.lng, tipo: "acopio", estado: e.estado, ciudad: e.ciudad, direccion: e.direccion, fuente: e.fuente, coordenadas_nivel: e.coordenadas_nivel });
-    const aPuntoAlbergue = (e: Albergue): Punto => ({ id: e.id, nombre: e.nombre, lat: e.lat, lng: e.lng, tipo: "albergue", estado: e.estado, ciudad: e.ciudad, direccion: e.direccion, fuente: e.fuente, coordenadas_nivel: e.coordenadas_nivel });
-    const aPuntoSalud = (e: CentroSalud): Punto => ({ id: e.id, nombre: e.nombre, lat: e.lat, lng: e.lng, tipo: "salud", estado: e.estado, ciudad: e.ciudad, direccion: e.direccion, fuente: e.fuente, coordenadas_nivel: e.coordenadas_nivel });
     const aPuntoSangre = (e: JornadaSangre): Punto => ({
       id: e.id,
       nombre: e.punto,
@@ -730,12 +716,13 @@ const eventoJson = JSON.stringify({ fecha: evento.fecha.slice(0, 10) });
           ultima_actualizacion: p.ultima_actualizacion,
         }));
       // Ciudades reportadas: se regeneran en runtime (dedupe contra el
-      // catálogo de puntos y zonas SGC).
+      // registro —incluye los lugares sembrados— y zonas SGC).
       const catalogadas = new Set([
         ...puntos.map((p) => nombreCiudadNormalizado(p.ciudad)),
+        ...vivos.map((p) => nombreCiudadNormalizado(p.ciudad ?? "")),
         ...zonas.filter((z) => z.tipo === "ciudad").map((z) => nombreCiudadNormalizado(z.nombre)),
       ]);
-      ciudadesReportadasMap = agruparCiudades(vivos)
+      ciudadesReportadasMap = agruparCiudades(vivos, { soloCiudadanos: true })
         .filter((c) => !catalogadas.has(nombreCiudadNormalizado(c.nombre)))
         .map(aCiudadMap);
       const srcC = map.getSource("ciudades-reportadas");
@@ -758,14 +745,8 @@ const eventoJson = JSON.stringify({ fecha: evento.fecha.slice(0, 10) });
       ((e: CustomEvent<DatosFrescos>) => {
         const d = e.detail;
         if (!d || typeof d !== "object") return;
-        if (d.acopios || d.albergues || d.centros || d.jornadas) {
-          const porTipo = (t: Punto["tipo"]) => puntos.filter((p) => p.tipo === t);
-          puntos = [
-            ...(d.acopios ? d.acopios.map(aPuntoAcopio) : porTipo("acopio")),
-            ...(d.albergues ? d.albergues.map(aPuntoAlbergue) : porTipo("albergue")),
-            ...(d.centros ? d.centros.map(aPuntoSalud) : porTipo("salud")),
-            ...(d.jornadas ? d.jornadas.map(aPuntoSangre) : porTipo("sangre")),
-          ];
+        if (d.jornadas) {
+          puntos = d.jornadas.map(aPuntoSangre);
         }
         if (d.zonas) {
           zonas = conDistancia(d.zonas);

@@ -7,30 +7,18 @@ import MapLegend from "../components/MapLegend.astro";
 import DatosEvento from "../components/DatosEvento.astro";
 import ZonasLista from "../components/ZonasLista.astro";
 import StatusBadge from "../components/StatusBadge.astro";
-import { acopios, albergues, centrosSalud, jornadasSangre, todasLasCiudades } from "../lib/catalogs";
+import { jornadasSangre } from "../lib/catalogs";
 import { zonas } from "../lib/zonas";
 import evento from "../../../data/evento.json";
 import { puntoAyudaVisible, lineaCobertura, actualizadoHace, agregarItemsNecesarios, etiquetaAgregado, type PuntoAyuda } from "../lib/puntos-ayuda";
 import { agruparCiudades, fusionarCiudadesSelect, nombreCiudadNormalizado, type CiudadReportada } from "../lib/ciudades";
 import { etiquetaTipo, etiquetaModalidadCorta, etiquetaItemAyuda, etiquetaPrecision, ESTADOS_AYUDA } from "../lib/items-ayuda";
-import { estadoVerificacion } from "../lib/verificacion";
-
-// Ciudades del filtro = unión de las que tienen puntos de datos, las zonas
-// afectadas y las ciudades derivadas de los puntos de ayuda en vivo:
-// clic en una zona sin puntos registrados filtra a "0 puntos" (información
-// honesta) en vez de quedarse en "todas".
-const catalogadas = Array.from(
-  new Set([
-    ...todasLasCiudades,
-    ...zonas.filter((z) => z.tipo === "ciudad").map((z) => z.nombre),
-  ])
-);
-// Dedupe insensible a acentos/caja: "Bogotá" del catálogo y "bogota" del
-// reporte son la misma ciudad.
-const catalogadasNorm = new Set(catalogadas.map(nombreCiudadNormalizado));
+import { estadoVerificacion, etiquetaVerificacion } from "../lib/verificacion";
 
 // Puntos de ayuda: el snapshot lo genera el deploy (GET /api/ayuda → D1);
-// el build lo lee para la lista SSG (fallback sin JS/API).
+// el build lo lee para la lista SSG (fallback sin JS/API). Los catálogos de
+// lugares (acopios/albergues/salud) son entradas del mismo registro: las
+// páginas /acopios /albergues /salud son vistas filtradas por tipo.
 let vivos: PuntoAyuda[] = [];
 try {
   const raw = readFileSync(new URL("../../public/datos/reportes-ayuda.json", import.meta.url), "utf8");
@@ -41,6 +29,19 @@ try {
 }
 const visibles = vivos.filter((p) => puntoAyudaVisible(p)).sort((a, b) => b.ultima_actualizacion.localeCompare(a.ultima_actualizacion));
 
+// Ciudades del filtro = unión de las que tienen puntos (incluye las de los
+// catálogos sembrados), las zonas afectadas y las jornadas de sangre.
+const catalogadas = Array.from(
+  new Set([
+    ...jornadasSangre.map((j) => j.ciudad),
+    ...zonas.filter((z) => z.tipo === "ciudad").map((z) => z.nombre),
+    ...vivos.map((p) => p.ciudad).filter((c): c is string => Boolean(c)),
+  ])
+);
+// Dedupe insensible a acentos/caja: "Bogotá" del catálogo y "bogota" del
+// reporte son la misma ciudad.
+const catalogadasNorm = new Set(catalogadas.map(nombreCiudadNormalizado));
+
 // Ítems agregados de los puntos que necesitan (modalidad necesita/ambos):
 // suma de cantidades, no solo conteo de puntos (coherente con las tarjetas).
 const cuentanItems = (p: PuntoAyuda) => p.modalidad === "necesita" || p.modalidad === "ambos";
@@ -49,9 +50,18 @@ const agregado = agregarItemsNecesarios(visibles);
 // Badge de verificación de un punto (derivado de los datos sin inventar).
 const badgeVerificacion = (p: PuntoAyuda): string => estadoVerificacion(p);
 
-// Ciudades con puntos de ayuda: agrupadas del registro y deduplicadas
-// contra el catálogo (una ciudad oficial no se lista como reportada).
-const ciudadesReportadas: CiudadReportada[] = agruparCiudades(vivos).filter(
+// Estado de moderación visible en las tarjetas: se muestra SOLO cuando su
+// etiqueta difiere de la del badge de verificación (un punto sin-confirmar
+// no repite "Sin confirmar" dos veces). Mismo criterio en SSG y runtime.
+const estadoVisible = (p: PuntoAyuda): string | null => {
+  const estado = ESTADOS_AYUDA[p.estado] ?? p.estado;
+  return estado !== etiquetaVerificacion(p) ? estado : null;
+};
+
+// Ciudades con puntos de ayuda ciudadanos (los puntos `promovido` del seed
+// no cuentan: sus ciudades ya están en el catálogo) y dedupe contra zonas SGC
+// y jornadas: una ciudad oficial no se lista como reportada.
+const ciudadesReportadas: CiudadReportada[] = agruparCiudades(vivos, { soloCiudadanos: true }).filter(
   (c) => !catalogadasNorm.has(nombreCiudadNormalizado(c.nombre))
 );
 const ciudadesFiltro = fusionarCiudadesSelect(
@@ -79,7 +89,7 @@ const lineaDestino = (p: PuntoAyuda): string => {
        (Sin <main> propio: BaseLayout ya lo aporta; un main anidado
        constreñía el mapa al ancho de 68rem y añadía scroll vertical.) -->
   <section class="dash" id="mapa" aria-label="Mapa de ayuda">
-      <Map acopios={acopios} albergues={albergues} centros={centrosSalud} jornadas={jornadasSangre} zonas={zonas} ciudadesReportadas={ciudadesReportadas} />
+      <Map jornadas={jornadasSangre} zonas={zonas} ciudadesReportadas={ciudadesReportadas} />
 
       <DatosEvento />
 
@@ -160,7 +170,7 @@ const lineaDestino = (p: PuntoAyuda): string => {
                             </div>
                             <span class="ayuda-badges">
                               <StatusBadge estado={badgeVerificacion(p)} />
-                              <span class="ayuda-estado">{ESTADOS_AYUDA[p.estado] ?? p.estado}</span>
+                              {estadoVisible(p) && <span class="ayuda-estado">{estadoVisible(p)}</span>}
                             </span>
                             {p.descripcion && <p class="ayuda-descripcion">{p.descripcion}</p>}
                             {
@@ -174,8 +184,8 @@ const lineaDestino = (p: PuntoAyuda): string => {
                             }
                             {lineaDestino(p) && <p class="ayuda-destino">{lineaDestino(p)}</p>}
                             {
-                              lineaCobertura(p, vivos, acopios) && (
-                                <p class="ayuda-cobertura">{lineaCobertura(p, vivos, acopios)}</p>
+                              lineaCobertura(p, vivos) && (
+                                <p class="ayuda-cobertura">{lineaCobertura(p, vivos)}</p>
                               )
                             }
                             {p.horario && <p class="ayuda-destino">Horario: {p.horario}</p>}
@@ -234,11 +244,11 @@ const lineaDestino = (p: PuntoAyuda): string => {
   import { fetchCatalogo, fetchPuntosAyuda } from "../lib/datos";
   import { puntoAyudaVisible, lineaCobertura, actualizadoHace, agregarItemsNecesarios, etiquetaAgregado, type PuntoAyuda } from "../lib/puntos-ayuda";
   import { agruparCiudades, nombreCiudadNormalizado, type CiudadReportada } from "../lib/ciudades";
-  import { estadoVerificacion } from "../lib/verificacion";
+  import { estadoVerificacion, etiquetaVerificacion } from "../lib/verificacion";
   import { etiquetaTipo, etiquetaModalidadCorta, etiquetaItemAyuda, etiquetaPrecision, ESTADOS_AYUDA, type ItemAyuda } from "../lib/items-ayuda";
   import { renderZonasListaHTML } from "../lib/render-catalogos";
-  import { acopios, albergues, centrosSalud, jornadasSangre } from "../lib/catalogs";
-  import type { Acopio, Albergue, CentroSalud, JornadaSangre } from "../lib/catalogs";
+  import { jornadasSangre } from "../lib/catalogs";
+  import type { JornadaSangre } from "../lib/catalogs";
   import { zonas } from "../lib/zonas";
   import type { Zona } from "../lib/zonas";
 
@@ -603,9 +613,6 @@ const lineaDestino = (p: PuntoAyuda): string => {
   }
 
   interface DatosFrescos {
-    acopios?: Acopio[];
-    albergues?: Albergue[];
-    centros?: CentroSalud[];
     jornadas?: JornadaSangre[];
     zonas?: Zona[];
     evento?: EventoBoletin;
@@ -613,13 +620,10 @@ const lineaDestino = (p: PuntoAyuda): string => {
   }
 
   // Estado actual: arranca en los datos del build y se actualiza con cada
-  // refresco que trae datos frescos (catálogos y zonas del API).
-  let catalogoActual: {
-    acopios: Acopio[];
-    albergues: Albergue[];
-    centros: CentroSalud[];
-    jornadas: JornadaSangre[];
-  } = { acopios, albergues, centros: centrosSalud, jornadas: jornadasSangre };
+  // refresco que trae datos frescos (jornadas y zonas del API). Los
+  // catálogos de lugares son entradas del registro de ayuda (no se refrescan
+  // aparte: llegan en `ayuda`).
+  let jornadasActuales: JornadaSangre[] = jornadasSangre;
   let zonasActuales: Zona[] = zonas;
   // Puntos de ayuda: arrancan con el SSG del build (panel ya renderizado) y
   // se actualizan con cada refresco del API o con la copia estática si cae.
@@ -646,19 +650,18 @@ const lineaDestino = (p: PuntoAyuda): string => {
     : [];
   let fechaZonas = slotZonas?.dataset.fechaEvento ?? "";
 
-  /** Ciudades con puntos de ayuda vigentes (dedupe contra catálogo + zonas SGC). */
+  /** Ciudades con puntos de ayuda ciudadanos (dedupe contra el registro
+   *  sembrado —promovido—, zonas SGC y jornadas). */
   function ciudadesReportadasActuales(): CiudadReportada[] {
     if (!ultimoAyuda) return ciudadesSSG;
     const catalogadas = new Set(
       [
-        ...catalogoActual.acopios.map((e) => e.ciudad),
-        ...catalogoActual.albergues.map((e) => e.ciudad),
-        ...catalogoActual.centros.map((e) => e.ciudad),
-        ...catalogoActual.jornadas.map((e) => e.ciudad),
+        ...jornadasActuales.map((e) => e.ciudad),
+        ...ultimoAyuda.map((p) => p.ciudad).filter((c): c is string => Boolean(c)),
         ...zonasActuales.filter((z) => z.tipo === "ciudad").map((z) => z.nombre),
       ].map(nombreCiudadNormalizado)
     );
-    return agruparCiudades(ultimoAyuda).filter(
+    return agruparCiudades(ultimoAyuda, { soloCiudadanos: true }).filter(
       (c) => !catalogadas.has(nombreCiudadNormalizado(c.nombre))
     );
   }
@@ -680,15 +683,19 @@ const lineaDestino = (p: PuntoAyuda): string => {
 
   /** Fila del panel Ayuda (mismo markup SSG; clic en la fila = ver en el mapa). */
   function badgeVerificacionHTML(p: PuntoAyuda): string {
-    const estado = estadoVerificacion(p);
+    const v = estadoVerificacion(p);
     const clase =
-      estado === "oficial"
-        ? "badge-oficial"
-        : estado === "confirmado"
-          ? "badge-confirmado"
-          : "badge-sin-confirmar";
-    const texto = estado === "oficial" ? "Oficial" : estado === "confirmado" ? "Confirmado" : "Sin confirmar";
-    return `<span class="badge ${clase}">${texto}</span>`;
+      v === "oficial" ? "badge-oficial" : v === "confirmado" ? "badge-confirmado" : "badge-sin-confirmar";
+    return `<span class="badge ${clase}">${escapar(etiquetaVerificacion(p))}</span>`;
+  }
+
+  /** Estado de moderación visible: solo cuando difiere del badge de verificación
+   *  (mismo criterio que el SSG — estadoVisible en el frontmatter). */
+  function estadoVisibleRuntime(p: PuntoAyuda): string {
+    const estado = ESTADOS_AYUDA[p.estado] ?? p.estado;
+    return estado !== etiquetaVerificacion(p)
+      ? `<span class="ayuda-estado">${escapar(estado)}</span>`
+      : "";
   }
 
   function chipsItemsHTML(items: ItemAyuda[]): string {
@@ -706,7 +713,7 @@ const lineaDestino = (p: PuntoAyuda): string => {
         ? `<p class="ayuda-destino">Lleva a: ${escapar(p.destino.ciudades.join(", "))}</p>`
         : `<p class="ayuda-destino">Entrega solo en este punto</p>`;
     }
-    const cobertura = lineaCobertura(p, ultimoAyuda ?? [], catalogoActual.acopios);
+    const cobertura = lineaCobertura(p, ultimoAyuda ?? []);
     const coberturaHtml = cobertura ? `<p class="ayuda-cobertura">${escapar(cobertura)}</p>` : "";
     const horario = p.horario ? `<p class="ayuda-destino">Horario: ${escapar(p.horario)}</p>` : "";
     const flags = p.flags > 0 ? `<p class="ayuda-destino">${p.flags} reporte(s) de falso</p>` : "";
@@ -727,7 +734,7 @@ const lineaDestino = (p: PuntoAyuda): string => {
       `<article class="ayuda-fila" data-id="${escapar(p.id)}" data-volar-ayuda="${escapar(p.id)}" title="Ver en el mapa">` +
       `<div class="dash-row-top"><span class="dash-row-nombre">${escapar(nombre)}${escapar(direccion)}</span>` +
       `<span class="dash-row-meta">${meta}</span></div>` +
-      `<span class="ayuda-badges">${badgeVerificacionHTML(p)}<span class="ayuda-estado">${escapar(ESTADOS_AYUDA[p.estado] ?? p.estado)}</span></span>` +
+      `<span class="ayuda-badges">${badgeVerificacionHTML(p)}${estadoVisibleRuntime(p)}</span>` +
       `${p.descripcion ? `<p class="ayuda-descripcion">${escapar(p.descripcion)}</p>` : ""}` +
       `${chipsItemsHTML(p.items)}` +
       `${destino}${coberturaHtml}${horario}${flags}${actualizadoHtml}` +
@@ -827,10 +834,8 @@ const lineaDestino = (p: PuntoAyuda): string => {
       }
     }
     const catalogadas = new Set([
-      ...catalogoActual.acopios.map((e) => e.ciudad),
-      ...catalogoActual.albergues.map((e) => e.ciudad),
-      ...catalogoActual.centros.map((e) => e.ciudad),
-      ...catalogoActual.jornadas.map((e) => e.ciudad),
+      ...jornadasActuales.map((e) => e.ciudad),
+      ...vivos.map((p) => p.ciudad).filter((c): c is string => Boolean(c)),
       ...zonasActuales.filter((z) => z.tipo === "ciudad").map((z) => z.nombre),
     ]);
     const select = document.querySelector<HTMLSelectElement>(".leyenda-tira select");
@@ -867,9 +872,6 @@ const lineaDestino = (p: PuntoAyuda): string => {
   }
 
   const CONTEOS_LEYENDA: Record<string, string> = {
-    acopio: "Acopios",
-    albergue: "Albergues",
-    salud: "Salud",
     sangre: "Donar sangre",
   };
 
@@ -878,16 +880,6 @@ const lineaDestino = (p: PuntoAyuda): string => {
       `.leyenda-tira input[value='${tipo}'] ~ .tira-label`
     );
     if (label && CONTEOS_LEYENDA[tipo]) label.textContent = `${CONTEOS_LEYENDA[tipo]} (${n})`;
-  }
-
-  function actualizarPuntosConteo() {
-    const total =
-      catalogoActual.acopios.length +
-      catalogoActual.albergues.length +
-      catalogoActual.centros.length +
-      catalogoActual.jornadas.length;
-    const el = document.getElementById("puntos-conteo");
-    if (el) el.textContent = total === 1 ? "1 punto" : `${total} puntos`;
   }
 
   /** Barra de estado: lectura del boletín SGC con el evento fresco. */
@@ -914,35 +906,17 @@ const lineaDestino = (p: PuntoAyuda): string => {
     }
   }
 
-  /** Ciclo completo: catálogos + zonas + evento + puntos de ayuda, una vez por poll. */
+  /** Ciclo completo: jornadas + zonas + evento + puntos de ayuda, una vez por poll. */
   async function refrescarDatos() {
-    const [acopiosD, alberguesD, centrosD, jornadasD, zonasD, eventoD, ayudaD] = await Promise.all([
-      fetchCatalogo<{ acopios: Acopio[] }>("acopios"),
-      fetchCatalogo<{ albergues: Albergue[] }>("albergues"),
-      fetchCatalogo<{ centros: CentroSalud[] }>("centros-salud"),
+    const [jornadasD, zonasD, eventoD, ayudaD] = await Promise.all([
       fetchCatalogo<{ jornadas: JornadaSangre[] }>("donacion-sangre"),
       fetchCatalogo<Zona[]>("zonas-afectadas"),
       fetchCatalogo<EventoBoletin>("evento"),
       fetchPuntosAyuda(),
     ]);
     const detalle: DatosFrescos = {};
-    if (acopiosD?.acopios) {
-      catalogoActual.acopios = acopiosD.acopios;
-      detalle.acopios = acopiosD.acopios;
-      actualizarConteoLeyenda("acopio", acopiosD.acopios.length);
-    }
-    if (alberguesD?.albergues) {
-      catalogoActual.albergues = alberguesD.albergues;
-      detalle.albergues = alberguesD.albergues;
-      actualizarConteoLeyenda("albergue", alberguesD.albergues.length);
-    }
-    if (centrosD?.centros) {
-      catalogoActual.centros = centrosD.centros;
-      detalle.centros = centrosD.centros;
-      actualizarConteoLeyenda("salud", centrosD.centros.length);
-    }
     if (jornadasD?.jornadas) {
-      catalogoActual.jornadas = jornadasD.jornadas;
+      jornadasActuales = jornadasD.jornadas;
       detalle.jornadas = jornadasD.jornadas;
       actualizarConteoLeyenda("sangre", jornadasD.jornadas.length);
     }
@@ -981,7 +955,6 @@ const lineaDestino = (p: PuntoAyuda): string => {
     // re-renders inútiles).
     if (zonasD || ayudaD || eventoD) reRenderZonas();
     if (ayudaD) aplicarAyuda(ayudaD, detalle);
-    actualizarPuntosConteo();
     window.dispatchEvent(new CustomEvent("enlace:mapa:datos-frescos", { detail: detalle }));
   }
 

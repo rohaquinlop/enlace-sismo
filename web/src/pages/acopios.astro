@@ -1,9 +1,25 @@
 ---
+import { readFileSync } from "node:fs";
 import BaseLayout from "../layouts/BaseLayout.astro";
-import CatalogCard from "../components/CatalogCard.astro";
-import { acopios, agruparPorCiudad } from "../lib/catalogs";
+import { renderCatalogoPagina } from "../lib/render-catalogos";
+import { puntoAyudaVisible, type PuntoAyuda } from "../lib/puntos-ayuda";
 
-const grupos = agruparPorCiudad(acopios);
+// Los puntos de acopio viven en el registro unificado (D1): el snapshot SSG
+// (generado por el deploy) es el baseline; el refresco runtime los actualiza
+// desde GET /api/ayuda. Sin snapshot (primer clon), la página queda en el
+// estado vacío y el refresco la llena.
+let vivos: PuntoAyuda[] = [];
+try {
+  const raw = readFileSync(new URL("../../public/datos/reportes-ayuda.json", import.meta.url), "utf8");
+  const parsed = JSON.parse(raw);
+  if (Array.isArray(parsed)) vivos = parsed as PuntoAyuda[];
+} catch {
+  // Sin snapshot todavía (primer clon o antes del primer deploy).
+}
+const visibles = vivos
+  .filter((p) => p.tipo === "acopio" && puntoAyudaVisible(p))
+  .sort((a, b) => b.ultima_actualizacion.localeCompare(a.ultima_actualizacion));
+const contenido = renderCatalogoPagina("acopio", visibles);
 ---
 
 <BaseLayout
@@ -18,57 +34,16 @@ const grupos = agruparPorCiudad(acopios);
     </p>
   </section>
 
-  <div id="contenido-acopios">
-  {
-    acopios.length === 0 ? (
-      <div class="vacio">
-        <h3>Aún no hay puntos de acopio verificados</h3>
-        <p>
-          Los acopios oficiales están siendo confirmados por alcaldías y UNGRD.
-          Este es un proyecto open-source: si tienes un dato verificado, súbelo y publícalo.
-        </p>
-        <a class="btn btn-primary" href="/acopios/sugerir-acopio">Sugerir un punto de acopio</a>
-        <a class="btn" href="https://github.com/rohaquinlop/enlace-sismo/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener" style="margin-top:var(--space-xs)">Agregar un acopio (guía)</a>
-      </div>
-    ) : (
-      <>
-        <div class="filtros">
-          <div class="filtros-controls">
-            <label for="filtro-ciudad">Filtrar por ciudad:</label>
-            <select id="filtro-ciudad">
-              <option value="">Todas</option>
-              {grupos.map((g) => <option value={g.ciudad}>{g.ciudad}</option>)}
-            </select>
-            <label class="filtro-check">
-              <input type="checkbox" id="filtro-oficiales" />
-              Puntos de acopio oficiales
-            </label>
-          </div>
-          <a class="btn btn-primary" href="/acopios/sugerir-acopio">Sugerir un punto de acopio</a>
-        </div>
-        {grupos.map((grupo) => (
-          <section class="ciudad-grupo" data-ciudad={grupo.ciudad} data-lat={grupo.lat} data-lng={grupo.lng}>
-            <h2 class="ciudad-titulo">{grupo.ciudad}</h2>
-            <div class="grid">
-              {grupo.items.map((a) => (
-                <div class="card-item" data-ciudad={a.ciudad} data-verificacion={a.verificacion}>
-                  <CatalogCard entrada={a} tipo="acopio" />
-                </div>
-              ))}
-            </div>
-          </section>
-        ))}
-      </>
-    )
-  }
-  </div>
+  <!-- El contenido (filtros + tarjetas) lo renderiza la misma función que el
+       refresco runtime: el SSG y el runtime nunca divergen. -->
+  <div id="contenido-acopios" set:html={contenido}></div>
 </BaseLayout>
 
 <script>
   import { haversineKm } from "../lib/geo";
-  import { fetchCatalogo } from "../lib/datos";
-  import { renderAcopiosPagina } from "../lib/render-catalogos";
-  import type { Acopio } from "../lib/catalogs";
+  import { fetchPuntosAyuda } from "../lib/datos";
+  import { renderCatalogoPagina } from "../lib/render-catalogos";
+  import { puntoAyudaVisible, type PuntoAyuda } from "../lib/puntos-ayuda";
 
   let ultimaPos: { latitude: number; longitude: number } | null = null;
 
@@ -135,20 +110,26 @@ const grupos = agruparPorCiudad(acopios);
     );
   }
 
-  // Refresco runtime (desacoplar-datos-deploy): datos frescos del API con
-  // fallback al SSG. Si el API falla, la página queda como se renderizó.
+  // Refresco runtime: los puntos de acopio son una vista del registro unificado
+  // (GET /api/ayuda?tipo=acopio). Si el API falla, la página queda como SSG.
   async function refrescar() {
-    const data = await fetchCatalogo<{ acopios: Acopio[] }>("acopios");
-    if (!data || !Array.isArray(data.acopios)) return;
+    const data = await fetchPuntosAyuda();
+    if (!Array.isArray(data)) return;
     const cont = document.getElementById("contenido-acopios");
     if (!cont) return;
     const previo = (document.getElementById("filtro-ciudad") as HTMLSelectElement | null)?.value ?? "";
-    cont.innerHTML = renderAcopiosPagina(data.acopios);
+    const previoOficiales = (document.getElementById("filtro-oficiales") as HTMLInputElement | null)?.checked ?? false;
+    const visibles = (data as PuntoAyuda[])
+      .filter((p) => p.tipo === "acopio" && puntoAyudaVisible(p))
+      .sort((a, b) => b.ultima_actualizacion.localeCompare(a.ultima_actualizacion));
+    cont.innerHTML = renderCatalogoPagina("acopio", visibles);
     filtrar = bindFiltros();
     const select = document.getElementById("filtro-ciudad") as HTMLSelectElement | null;
     if (previo && select && Array.from(select.options).some((o) => o.value === previo)) {
       select.value = previo;
     }
+    const check = document.getElementById("filtro-oficiales") as HTMLInputElement | null;
+    if (check) check.checked = previoOficiales;
     filtrar();
     if (ultimaPos) reordenarPorProximidad(ultimaPos.latitude, ultimaPos.longitude);
   }
