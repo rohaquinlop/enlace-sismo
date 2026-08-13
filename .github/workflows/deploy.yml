@@ -105,7 +105,11 @@ jobs:
       - name: Snapshot del registro de ayuda (SSG)
         if: steps.filtro.outputs.desplegar == 'true'
         run: |
-          curl -fsSL --retry 3 "https://api.enlacesismo.com/api/ayuda" -o web/public/datos/reportes-ayuda.json
+          # El worker recién desplegado tarda unos segundos en propagarse en
+          # el borde: /api/ayuda responde 404 transitorio justo tras el deploy.
+          # --retry-all-errors reintenta también 404 (curl --retry no lo hace).
+          curl -fsSL --retry 5 --retry-delay 3 --retry-all-errors \
+            "https://api.enlacesismo.com/api/ayuda" -o web/public/datos/reportes-ayuda.json
           npm run validate:data
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
