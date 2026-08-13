@@ -97,8 +97,16 @@ class ContenidoInvalido extends Error {}
 
 async function leerDeGithub(c: Context<Bindings>, ruta: string): Promise<unknown> {
   const repo = c.env.GITHUB_REPO ?? REPO_DEFAULT;
+  // GITHUB_TOKEN sube el rate limit de GitHub de 60 a 5000 req/h. Sin él,
+  // las IPs compartidas de Cloudflare agotan el límite anónimo y el API
+  // devuelve 502 transitorios cuando el KV está frío. Solo se usa contra el
+  // repo que el token cubre (el fine-grained PAT está limitado a ese repo).
+  const headers = new Headers({ "User-Agent": UA });
+  if (c.env.GITHUB_TOKEN && repo === REPO_DEFAULT) {
+    headers.set("Authorization", `Bearer ${c.env.GITHUB_TOKEN}`);
+  }
   const res = await fetch(`https://raw.githubusercontent.com/${repo}/main/${ruta}`, {
-    headers: { "User-Agent": UA },
+    headers,
   });
   if (!res.ok) throw new GithubIndisponible(`GitHub ${res.status}`);
   const buf = await res.arrayBuffer();
