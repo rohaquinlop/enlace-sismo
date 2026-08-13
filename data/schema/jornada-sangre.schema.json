@@ -3,100 +3,31 @@
   "$id": "https://enlacesismo.com/schemas/jornada-sangre.schema.json",
   "title": "Jornada de donación de sangre",
   "description": "Evento de donación de sangre con fechas, horario y grupos solicitados. Regla de oro: fuente verificable obligatoria (verificado.schema.json).",
-  "allOf": [
-    {
-      "$ref": "https://enlacesismo.com/schemas/verificado.schema.json"
-    }
-  ],
+  "allOf": [{ "$ref": "https://enlacesismo.com/schemas/verificado.schema.json" }],
   "properties": {
-    "id": {
-      "type": "string",
-      "pattern": "^[a-z0-9-]{3,40}$"
-    },
-    "organizador": {
-      "type": "string",
-      "minLength": 3
-    },
-    "punto": {
-      "type": "string",
-      "minLength": 3
-    },
-    "ciudad": {
-      "type": "string",
-      "minLength": 2
-    },
-    "departamento": {
-      "type": "string",
-      "minLength": 2
-    },
-    "direccion": {
-      "type": "string",
-      "minLength": 5
-    },
-    "lat": {
-      "type": "number",
-      "minimum": -90,
-      "maximum": 90
-    },
-    "lng": {
-      "type": "number",
-      "minimum": -180,
-      "maximum": 180
-    },
-    "coordenadas_nivel": {
-      "type": "string",
-      "enum": [
-        "premisa",
-        "via",
-        "barrio"
-      ],
-      "description": "premisa = edificio/POI exacto · via = calle · barrio = centroide."
-    },
-    "fecha_inicio": {
-      "type": "string",
-      "format": "date",
-      "description": "Primer día de la jornada (YYYY-MM-DD). OBLIGATORIO."
-    },
-    "fecha_fin": {
-      "type": "string",
-      "format": "date",
-      "description": "Último día de la jornada; se omite si la jornada sigue en curso."
-    },
-    "horario": {
-      "type": "string",
-      "description": "Horario diario en texto, ej. '9:00 - 17:00'."
-    },
+    "id": { "type": "string", "pattern": "^[a-z0-9-]{3,40}$" },
+    "organizador": { "type": "string", "minLength": 3 },
+    "punto": { "type": "string", "minLength": 3 },
+    "ciudad": { "type": "string", "minLength": 2 },
+    "departamento": { "type": "string", "minLength": 2 },
+    "direccion": { "type": "string", "minLength": 5 },
+    "lat": { "type": "number", "minimum": -90, "maximum": 90 },
+    "lng": { "type": "number", "minimum": -180, "maximum": 180 },
+    "coordenadas_nivel": { "type": "string", "enum": ["premisa", "via", "barrio"], "description": "premisa = edificio/POI exacto · via = calle · barrio = centroide." },
+    "fecha_inicio": { "type": "string", "format": "date", "description": "Primer día de la jornada (YYYY-MM-DD). OBLIGATORIO." },
+    "fecha_fin": { "type": "string", "format": "date", "description": "Último día de la jornada; se omite si la jornada sigue en curso." },
+    "horario": { "type": "string", "description": "Horario diario en texto, ej. '9:00 - 17:00'." },
     "grupos": {
       "type": "array",
-      "items": {
-        "type": "string"
-      },
+      "items": { "type": "string" },
       "uniqueItems": true,
       "description": "Grupos sanguíneos solicitados, ej. ['O+','O-'] o ['todos']."
     },
     "estado": {
       "type": "string",
-      "enum": [
-        "activa",
-        "finalizada",
-        "sin-confirmar"
-      ]
+      "enum": ["activa", "finalizada", "sin-confirmar"]
     },
-    "contacto": {
-      "type": "string"
-    }
+    "contacto": { "type": "string" }
   },
-  "required": [
-    "id",
-    "organizador",
-    "punto",
-    "ciudad",
-    "departamento",
-    "direccion",
-    "lat",
-    "lng",
-    "fecha_inicio",
-    "horario",
-    "estado"
-  ]
+  "required": ["id", "organizador", "punto", "ciudad", "departamento", "direccion", "lat", "lng", "fecha_inicio", "horario", "estado"]
 }
