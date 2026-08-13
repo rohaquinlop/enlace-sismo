@@ -9,7 +9,7 @@ import type { Bindings } from "./index";
 // Schema compartido con el repo (data/schema/reporte-punto.schema.json).
 import reportePuntoSchema from "../../data/schema/reporte-punto.schema.json";
 
-const REPO_DEFAULT = "rohaquinlop/enlace-sismo";
+export const REPO_DEFAULT = "rohaquinlop/enlace-sismo";
 const RUTA = "web/public/datos/reportes-puntos.json";
 const UA = "enlace-sismo/1.0 (https://enlacesismo.com)";
 const MAX_INTENTOS = 3;
@@ -95,7 +95,7 @@ function base64Encode(s: string): string {
   return btoa(bin);
 }
 
-async function apiGithub(c: Context<Bindings>, path: string, init?: RequestInit): Promise<Response> {
+export async function apiGithub(c: Context<Bindings>, path: string, init?: RequestInit): Promise<Response> {
   const token = c.env.GITHUB_TOKEN;
   if (!token) throw new RegistroError("GITHUB_TOKEN no configurado", 503);
   return fetch(`https://api.github.com${path}`, {    ...init,
@@ -111,7 +111,7 @@ async function apiGithub(c: Context<Bindings>, path: string, init?: RequestInit)
 }
 
 /** Repositorio destino del registro (env para deploys desde fork). */
-const repoDe = (c: Context<Bindings>): string => c.env.GITHUB_REPO ?? REPO_DEFAULT;
+export const repoDe = (c: Context<Bindings>): string => c.env.GITHUB_REPO ?? REPO_DEFAULT;
 
 /** Lee el registro en vivo (contenido + sha para el commit optimista). */
 export async function leerRegistro(c: Context<Bindings>): Promise<{ entradas: EntradaPunto[]; sha: string }> {

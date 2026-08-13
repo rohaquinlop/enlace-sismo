@@ -1,5 +1,6 @@
 import { Hono, type Context } from "hono";
 import { rateLimit, type Bindings } from "./index";
+import { apiGithub, repoDe, RegistroError } from "./github";
 
 const app = new Hono<Bindings>();
 
@@ -96,15 +97,8 @@ app.post("/salud", async (c) => {
   const issueTitle = `[salud] ${sNombre} — ${sCiudad}`;
 
   try {
-    const ghRes = await fetch("https://api.github.com/repos/rohaquinlop/enlace-sismo/issues", {
+    const ghRes = await apiGithub(c, `/repos/${repoDe(c)}/issues`, {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${c.env.GITHUB_TOKEN}`,
-        Accept: "application/vnd.github+json",
-        "Content-Type": "application/json",
-        "User-Agent": "enlace-sismo/1.0",
-        "X-GitHub-Api-Version": "2022-11-28",
-      },
       body: JSON.stringify({
         title: issueTitle,
         body: issueBody,
@@ -121,6 +115,11 @@ app.post("/salud", async (c) => {
     const ghData = (await ghRes.json()) as { html_url: string };
     return c.json({ ok: true, issue_url: ghData.html_url }, 201);
   } catch (err) {
+    if (err instanceof RegistroError) {
+      // GITHUB_TOKEN no configurado (apiGithub): el servicio está caído, no es culpa del usuario.
+      console.error("GitHub API sin token:", err.message);
+      return c.json({ error: "El servicio de reportes no está disponible. Intenta más tarde." }, 503);
+    }
     console.error("Error al crear issue:", err);
     return c.json({ error: "No se pudo crear el reporte. Intenta más tarde." }, 502);
   }
@@ -225,15 +224,8 @@ app.post("/albergues", async (c) => {
   const issueTitle = `[albergue] ${sNombre} — ${sCiudad}`;
 
   try {
-    const ghRes = await fetch("https://api.github.com/repos/rohaquinlop/enlace-sismo/issues", {
+    const ghRes = await apiGithub(c, `/repos/${repoDe(c)}/issues`, {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${c.env.GITHUB_TOKEN}`,
-        Accept: "application/vnd.github+json",
-        "Content-Type": "application/json",
-        "User-Agent": "enlace-sismo/1.0",
-        "X-GitHub-Api-Version": "2022-11-28",
-      },
       body: JSON.stringify({
         title: issueTitle,
         body: issueBody,
@@ -250,6 +242,11 @@ app.post("/albergues", async (c) => {
     const ghData = (await ghRes.json()) as { html_url: string };
     return c.json({ ok: true, issue_url: ghData.html_url }, 201);
   } catch (err) {
+    if (err instanceof RegistroError) {
+      // GITHUB_TOKEN no configurado (apiGithub): el servicio está caído, no es culpa del usuario.
+      console.error("GitHub API sin token:", err.message);
+      return c.json({ error: "El servicio de reportes no está disponible. Intenta más tarde." }, 503);
+    }
     console.error("Error al crear issue:", err);
     return c.json({ error: "No se pudo crear el reporte. Intenta más tarde." }, 502);
   }
@@ -384,15 +381,8 @@ app.post("/acopio", async (c) => {
   const issueTitle = `[acopio] ${sNombre} — ${sCiudad}`;
 
   try {
-    const ghRes = await fetch("https://api.github.com/repos/rohaquinlop/enlace-sismo/issues", {
+    const ghRes = await apiGithub(c, `/repos/${repoDe(c)}/issues`, {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${c.env.GITHUB_TOKEN}`,
-        Accept: "application/vnd.github+json",
-        "Content-Type": "application/json",
-        "User-Agent": "enlace-sismo/1.0",
-        "X-GitHub-Api-Version": "2022-11-28",
-      },
       body: JSON.stringify({
         title: issueTitle,
         body: issueBody,
@@ -409,6 +399,11 @@ app.post("/acopio", async (c) => {
     const ghData = (await ghRes.json()) as { html_url: string };
     return c.json({ ok: true, issue_url: ghData.html_url }, 201);
   } catch (err) {
+    if (err instanceof RegistroError) {
+      // GITHUB_TOKEN no configurado (apiGithub): el servicio está caído, no es culpa del usuario.
+      console.error("GitHub API sin token:", err.message);
+      return c.json({ error: "El servicio de reportes no está disponible. Intenta más tarde." }, 503);
+    }
     console.error("Error al crear issue:", err);
     return c.json({ error: "No se pudo crear el reporte. Intenta más tarde." }, 502);
   }
