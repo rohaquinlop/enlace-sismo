@@ -1,5 +1,6 @@
 import { Hono, type Context } from "hono";
 import { rateLimit, type Bindings } from "./index";
+import { apiGithub, repoDe, RegistroError } from "./github";
 
 const app = new Hono<Bindings>();
 
@@ -96,15 +97,8 @@ app.post("/salud", async (c) => {
   const issueTitle = `[salud] ${sNombre} — ${sCiudad}`;
 
   try {
-    const ghRes = await fetch("https://api.github.com/repos/rohaquinlop/enlace-sismo/issues", {
+    const ghRes = await apiGithub(c, `/repos/${repoDe(c)}/issues`, {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${c.env.GITHUB_TOKEN}`,
-        Accept: "application/vnd.github+json",
-        "Content-Type": "application/json",
-        "User-Agent": "enlace-sismo/1.0",
-        "X-GitHub-Api-Version": "2022-11-28",
-      },
       body: JSON.stringify({
         title: issueTitle,
         body: issueBody,
@@ -121,6 +115,11 @@ app.post("/salud", async (c) => {
     const ghData = (await ghRes.json()) as { html_url: string };
     return c.json({ ok: true, issue_url: ghData.html_url }, 201);
   } catch (err) {
+    if (err instanceof RegistroError) {
+      // GITHUB_TOKEN no configurado (apiGithub): el servicio está caído, no es culpa del usuario.
+      console.error("GitHub API sin token:", err.message);
+      return c.json({ error: "El servicio de reportes no está disponible. Intenta más tarde." }, 503);
+    }
     console.error("Error al crear issue:", err);
     return c.json({ error: "No se pudo crear el reporte. Intenta más tarde." }, 502);
   }
@@ -136,6 +135,7 @@ interface SugerenciaAlbergueBody {
   lat: number;
   lng: number;
   coordenadas_nivel: "premisa" | "via" | "barrio";
+  tipo: "albergue" | "refugio";
   capacidad?: number;
   ocupacion?: number;
   admite_mascotas?: boolean;
@@ -156,7 +156,7 @@ app.post("/albergues", async (c) => {
     return c.json({ error: "Demasiadas sugerencias. Intenta en una hora." }, 429);
   }
 
-  const { nombre, ciudad, departamento, direccion, lat, lng, coordenadas_nivel, capacidad, ocupacion, admite_mascotas, servicios, estado, contacto, fuente } =
+  const { nombre, ciudad, departamento, direccion, lat, lng, coordenadas_nivel, tipo, capacidad, ocupacion, admite_mascotas, servicios, estado, contacto, fuente } =
     body as SugerenciaAlbergueBody;
 
   if (!nombre || String(nombre).length < 3) return c.json({ error: "nombre es obligatorio (mínimo 3 caracteres)" }, 400);
@@ -173,6 +173,8 @@ app.post("/albergues", async (c) => {
 
   const ESTADOS = ["abierto", "cerrado", "sin-confirmar"];
   if (estado && !ESTADOS.includes(estado)) return c.json({ error: "estado inválido" }, 400);
+  const TIPOS_ALBERGUE = ["albergue", "refugio"];
+  if (!tipo || !TIPOS_ALBERGUE.includes(tipo)) return c.json({ error: "tipo inválido (albergue/refugio)" }, 400);
   if (!fuente || !/^https?:\/\//.test(fuente)) return c.json({ error: "fuente debe ser una URL válida" }, 400);
 
   const sNombre = md(String(nombre).slice(0, 200));
@@ -182,6 +184,7 @@ app.post("/albergues", async (c) => {
   const sContacto = contacto ? md(String(contacto).slice(0, 200)) : undefined;
   const sFuente = md(String(fuente).slice(0, 500));
   const sEstado = estado && ESTADOS.includes(estado) ? estado : "sin-confirmar";
+  const sTipo = tipo === "refugio" ? "Refugio" : "Albergue";
   const sNivel = String(coordenadas_nivel);
   const sServicios = servicios ? servicios.map((s) => md(String(s).slice(0, 100))).slice(0, 20) : [];
   const ip = c.req.header("cf-connecting-ip") ?? "local-dev";
@@ -203,6 +206,7 @@ app.post("/albergues", async (c) => {
     `| **Latitud** | ${lat} |`,
     `| **Longitud** | ${lng} |`,
     `| **Nivel de precisión** | ${sNivel} |`,
+    `| **Tipo** | ${sTipo} |`,
     `| **Capacidad** | ${capacidad ?? "no proporcionada"} |`,
     `| **Ocupación** | ${ocupacion ?? "no proporcionada"} |`,
     `| **Admite mascotas** | ${admite_mascotas == null ? "no indicado" : admite_mascotas ? "Sí" : "No"} |`,
@@ -220,15 +224,8 @@ app.post("/albergues", async (c) => {
   const issueTitle = `[albergue] ${sNombre} — ${sCiudad}`;
 
   try {
-    const ghRes = await fetch("https://api.github.com/repos/rohaquinlop/enlace-sismo/issues", {
+    const ghRes = await apiGithub(c, `/repos/${repoDe(c)}/issues`, {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${c.env.GITHUB_TOKEN}`,
-        Accept: "application/vnd.github+json",
-        "Content-Type": "application/json",
-        "User-Agent": "enlace-sismo/1.0",
-        "X-GitHub-Api-Version": "2022-11-28",
-      },
       body: JSON.stringify({
         title: issueTitle,
         body: issueBody,
@@ -245,6 +242,11 @@ app.post("/albergues", async (c) => {
     const ghData = (await ghRes.json()) as { html_url: string };
     return c.json({ ok: true, issue_url: ghData.html_url }, 201);
   } catch (err) {
+    if (err instanceof RegistroError) {
+      // GITHUB_TOKEN no configurado (apiGithub): el servicio está caído, no es culpa del usuario.
+      console.error("GitHub API sin token:", err.message);
+      return c.json({ error: "El servicio de reportes no está disponible. Intenta más tarde." }, 503);
+    }
     console.error("Error al crear issue:", err);
     return c.json({ error: "No se pudo crear el reporte. Intenta más tarde." }, 502);
   }
@@ -297,7 +299,17 @@ app.post("/acopio", async (c) => {
   if (lng == null || typeof lng !== "number" || lng < -180 || lng > 180) return c.json({ error: "lng es obligatoria (entre -180 y 180)" }, 400);
   const NIVELES = ["premisa", "via", "barrio"];
   if (!coordenadas_nivel || !NIVELES.includes(coordenadas_nivel)) return c.json({ error: "coordenadas_nivel es obligatorio (premisa/via/barrio)" }, 400);
+  const TIPOS_ACOPIO = ["oficial-comunal", "oficial-gobierno", "no-oficial"];
+  if (tipo && !TIPOS_ACOPIO.includes(tipo)) return c.json({ error: "tipo inválido" }, 400);
+  const ESTADOS_ACOPIO = ["abierto", "cerrado", "sin-confirmar"];
+  if (estado && !ESTADOS_ACOPIO.includes(estado)) return c.json({ error: "estado inválido" }, 400);
   if (fuente && !/^https?:\/\//.test(fuente)) return c.json({ error: "fuente debe ser una URL válida" }, 400);
+  if (imagen_url && !/^https?:\/\//.test(imagen_url)) return c.json({ error: "imagen_url debe ser una URL válida" }, 400);
+  if (evidencia_links != null && !Array.isArray(evidencia_links)) return c.json({ error: "evidencia_links debe ser un arreglo" }, 400);
+  if (evidencia_links?.some((l) => typeof l !== "string" || !/^https?:\/\//.test(l))) {
+    return c.json({ error: "evidencia_links solo admite URLs válidas" }, 400);
+  }
+  if (necesidades != null && !Array.isArray(necesidades)) return c.json({ error: "necesidades debe ser un arreglo" }, 400);
 
   const sNombre = md(String(nombre).slice(0, 200));
   const sCiudad = md(String(ciudad).slice(0, 80));
@@ -308,8 +320,9 @@ app.post("/acopio", async (c) => {
   const sHorario = horario ? md(String(horario).slice(0, 200)) : undefined;
   const sDetalles = detalles ? md(String(detalles).slice(0, 1000)) : undefined;
   const sFuente = fuente ? md(String(fuente).slice(0, 500)) : undefined;
-  const sEstado = estado || "sin-confirmar";
-  const sTipo = tipo || "no-oficial";
+  const sEstado = estado && ESTADOS_ACOPIO.includes(estado) ? estado : "sin-confirmar";
+  const sTipo = tipo && TIPOS_ACOPIO.includes(tipo) ? tipo : "no-oficial";
+  const sImagen = imagen_url && /^https?:\/\//.test(imagen_url) ? md(String(imagen_url).slice(0, 500)) : undefined;
   const ip = c.req.header("cf-connecting-ip") ?? "local-dev";
   const ahora = new Date().toISOString();
 
@@ -326,7 +339,10 @@ app.post("/acopio", async (c) => {
     : "no especificadas";
 
   const evidenciaStr = evidencia_links?.length
-    ? evidencia_links.map((l) => `[${l}](<${l}>)`).join(", ")
+    ? evidencia_links
+        .filter((l): l is string => typeof l === "string" && /^https?:\/\//.test(l))
+        .map((l) => `[${md(String(l).slice(0, 500))}](<${md(String(l).slice(0, 500))}>)`)
+        .join(", ")
     : "no proporcionada";
 
   const issueBody = [
@@ -353,7 +369,7 @@ app.post("/acopio", async (c) => {
     `| **Contacto** | ${sContacto || "no proporcionado"} |`,
     `| **Fecha límite** | ${fecha_limite || "no especificada"} |`,
     `| **Evidencia** | ${evidenciaStr} |`,
-    `| **Imagen** | ${imagen_url ? `[Ver imagen](${imagen_url})` : "no proporcionada"} |`,
+    `| **Imagen** | ${sImagen ? `[Ver imagen](<${sImagen}>)` : "no proporcionada"} |`,
     `| **Fuente** | ${sFuente ? `[${sFuente}](<${sFuente}>)` : "no proporcionada"} |`,
     ``,
     `---`,
@@ -365,15 +381,8 @@ app.post("/acopio", async (c) => {
   const issueTitle = `[acopio] ${sNombre} — ${sCiudad}`;
 
   try {
-    const ghRes = await fetch("https://api.github.com/repos/rohaquinlop/enlace-sismo/issues", {
+    const ghRes = await apiGithub(c, `/repos/${repoDe(c)}/issues`, {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${c.env.GITHUB_TOKEN}`,
-        Accept: "application/vnd.github+json",
-        "Content-Type": "application/json",
-        "User-Agent": "enlace-sismo/1.0",
-        "X-GitHub-Api-Version": "2022-11-28",
-      },
       body: JSON.stringify({
         title: issueTitle,
         body: issueBody,
@@ -390,6 +399,11 @@ app.post("/acopio", async (c) => {
     const ghData = (await ghRes.json()) as { html_url: string };
     return c.json({ ok: true, issue_url: ghData.html_url }, 201);
   } catch (err) {
+    if (err instanceof RegistroError) {
+      // GITHUB_TOKEN no configurado (apiGithub): el servicio está caído, no es culpa del usuario.
+      console.error("GitHub API sin token:", err.message);
+      return c.json({ error: "El servicio de reportes no está disponible. Intenta más tarde." }, 503);
+    }
     console.error("Error al crear issue:", err);
     return c.json({ error: "No se pudo crear el reporte. Intenta más tarde." }, 502);
   }

@@ -1,6 +1,8 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import UbicacionPicker from "../../components/UbicacionPicker.astro";
+import Breadcrumb from "../../components/Breadcrumb.astro";
+import ModalResultado from "../../components/ModalResultado.astro";
 import type { DedupeItem } from "../../lib/ubicacion-picker";
 import centrosSaludData from "../../../../data/centros-salud.json";
 
@@ -27,6 +29,7 @@ const dedupeDatos: DedupeItem[] = centrosSaludData.centros.map((c) => ({
   description="Sugiere un centro de salud para incluir en la plataforma. Los datos serán verificados antes de publicarse."
 >
   <section class="seccion-titulo">
+    <Breadcrumb items={[{ label: "Centros de salud", href: "/salud" }, { label: "Sugerir un centro de salud" }]} />
     <h1>Sugerir un centro de salud</h1>
     <p>
       Los datos enviados serán revisados por un mantenedor antes de publicarse.
@@ -34,7 +37,7 @@ const dedupeDatos: DedupeItem[] = centrosSaludData.centros.map((c) => ({
     </p>
   </section>
 
-  <div class="aviso">
+  <div class="aviso warning">
     <strong>Importante</strong>
     Incluye siempre la URL de la fuente oficial (portal del hospital, comunicado de la
     secretaría de salud, etc.). Sin fuente verificable, la sugerencia no puede procesarse.
@@ -134,18 +137,12 @@ const dedupeDatos: DedupeItem[] = centrosSaludData.centros.map((c) => ({
     </div>
   </form>
 
-  <div class="modal-resultado" id="modal-resultado" data-tipo="">
-    <div class="modal-resultado-card">
-      <div class="modal-resultado-icono" id="modal-icono"></div>
-      <div class="modal-resultado-titulo" id="modal-titulo"></div>
-      <div class="modal-resultado-mensaje" id="modal-mensaje"></div>
-      <button class="btn btn-primary" id="modal-cerrar">Cerrar</button>
-    </div>
-  </div>
+  <ModalResultado />
 </BaseLayout>
 
 <script>
   import { apiPost } from "../../lib/api";
+  import { initModalResultado, mostrarModalResultado } from "../../lib/modal-resultado";
   import { EVENTO_FIJADA, EVENTO_REINICIAR, type UbicacionFijada } from "../../lib/ubicacion-picker";
 
   interface SugerenciaResponse {
@@ -157,11 +154,6 @@ const dedupeDatos: DedupeItem[] = centrosSaludData.centros.map((c) => ({
   document.addEventListener("DOMContentLoaded", () => {
     const form = document.getElementById("form-salud") as HTMLFormElement | null;
     const btnEnviar = document.getElementById("btn-enviar") as HTMLButtonElement | null;
-    const modal = document.getElementById("modal-resultado") as HTMLDivElement | null;
-    const modalIcono = document.getElementById("modal-icono") as HTMLDivElement | null;
-    const modalTitulo = document.getElementById("modal-titulo") as HTMLDivElement | null;
-    const modalMensaje = document.getElementById("modal-mensaje") as HTMLDivElement | null;
-    const modalCerrar = document.getElementById("modal-cerrar") as HTMLButtonElement | null;
 
     // ---------- Pre-relleno de la dirección desde el picker ----------
     const direccionEl = document.getElementById("direccion") as HTMLInputElement | null;
@@ -178,30 +170,10 @@ const dedupeDatos: DedupeItem[] = centrosSaludData.centros.map((c) => ({
     }) as EventListener);
 
     // ---------- Modal ----------
-    // Iconos SVG propios (design.md: sin emojis como iconos; los glifos ✓/✗
-    // pueden renderizar como emoji en móvil). El color lo da el CSS del modal.
-    const ICONO_OK = `<svg viewBox="0 0 16 16" width="22" height="22" aria-hidden="true" fill="none"><path d="M2.5 8.5 6 12l7.5-8" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
-    const ICONO_ERROR = `<svg viewBox="0 0 16 16" width="22" height="22" aria-hidden="true" fill="none"><path d="m3.5 3.5 9 9m0-9-9 9" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>`;
-    function mostrarModal(tipo: "ok" | "error", titulo: string, mensaje: string) {
-      if (!modal || !modalIcono || !modalTitulo || !modalMensaje) return;
-      modal.dataset.tipo = tipo;
-      modalIcono.innerHTML = tipo === "ok" ? ICONO_OK : ICONO_ERROR;
-      modalTitulo.textContent = titulo;
-      modalMensaje.textContent = mensaje;
-      modal.dataset.open = "true";
-    }
-
-    function cerrarModal() {
-      if (modal) modal.dataset.open = "false";
-      window.location.href = "/salud";
-    }
-
-    modalCerrar?.addEventListener("click", cerrarModal);
-    modal?.addEventListener("click", (e) => {
-      if (e.target === modal) cerrarModal();
-    });
-    document.addEventListener("keydown", (e) => {
-      if (e.key === "Escape" && modal?.dataset.open === "true") cerrarModal();
+    initModalResultado({
+      irTrasExito: "/salud",
+      navegarSiempre: true,
+      compartir: { url: "/salud", titulo: "Centros de salud" },
     });
 
     // ---------- Validación ----------
@@ -328,11 +300,16 @@ const dedupeDatos: DedupeItem[] = centrosSaludData.centros.map((c) => ({
         }
 
         if (data?.ok) {
-          mostrarModal("ok", "Sugerencia enviada", "Un mantenedor revisará los datos y los publicará tras verificar la fuente.");
+          mostrarModalResultado(
+            "ok",
+            "Sugerencia enviada",
+            "La sugerencia entró a la cola de revisión del repositorio y llegará a la sección Centros de salud. Un mantenedor verificará la fuente antes de publicarla.",
+            `<button type="button" class="btn" data-compartir>Compartir</button>`
+          );
           form.reset();
           document.dispatchEvent(new CustomEvent(EVENTO_REINICIAR));
         } else {
-          mostrarModal("error", "No se pudo enviar", data?.error ?? "Intentá nuevamente más tarde.");
+          mostrarModalResultado("error", "No se pudo enviar", data?.error ?? "Intenta nuevamente más tarde.");
         }
       });
     }

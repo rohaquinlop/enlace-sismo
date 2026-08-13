@@ -1,0 +1,14 @@
+---
+// Modal de resultado (éxito/error) compartido por los formularios de
+// sugerencia y reporte. La lógica vive en web/src/lib/modal-resultado.ts;
+// cada página llama a initModalResultado() con su configuración.
+---
+<div class="modal-resultado" id="modal-resultado" data-tipo="" role="dialog" aria-modal="true" aria-labelledby="modal-titulo">
+  <div class="modal-resultado-card">
+    <div class="modal-resultado-icono" id="modal-icono"></div>
+    <div class="modal-resultado-titulo" id="modal-titulo"></div>
+    <div class="modal-resultado-mensaje" id="modal-mensaje"></div>
+    <div class="modal-acciones" id="modal-acciones"></div>
+    <button class="btn btn-primary" id="modal-cerrar">Cerrar</button>
+  </div>
+</div>

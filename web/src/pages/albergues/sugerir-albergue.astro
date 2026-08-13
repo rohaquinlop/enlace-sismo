@@ -1,6 +1,8 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import UbicacionPicker from "../../components/UbicacionPicker.astro";
+import Breadcrumb from "../../components/Breadcrumb.astro";
+import ModalResultado from "../../components/ModalResultado.astro";
 import type { DedupeItem } from "../../lib/ubicacion-picker";
 import alberguesData from "../../../../data/albergues.json";
 
@@ -20,6 +22,7 @@ const dedupeDatos: DedupeItem[] = alberguesData.albergues.map((a) => ({
   description="Sugiere un albergue o refugio para incluir en la plataforma. Los datos serán verificados antes de publicarse."
 >
   <section class="seccion-titulo">
+    <Breadcrumb items={[{ label: "Albergues y refugios", href: "/albergues" }, { label: "Sugerir un albergue" }]} />
     <h1>Sugerir un albergue</h1>
     <p>
       Los datos enviados serán revisados por un mantenedor antes de publicarse.
@@ -27,7 +30,7 @@ const dedupeDatos: DedupeItem[] = alberguesData.albergues.map((a) => ({
     </p>
   </section>
 
-  <div class="aviso">
+  <div class="aviso warning">
     <strong>Importante</strong>
     Incluye siempre la URL de la fuente oficial (comunicado de la alcaldía, UNGRD, defensa civil, etc.).
     Sin fuente verificable, la sugerencia no puede procesarse.
@@ -86,6 +89,16 @@ const dedupeDatos: DedupeItem[] = alberguesData.albergues.map((a) => ({
 
     <div class="form-row">
       <div class="form-group">
+        <label for="tipo">Tipo de espacio *</label>
+        <select id="tipo" name="tipo" required>
+          <option value="">Seleccionar...</option>
+          <option value="albergue">Albergue</option>
+          <option value="refugio">Refugio</option>
+        </select>
+        <span class="helper" id="helper-tipo"></span>
+      </div>
+
+      <div class="form-group">
         <label for="estado">Estado *</label>
         <select id="estado" name="estado" required>
           <option value="sin-confirmar" selected>Sin confirmar</option>
@@ -133,18 +146,12 @@ const dedupeDatos: DedupeItem[] = alberguesData.albergues.map((a) => ({
     </div>
   </form>
 
-  <div class="modal-resultado" id="modal-resultado" data-tipo="">
-    <div class="modal-resultado-card">
-      <div class="modal-resultado-icono" id="modal-icono"></div>
-      <div class="modal-resultado-titulo" id="modal-titulo"></div>
-      <div class="modal-resultado-mensaje" id="modal-mensaje"></div>
-      <button class="btn btn-primary" id="modal-cerrar">Cerrar</button>
-    </div>
-  </div>
+  <ModalResultado />
 </BaseLayout>
 
 <script>
   import { apiPost } from "../../lib/api";
+  import { initModalResultado, mostrarModalResultado } from "../../lib/modal-resultado";
   import { EVENTO_FIJADA, EVENTO_REINICIAR, type UbicacionFijada } from "../../lib/ubicacion-picker";
 
   interface SugerenciaResponse {
@@ -156,11 +163,6 @@ const dedupeDatos: DedupeItem[] = alberguesData.albergues.map((a) => ({
   document.addEventListener("DOMContentLoaded", () => {
     const form = document.getElementById("form-albergue") as HTMLFormElement | null;
     const btnEnviar = document.getElementById("btn-enviar") as HTMLButtonElement | null;
-    const modal = document.getElementById("modal-resultado") as HTMLDivElement | null;
-    const modalIcono = document.getElementById("modal-icono") as HTMLDivElement | null;
-    const modalTitulo = document.getElementById("modal-titulo") as HTMLDivElement | null;
-    const modalMensaje = document.getElementById("modal-mensaje") as HTMLDivElement | null;
-    const modalCerrar = document.getElementById("modal-cerrar") as HTMLButtonElement | null;
 
     // ---------- Pre-relleno de la dirección desde el picker ----------
     const direccionEl = document.getElementById("direccion") as HTMLInputElement | null;
@@ -177,30 +179,10 @@ const dedupeDatos: DedupeItem[] = alberguesData.albergues.map((a) => ({
     }) as EventListener);
 
     // ---------- Modal ----------
-    // Iconos SVG propios (design.md: sin emojis como iconos; los glifos ✓/✗
-    // pueden renderizar como emoji en móvil). El color lo da el CSS del modal.
-    const ICONO_OK = `<svg viewBox="0 0 16 16" width="22" height="22" aria-hidden="true" fill="none"><path d="M2.5 8.5 6 12l7.5-8" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
-    const ICONO_ERROR = `<svg viewBox="0 0 16 16" width="22" height="22" aria-hidden="true" fill="none"><path d="m3.5 3.5 9 9m0-9-9 9" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>`;
-    function mostrarModal(tipo: "ok" | "error", titulo: string, mensaje: string) {
-      if (!modal || !modalIcono || !modalTitulo || !modalMensaje) return;
-      modal.dataset.tipo = tipo;
-      modalIcono.innerHTML = tipo === "ok" ? ICONO_OK : ICONO_ERROR;
-      modalTitulo.textContent = titulo;
-      modalMensaje.textContent = mensaje;
-      modal.dataset.open = "true";
-    }
-
-    function cerrarModal() {
-      if (modal) modal.dataset.open = "false";
-      window.location.href = "/albergues";
-    }
-
-    modalCerrar?.addEventListener("click", cerrarModal);
-    modal?.addEventListener("click", (e) => {
-      if (e.target === modal) cerrarModal();
-    });
-    document.addEventListener("keydown", (e) => {
-      if (e.key === "Escape" && modal?.dataset.open === "true") cerrarModal();
+    initModalResultado({
+      irTrasExito: "/albergues",
+      navegarSiempre: true,
+      compartir: { url: "/albergues", titulo: "Albergues y refugios" },
     });
 
     // ---------- Validación ----------
@@ -209,6 +191,7 @@ const dedupeDatos: DedupeItem[] = alberguesData.albergues.map((a) => ({
       ciudad: { min: 2, label: "ciudad" },
       departamento: { min: 2, label: "departamento" },
       direccion: { min: 5, label: "dirección" },
+      tipo: { label: "tipo de espacio" },
       fuente: { label: "fuente" },
       lat: { label: "latitud" },
       lng: { label: "longitud" },
@@ -247,6 +230,13 @@ const dedupeDatos: DedupeItem[] = alberguesData.albergues.map((a) => ({
           showFieldError(id, `${rule.label} requiere al menos ${rule.min} caracteres`);
           ok = false;
         }
+      }
+
+      const tipoEl = document.getElementById("tipo") as HTMLSelectElement | null;
+      const tipo = tipoEl?.value ?? "";
+      if (tipo !== "albergue" && tipo !== "refugio") {
+        showFieldError("tipo", "tipo de espacio inválido");
+        ok = false;
       }
 
       const latEl = document.getElementById("lat") as HTMLInputElement | null;
@@ -334,7 +324,8 @@ const dedupeDatos: DedupeItem[] = alberguesData.albergues.map((a) => ({
           lat: Number(getVal("lat")),
           lng: Number(getVal("lng")),
           coordenadas_nivel: getVal("coordenadas_nivel") || "via",
-          capacidad: Number(getVal("capacidad")) || undefined,
+          tipo: (document.getElementById("tipo") as HTMLSelectElement | null)?.value || "",
+          capacidad: getVal("capacidad") !== "" ? Number(getVal("capacidad")) : undefined,
           ocupacion: getVal("ocupacion") !== "" ? Number(getVal("ocupacion")) : undefined,
           estado: (document.getElementById("estado") as HTMLSelectElement | null)?.value || "sin-confirmar",
           admite_mascotas: admiteMascotasVal === "" ? undefined : admiteMascotasVal === "true",
@@ -353,11 +344,16 @@ const dedupeDatos: DedupeItem[] = alberguesData.albergues.map((a) => ({
         }
 
         if (data?.ok) {
-          mostrarModal("ok", "Sugerencia enviada", "Un mantenedor revisará los datos y los publicará tras verificar la fuente.");
+          mostrarModalResultado(
+            "ok",
+            "Sugerencia enviada",
+            "La sugerencia entró a la cola de revisión del repositorio y llegará a la sección Albergues y refugios. Un mantenedor verificará la fuente antes de publicarla.",
+            `<button type="button" class="btn" data-compartir>Compartir</button>`
+          );
           form.reset();
           document.dispatchEvent(new CustomEvent(EVENTO_REINICIAR));
         } else {
-          mostrarModal("error", "No se pudo enviar", data?.error ?? "Intentá nuevamente más tarde.");
+          mostrarModalResultado("error", "No se pudo enviar", data?.error ?? "Intenta nuevamente más tarde.");
         }
       });
     }

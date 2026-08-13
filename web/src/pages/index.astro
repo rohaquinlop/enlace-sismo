@@ -11,7 +11,8 @@ import { zonas } from "../lib/zonas";
 import evento from "../../../data/evento.json";
 import { puntoActivo, agregarNecesidades, type PuntoVivo } from "../lib/puntos-rescate";
 import { agruparCiudades, fusionarCiudadesSelect, nombreCiudadNormalizado, type CiudadReportada } from "../lib/ciudades";
-import { etiquetaTipo, etiquetaNecesidad, ESTADOS_PUNTO, etiquetaPrecision } from "../lib/necesidades";
+import { etiquetaTipo, etiquetaNecesidad, etiquetaPrecision } from "../lib/necesidades";
+import { estadoVerificacion } from "../lib/verificacion";
 
 // Ciudades del filtro = unión de las que tienen puntos de datos, las zonas
 // afectadas y las ciudades derivadas de los reportes ciudadanos en vivo:
@@ -41,6 +42,12 @@ const activos = vivos
   .filter((p) => puntoActivo(p))
   .sort((a, b) => b.created_at.localeCompare(a.created_at));
 const agregado = agregarNecesidades(activos);
+
+// Badge de verificación de un punto (review de diseño): derivado de los
+// datos sin inventar — oficial si el mantenedor lo promovió; confirmado si
+// el estado o la verificación lo dicen; el resto, sin confirmar. La regla
+// vive en lib/verificacion.ts (mismo origen que el render runtime).
+const badgeVerificacion = (p: PuntoVivo): string => estadoVerificacion(p);
 
 // Ciudades con reportes ciudadanos: agrupadas desde el registro en vivo y
 // deduplicadas contra el catálogo (una ciudad oficial no se lista como
@@ -100,9 +107,20 @@ const enlaceMaps = (lat: number, lng: number) =>
                 <h3>Puntos de rescate</h3>
                 <span class="zonas-count" id="rescate-conteo" aria-label={`${activos.length} puntos activos`}>{activos.length}</span>
               </div>
+              <!-- Acción principal del panel: barra de acción sticky al inicio
+                   (acceso rápido a /reportar; el contenido scrollea debajo). -->
+              <a class="dash-row dash-cta" href="/reportar">
+                <span class="dash-row-top">
+                  <span class="dash-row-nombre">Reportar un punto</span>
+                  <span class="dash-row-meta">en vivo</span>
+                </span>
+                <p>¿Ves un lugar donde se necesita ayuda? Publícalo con ubicación exacta y necesidades.</p>
+              </a>
               <!-- Contenido re-renderizado por el refresco runtime y por el
-                   filtro de zona activa (clic en una zona → sus rescates). -->
-              <div id="rescate-panel">
+                   filtro de zona activa (clic en una zona → sus rescates).
+                   data-registro: el SSG alimenta el filtro desde el primer
+                   momento (antes del primer refresco del API). -->
+              <div id="rescate-panel" data-registro={JSON.stringify(vivos)}>
                 {
                   activos.length === 0 ? (
                     <p class="rescate-vacio">
@@ -131,12 +149,15 @@ const enlaceMaps = (lat: number, lng: number) =>
                                 {etiquetaTipo(p.tipo)}{p.direccion ? ` — ${p.direccion}` : ""}
                               </span>
                               <span class="dash-row-meta">
-                                {p.ciudad ? `${p.ciudad} · ` : ""}{ESTADOS_PUNTO[p.estado] ?? p.estado} · {p.confirmaciones.length}{" "}
+                                {p.ciudad ? `${p.ciudad} · ` : ""}{p.confirmaciones.length}{" "}
                                 conf.
                                 {p.coordenadas_nivel ? ` · ${etiquetaPrecision(p.coordenadas_nivel)}` : ""}
                               </span>
                             </div>
-                            {p.descripcion && <p>{p.descripcion}</p>}
+                            <span class="rescate-badges">
+                              <StatusBadge estado={badgeVerificacion(p)} />
+                            </span>
+                            {p.descripcion && <p class="rescate-descripcion">{p.descripcion}</p>}
                             {
                               p.necesidades.length > 0 && (
                                 <span class="popup-rescate-ns">
@@ -147,8 +168,8 @@ const enlaceMaps = (lat: number, lng: number) =>
                               )
                             }
                             <div class="rescate-acciones">
-                              <a class="rescate-btn" href={enlaceMaps(p.lat, p.lng)} target="_blank" rel="noopener">Cómo llegar</a>
-                              <button type="button" class="rescate-btn" data-confirmar={p.id}>
+                              <a class="btn" href={enlaceMaps(p.lat, p.lng)} target="_blank" rel="noopener">Cómo llegar</a>
+                              <button type="button" class="btn btn-primary" data-confirmar={p.id}>
                                 Confirmar con mi ubicación
                               </button>
                             </div>
@@ -159,13 +180,6 @@ const enlaceMaps = (lat: number, lng: number) =>
                   )
                 }
               </div>
-              <a class="dash-row" href="/reportar">
-                <span class="dash-row-top">
-                  <span class="dash-row-nombre">Reportar un punto</span>
-                  <span class="dash-row-meta">en vivo</span>
-                </span>
-                <p>¿Ves un lugar donde se necesita ayuda? Publícalo con ubicación exacta y necesidades.</p>
-              </a>
             </div>
           </div>
           <!-- Pie del panel: cómo leer la verificación de cada dato (fuera de
@@ -187,7 +201,8 @@ const enlaceMaps = (lat: number, lng: number) =>
   import { fetchCatalogo } from "../lib/datos";
   import { puntoActivo, agregarNecesidades, type PuntoVivo } from "../lib/puntos-rescate";
   import { agruparCiudades, nombreCiudadNormalizado, type CiudadReportada } from "../lib/ciudades";
-  import { etiquetaTipo, etiquetaNecesidad, ESTADOS_PUNTO, etiquetaPrecision } from "../lib/necesidades";
+  import { estadoVerificacion } from "../lib/verificacion";
+  import { etiquetaTipo, etiquetaNecesidad, etiquetaPrecision } from "../lib/necesidades";
   import { renderZonasListaHTML } from "../lib/render-catalogos";
   import { acopios, albergues, centrosSalud, jornadasSangre } from "../lib/catalogs";
   import type { Acopio, Albergue, CentroSalud, JornadaSangre } from "../lib/catalogs";
@@ -259,11 +274,32 @@ const enlaceMaps = (lat: number, lng: number) =>
   // Sync con el mapa: popup de zona o geolocalización → pestaña Zonas.
   // Un id vacío solo limpia el resaltado; no cambia de pestaña.
   // La zona activa además filtra el panel Rescates (epicentro = todas).
-  function activarZonaRescates(nombre: string | null) {
-    if (zonaRescates === nombre) return;
-    zonaRescates = nombre;
-    if (ultimoRegistro) aplicarRegistro(ultimoRegistro);
+  /** Navegación zona → rescates: filtra el panel por ciudad y muestra la
+      pestaña Rescates (el usuario ve los puntos de esa zona al instante). */
+  function activarZonaRescates(nombre: string | null, cambiarPestana = false) {
+    if (zonaRescates !== nombre) {
+      zonaRescates = nombre;
+      if (ultimoRegistro) aplicarRegistro(ultimoRegistro);
+    }
+    if (cambiarPestana && nombre) {
+      const tabRescates = document.getElementById("tab-rescates") as HTMLButtonElement | null;
+      if (tabRescates) activar(tabRescates);
+    }
   }
+
+  // Clic en una fila de zona (ZonasLista): filtra rescates por esa ciudad y
+  // muestra la pestaña Rescates. Funciona aunque el mapa no haya cargado
+  // (modo flujo): el evento lo emite la fila, no el mapa.
+  window.addEventListener("enlace:mapa:volar-zona", (e) => {
+    const id = (e as CustomEvent<{ id?: string }>).detail?.id;
+    if (!id) return;
+    const z = zonasActuales.find((x) => x.id === id);
+    activarZonaRescates(z && z.tipo !== "epicentro" ? z.nombre : null, !!z && z.tipo !== "epicentro");
+  });
+
+  // Popup de zona abierto en el mapa (marcador o select de ciudad): filtra
+  // el panel SIN cambiar de pestaña — el usuario está explorando el mapa; el
+  // salto a Rescates es solo del clic explícito en las filas (volar-zona).
   window.addEventListener("enlace:mapa:zona-activa", (e) => {
     const id = (e as CustomEvent<{ id?: string }>).detail?.id;
     if (!id) {
@@ -272,11 +308,10 @@ const enlaceMaps = (lat: number, lng: number) =>
     }
     const z = zonasActuales.find((x) => x.id === id);
     activarZonaRescates(z && z.tipo !== "epicentro" ? z.nombre : null);
-    tabZonas && activar(tabZonas);
   });
   window.addEventListener("enlace:mapa:ciudad-reportada", (e) => {
     const nombre = (e as CustomEvent<{ nombre?: string }>).detail?.nombre;
-    if (nombre) activarZonaRescates(nombre);
+    if (nombre) activarZonaRescates(nombre, true);
   });
   window.addEventListener("enlace:mapa:posicion", () => tabZonas && activar(tabZonas));
 
@@ -412,7 +447,24 @@ const enlaceMaps = (lat: number, lng: number) =>
     jornadas: JornadaSangre[];
   } = { acopios, albergues, centros: centrosSalud, jornadas: jornadasSangre };
   let zonasActuales: Zona[] = zonas;
+  // Registro en vivo: arranca con el SSG del build (panel ya renderizado) y
+  // se actualiza con cada refresco del API o con la copia estática si cae.
+  // Declarado arriba: lo usan los listeners de zona→rescates (TDZ-safe).
   let ultimoRegistro: PuntoVivo[] | null = null;
+  const registroSSG = document.getElementById("rescate-panel")?.getAttribute("data-registro");
+  if (registroSSG) {
+    try {
+      const p = JSON.parse(registroSSG) as unknown;
+      if (Array.isArray(p)) ultimoRegistro = p as PuntoVivo[];
+    } catch {
+      // SSG sin registro (primer clon): el refresco lo llenará.
+    }
+  }
+  // Zona activa que filtra el panel Rescates (null = todas).
+  let zonaRescates: string | null = null;
+  // Huella del último render de la sección de ciudades reportadas (evita
+  // re-renders duplicados en el mismo ciclo de refresco).
+  let ultimaHuellaCiudades = "";
 
   const slotZonas = document.getElementById("zonas-slot");
   const ciudadesSSG: CiudadReportada[] = slotZonas
@@ -452,19 +504,30 @@ const enlaceMaps = (lat: number, lng: number) =>
     window.dispatchEvent(new CustomEvent("enlace:zonas:re-render"));
   }
 
-  /** Zona activa que filtra el panel Rescates (null = todas). */
-  let zonaRescates: string | null = null;
-
   /** Fila del panel Rescates (mismo markup SSG; clic en la fila = ver en el mapa). */
+  /** Badge de verificación en HTML (mismo mapeo que el SSG, sin inventar). */
+  function badgeVerificacionHTML(p: PuntoVivo): string {
+    const estado = estadoVerificacion(p);
+    const clase =
+      estado === "oficial"
+        ? "badge-oficial"
+        : estado === "confirmado"
+          ? "badge-confirmado"
+          : "badge-sin-confirmar";
+    const texto = estado === "oficial" ? "Oficial" : estado === "confirmado" ? "Confirmado" : "Sin confirmar";
+    return `<span class="badge ${clase}">${texto}</span>`;
+  }
+
   function filaRescateHTML(p: PuntoVivo): string {
     return (
       `<article class="rescate-fila" data-id="${escapar(p.id)}" data-volar-rescate="${escapar(p.id)}" title="Ver en el mapa">` +
       `<div class="dash-row-top"><span class="dash-row-nombre">${escapar(etiquetaTipo(p.tipo))}${p.direccion ? ` — ${escapar(p.direccion)}` : ""}</span>` +
-      `<span class="dash-row-meta">${p.ciudad ? `${escapar(p.ciudad)} · ` : ""}${escapar(ESTADOS_PUNTO[p.estado] ?? p.estado)} · ${p.confirmaciones.length} conf.${p.coordenadas_nivel ? ` · ${escapar(etiquetaPrecision(p.coordenadas_nivel))}` : ""}</span></div>` +
-      `${p.descripcion ? `<p>${escapar(p.descripcion)}</p>` : ""}` +
+      `<span class="dash-row-meta">${p.ciudad ? `${escapar(p.ciudad)} · ` : ""}${p.confirmaciones.length} conf.${p.coordenadas_nivel ? ` · ${escapar(etiquetaPrecision(p.coordenadas_nivel))}` : ""}</span></div>` +
+      `<span class="rescate-badges">${badgeVerificacionHTML(p)}</span>` +
+      `${p.descripcion ? `<p class="rescate-descripcion">${escapar(p.descripcion)}</p>` : ""}` +
       `${p.necesidades.length > 0 ? `<span class="popup-rescate-ns">${p.necesidades.map((n) => `<span>${escapar(etiquetaNecesidad(n))}</span>`).join("")}</span>` : ""}` +
-      `<div class="rescate-acciones"><a class="rescate-btn" href="https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}" target="_blank" rel="noopener">Cómo llegar</a>` +
-      `<button type="button" class="rescate-btn" data-confirmar="${escapar(p.id)}">Confirmar con mi ubicación</button></div>` +
+      `<div class="rescate-acciones"><a class="btn" href="https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}" target="_blank" rel="noopener">Cómo llegar</a>` +
+      `<button type="button" class="btn btn-primary" data-confirmar="${escapar(p.id)}">Confirmar con mi ubicación</button></div>` +
       `</article>`
     );
   }
@@ -479,7 +542,7 @@ const enlaceMaps = (lat: number, lng: number) =>
     const agregado = agregarNecesidades(activos);
     const filtro = zonaRescates
       ? `<div class="rescate-filtro"><span>Rescates en <strong>${escapar(zonaRescates)}</strong></span>` +
-        `<button type="button" class="rescate-btn" data-rescates-todos>Ver todos</button></div>`
+        `<button type="button" class="btn" data-rescates-todos>Ver todos</button></div>`
       : "";
     if (activos.length === 0) {
       const historico = vivos.filter((p) => !puntoActivo(p)).length;
@@ -493,7 +556,7 @@ const enlaceMaps = (lat: number, lng: number) =>
     }
     return (
       filtro +
-      `${agregado.length > 0 ? `<span class="rescate-agregado" id="rescate-agregado">${activos.length} punto${activos.length === 1 ? "" : "s"} necesitan: ${agregado.slice(0, 4).map((a) => `${etiquetaNecesidad(a.id)} ×${a.cuenta}`).join(", ")}</span>` : ""}` +
+      `${agregado.length > 0 ? `<span class="rescate-agregado" id="rescate-agregado">${activos.length} punto${activos.length === 1 ? "" : "s"} necesitan: ${agregado.slice(0, 4).map((a) => `${escapar(etiquetaNecesidad(a.id))} ×${a.cuenta}`).join(", ")}</span>` : ""}` +
       `<div id="rescate-lista">${activos.map(filaRescateHTML).join("")}</div>`
     );
   }
@@ -518,16 +581,20 @@ const enlaceMaps = (lat: number, lng: number) =>
     const conteo = document.querySelector<HTMLSpanElement>(".leyenda-tira input[value='rescates'] ~ .tira-label");
     if (conteo) conteo.textContent = `Rescates (${vivos.filter((p) => puntoActivo(p)).length})`;
 
-    // Ciudades reportadas: sección del panel Zonas + opciones del select
+    // Ciudades reportadas: sección del panel Zonas + opciones del select.
+    // Guard de huella: el mismo ciclo de refresco ya re-renderizó el panel
+    // Zonas (reRenderZonas) — no repetir el render con contenido idéntico.
     const reportadas = ciudadesReportadasActuales();
+    const huellaCiudades = JSON.stringify(reportadas);
     const seccion = document.getElementById("zonas-ciudadanas");
-    if (seccion) {
+    if (seccion && huellaCiudades !== ultimaHuellaCiudades) {
+      ultimaHuellaCiudades = huellaCiudades;
       seccion.hidden = reportadas.length === 0;
       if (reportadas.length > 0) {
         seccion.innerHTML =
           `<div class="zonas-ciudadanas-head">` +
           `<span class="zonas-ciudadanas-label">Ciudades con reportes ciudadanos</span>` +
-          `<span class="zonas-count">${reportadas.length}</span></div>` +
+          `<span class="zonas-count" aria-label="${reportadas.length} ciudades reportadas">${reportadas.length}</span></div>` +
           reportadas
             .map(
               (c) =>
@@ -670,8 +737,29 @@ const enlaceMaps = (lat: number, lng: number) =>
       detalle.evento = eventoD;
       actualizarBarraEvento(eventoD);
     }
-    if (registroD) ultimoRegistro = registroD;
-    if (Object.keys(detalle).length === 0) return; // API caída: queda el SSG
+    if (registroD) {
+      ultimoRegistro = registroD;
+    } else {
+      // API caída: la copia estática desplegada mantiene el filtro de
+      // rescates por zona (misma fuente que el SSG del panel).
+      try {
+        // cache: no-store — el registro lo commitea el worker y puede
+        // cambiar entre deploys; no servir una copia vieja del HTTP cache.
+        const res = await fetch("/datos/reportes-puntos.json", { cache: "no-store" });
+        if (res.ok) {
+          const estatico = (await res.json()) as PuntoVivo[];
+          if (Array.isArray(estatico)) ultimoRegistro = estatico;
+        }
+      } catch {
+        // Sin red: el panel queda como SSG (sin filtro aplicado).
+      }
+    }
+    if (Object.keys(detalle).length === 0) {
+      // API caída: aplicar el registro estático para que el filtro por zona
+      // funcione igual (ultimoRegistro se llenó en el else de arriba).
+      if (ultimoRegistro && !registroD) aplicarRegistro(ultimoRegistro, {});
+      return; // API caída: queda el SSG
+    }
     // eventoD también re-renderiza el panel Zonas: la fecha de las filas
     // (fila-linea) debe seguir a la barra de estado (la huella evita
     // re-renders inútiles).

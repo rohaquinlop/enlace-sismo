@@ -60,22 +60,28 @@
      L50 → contraste ~6:1 sobre paper (badges legibles). */
   --color-rescate: oklch(50% 0.18 290);
 
-  /* ---- Color · estados de verificación y operativos ---- */
+  /* ---- Color · estados de verificación y operativos ----
+     Saturación del fondo ligeramente alta (review de diseño): los badges
+     se distinguen de --color-paper sin perder contraste (ink ≥4.5:1). */
   --color-badge-oficial-bg:       oklch(24% 0.02 258);
   --color-badge-oficial-ink:      oklch(96% 0.005 250);
-  --color-badge-confirmado-bg:    oklch(93% 0.05 160);
-  --color-badge-confirmado-ink:   oklch(34% 0.09 160);
-  --color-badge-limitado-bg:      oklch(93% 0.06 80);
-  --color-badge-limitado-ink:     oklch(40% 0.11 75);
-  --color-badge-cerrado-bg:       oklch(93% 0.05 25);
-  --color-badge-cerrado-ink:      oklch(40% 0.13 25);
-  --color-badge-sinconfirmar-bg:  oklch(93% 0.04 90);
-  --color-badge-sinconfirmar-ink: oklch(40% 0.08 80);
+  --color-badge-confirmado-bg:    oklch(92% 0.08 160);
+  --color-badge-confirmado-ink:   oklch(32% 0.11 160);
+  --color-badge-limitado-bg:      oklch(92% 0.09 80);
+  --color-badge-limitado-ink:     oklch(38% 0.13 75);
+  --color-badge-cerrado-bg:       oklch(92% 0.08 25);
+  --color-badge-cerrado-ink:      oklch(38% 0.15 25);
+  --color-badge-sinconfirmar-bg:  oklch(92% 0.07 90);
+  --color-badge-sinconfirmar-ink: oklch(38% 0.1 80);
 
-  /* ---- Tipografía (sin serif en ninguna parte) ---- */
-  --font-display: "Space Grotesk", "Segoe UI", sans-serif;
-  --font-body:    "Inter", "Segoe UI", sans-serif;
-  --font-outlier: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  /* ---- Color · alerta Warning (aviso de fuente oficial, review de diseño) ---- */
+  --color-warning-bg:    oklch(92% 0.1 95);
+  --color-warning-ink:   oklch(35% 0.09 75);
+  --color-warning-border: oklch(72% 0.13 85);
+
+  /* ---- Tipografía (una sola familia: Inter; la jerarquía vive en
+     tamaño, peso, line height y spacing — review de diseño 2026) ---- */
+  --font-body: "Inter", "Segoe UI", sans-serif;
 
   /* ---- Escala de texto (tercera mayor 1.25) ---- */
   --text-xs:   0.64rem;   /* 10.24px */
@@ -100,11 +106,15 @@
   --space-3xl: 6rem;      /* 96px */
   --space-4xl: 9rem;      /* 144px */
 
-  /* ---- Reglas y radios (dibujados con regla) ---- */
+  /* ---- Reglas y radios (dibujados con regla) ----
+     Badges/chips/botones usan --radius-badge/--radius-btn (8 px, review de
+     diseño); --radius-sm (6 px) queda para superficies no interactivas. */
   --rule-hair: 1px;
   --rule-strong: 2px;
   --radius-xs: 4px;
   --radius-sm: 6px;
+  --radius-badge: 8px;
+  --radius-btn: 8px;
   --radius-md: 10px;
 
   /* ---- Movimiento (compuesto y escaso) ---- */
@@ -118,6 +128,10 @@
 
   /* ---- Sombras (una sola, apenas visible) ---- */
   --shadow-lift: 0 1px 2px oklch(24% 0.02 258 / 0.06);
+  --shadow-modal: 0 8px 32px oklch(24% 0.02 258 / 0.2);
+
+  /* ---- Overlay del modal de resultado (tinta al 70 %) ---- */
+  --color-modal-overlay: oklch(24% 0.02 258 / 0.7);
 
   /* ---- Z (seis niveles, nombrados) ---- */
   --z-base: 1;

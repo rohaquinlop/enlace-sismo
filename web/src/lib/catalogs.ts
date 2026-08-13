@@ -44,6 +44,7 @@ export interface Albergue extends Verificado {
   admite_mascotas?: boolean;
   servicios?: string[];
   estado: "abierto" | "cerrado" | "sin-confirmar";
+  tipo: "albergue" | "refugio";
   contacto?: string;
 }
 

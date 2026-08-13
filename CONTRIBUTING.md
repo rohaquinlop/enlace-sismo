@@ -27,6 +27,9 @@ La validación automática (`npm run validate:data`) corre en cada PR y **bloque
    El deploy automático solo corre cuando cambia código (web, worker o schemas); no hace
    falta correr ningún comando local ni configurar nada (se reutiliza el KV existente).
 
+> Al agregar un **albergue**, incluye `tipo: "albergue" | "refugio"` — es obligatorio en
+> `data/schema/albergue.schema.json` y el CI lo exige (la card muestra el badge Refugio/Albergue).
+
 ## Reglas de seguridad (no negociables)
 
 - **Cuentas bancarias y enlaces de pago**: solo se aceptan con `"verificacion": "oficial"` (publicados por la entidad oficial) y **2 aprobaciones de mantenedores**. Nunca publiques cuentas personales.

@@ -22,7 +22,7 @@
 enlace-sismo/
 ├── data/                    # Datos verificados (fuente obligatoria)
 │   ├── acopios.json         # 36 puntos de acopio verificados (18 oficiales)
-│   ├── albergues.json       # 6 refugios de Pereira (oficiales)
+│   ├── albergues.json       # 6 refugios de Pereira (oficiales; `tipo: albergue|refugio` obligatorio)
 │   ├── donacion-sangre.json # Jornadas de donación de sangre (fechas + horario + grupos)
 │   ├── centros-salud.json   # Red hospitalaria: 7 hospitales verificados (OSM + portales), estado sin-confirmar
 │   ├── contactos.json       # Líneas oficiales de emergencia
@@ -44,10 +44,14 @@ enlace-sismo/
 │   │                        # (NOTA: /mapa fue eliminado → 301 a /#mapa)
 │   ├── src/components/      # Map, MapLegend (tira de chips), DatosEvento (barra
 │   │                        # de estado), IndiceSecciones, ZonasLista, CatalogCard,
-│   │                        # JornadaSangreCard, StatusBadge
+│   │                        # JornadaSangreCard, StatusBadge, Breadcrumb (pantallas
+│   │                        # secundarias), UbicacionPicker, ModalResultado (modal
+│   │                        # éxito/error compartido; lógica en lib/modal-resultado.ts)
 │   ├── src/lib/             # catalogs.ts, zonas.ts, geo.ts (haversine),
 │   │                        # color.ts (oklch→hex para MapLibre), api.ts,
 │   │                        # necesidades.ts, puntos-rescate.ts, ciudades.ts,
+│   │                        # verificacion.ts (badge oficial/confirmado/sin-confirmar,
+│   │                        # fuente única SSG+runtime), modal-resultado.ts
 │   │                        # datos.ts (fetchCatalogo, refresco SWR), render-catalogos.ts
 │   ├── src/styles/global.css
 │   ├── public/              # sw.js (PWA offline, cache v4), _redirects
@@ -120,11 +124,11 @@ cd worker && npx wrangler secret put GITHUB_TOKEN
 - **Tokens de diseño:** todo color/fuente vía `var(--token)` de `tokens.css` — nunca valores sueltos (oklch/hex) en el CSS de la web
 - **MapLibre no acepta `oklch()`:** el mapa convierte tokens con `web/src/lib/color.ts` (oklch→hex en runtime); `tokens.css` sigue siendo la única fuente de color
 - **Sin emojis como iconos** en la UI (anti-pattern del sistema); etiquetas tipográficas o SVG propio
-- Headings romanos (sin itálica), fuente del sistema Cobalt: Space Grotesk + Inter + JetBrains Mono
+- Headings romanos (sin itálica), una sola familia: Inter (jerarquía por tamaño/peso/spacing); sentence case en toda la UI (sin mayúsculas sostenidas en títulos, botones, estados, badges o tags)
 
 ## Key Files
 
-- `design.md` — sistema de diseño bloqueado (modern-minimal · Cobalt · Workbench); leer antes de tocar UI; solo él y `tokens.css` definen color/tipografía
+- `design.md` — sistema de diseño bloqueado (modern-minimal · Cobalt · Workbench); leer antes de tocar UI; solo él y `tokens.css` definen color/tipografía; una familia (Inter), sentence case, radios 8 px en badges/chips/botones, `.aviso.warning` amarillo para avisos de fuente oficial
 - `data/schema/verificado.schema.json` — campos obligatorios de toda entrada (`fuente`, `verificado_por`, `fecha_verificacion`, `verificacion`); `fuente_secundaria` opcional (URL adicional que respalda el dato)
 - `data/schema/jornada-sangre.schema.json` — jornadas de donación: `fecha_inicio` obligatoria, `fecha_fin` opcional, `horario`, `grupos`, `estado: activa|finalizada|sin-confirmar`
 - `scripts/validate-data.mjs` — validador; incluye regla de seguridad: cuentas bancarias solo con `estado: oficial`
@@ -132,14 +136,15 @@ cd worker && npx wrangler secret put GITHUB_TOKEN
 - `scripts/leer-redes.mjs` — lee posts de X (fxtwitter + oEmbed) con texto, fecha, autor y fotos; `--descargar` baja las fotos a `capturas/redes/` para OCR (Swift/Vision local); Instagram/Facebook/WhatsApp requieren screenshot + URL en `capturas/`
 - `web/src/pages/donar-sangre.astro` — jornadas de donación con filtro por ciudad; tarjeta `JornadaSangreCard` con fechas ("11 ago → 12 ago"), horario, grupos y "Cómo llegar"
 - `web/src/components/Map.astro` — mapa MapLibre progresivo: capas por intensidad Mercalli, anillo del epicentro (rAF + IntersectionObserver), "Cerca de mí", popups con estilo del sistema y texto escapado (`escapar()`), sincronización lista↔mapa por `CustomEvent` (`enlace:mapa:volar-zona|zona-activa|posicion|reiniciar|ciudad-reportada`), deep-link `/?ciudad=<id>#mapa`, capa de jornadas de sangre (token `--color-sangre`), capa de puntos de rescate (token `--color-rescate`) con filtro por ciudad, marcador neutral agrupado de ciudades reportadas (sin intensidad); en modo app mide nav + barra de evento por ResizeObserver (`--nav-h-real`/`--barra-h-real` en el contenedor) para posicionar barra, rail y control de zoom; sin WebGL o con CDN bloqueado, el contenido base (lista) queda visible; nunca pantalla en blanco
-- `web/src/pages/reportar.astro` — formulario de reporte de puntos de rescate: 3 vías de ubicación (geolocalización, mapa con pin arrastrable, búsqueda estilo Google Maps con fallback directo a Nominatim), necesidades en chips, dedupe "ya reportado" a ≤150 m, `coordenadas_nivel` (premisa/via/barrio), health check del API y aviso de servidor caído
+- `web/src/pages/reportar.astro` — formulario de reporte de puntos de rescate: 3 vías de ubicación (geolocalización, mapa con pin arrastrable, búsqueda estilo Google Maps con fallback directo a Nominatim), necesidades en chips, dedupe "ya reportado" a ≤150 m, `coordenadas_nivel` (premisa/via/barrio), health check del API y aviso de servidor caído; breadcrumb "Puntos de rescate / Reportar punto de rescate", aviso warning "Antes de enviar" y modal de éxito con destino + Compartir (el cierre con Escape/overlay no navega; solo el botón Cerrar lleva al mapa)
 - `web/src/lib/ciudades.ts` — agrupa puntos activos por ciudad (centroide) y fusiona el select con dedupe normalizado (sin acentos/caja)
 - `web/public/datos/reportes-puntos.json` — registro en vivo de puntos de rescate; lo commitea el worker; se valida en CI contra `data/schema/reporte-punto.schema.json`; los contribuidores lo corrigen/archivan por PR
 - `web/src/lib/color.ts` — conversión oklch→hex (MapLibre no soporta oklch)
-- `web/src/pages/index.astro` — dashboard mapa-primero: en modo app (`.con-mapa`) el mapa llena el viewport (100dvh) y todo lo demás flota encima: nav translúcido que en móvil es una píldora colapsable (marca + toggle que despliega secciones y CTA; dropdown, no desplaza la barra), barra de evento como tarjeta graphite bajo el nav (cap 42rem en desktop), rail derecho con pestañas Zonas · Rescates (tabs accesibles: roving tabindex; sin JS ambos paneles visibles) y tira de leyenda en la base (una sola instancia en el DOM); sin footer en modo mapa; `.dash` base = contenido en flujo (fallback sin mapa); ancla `id="mapa"`; script de tabs con sync a `enlace:mapa:zona-activa|posicion|ciudad-reportada`; panel Rescates (SSG) con agregación de necesidades y confirmaciones; refresco en runtime de catálogos, zonas, evento y registro en vivo (poll 60 s + visibilitychange; SWR sobre SSG, evento `enlace:mapa:datos-frescos` al mapa)
+- `web/src/pages/index.astro` — dashboard mapa-primero: en modo app (`.con-mapa`) el mapa llena el viewport (100dvh) y todo lo demás flota encima: nav translúcido que en móvil es una píldora colapsable (marca + toggle que despliega secciones y CTA; dropdown, no desplaza la barra), barra de evento como tarjeta graphite bajo el nav (cap 42rem en desktop), rail derecho con pestañas Zonas · Rescates (tabs accesibles: roving tabindex; sin JS ambos paneles visibles) y tira de leyenda en la base (una sola instancia en el DOM); sin footer en modo mapa; `.dash` base = contenido en flujo (fallback sin mapa); ancla `id="mapa"`; script de tabs con sync a `enlace:mapa:zona-activa|posicion|ciudad-reportada`; panel Rescates con filas como cards (badge de verificación Oficial/Confirmado/Sin confirmar derivado de los datos, acciones "Cómo llegar" + "Confirmar con mi ubicación" en vertical) y CTA "Reportar un punto" como barra sticky al inicio; filtro por zona: la fila activa (SGC o ciudad reportada) filtra el panel y salta a la pestaña Rescates, el marcador/select del mapa solo filtra sin cambiar de pestaña; refresco en runtime de catálogos, zonas, evento y registro en vivo (poll 60 s + visibilitychange; SWR sobre SSG, evento `enlace:mapa:datos-frescos` al mapa; si el API cae, el registro se carga de la copia estática y el filtro sigue funcionando)
 - `web/src/components/DatosEvento.astro` — barra de estado (lectura SGC + distancia + badges de verificación + reporte); único momento oscuro por página
 - `web/src/components/MapLegend.astro` — tira de chips: capas (checkboxes reales visualmente ocultos), chip "Rescates (N)", select de ciudad, chip "Cerca de mí" (8 estados, spinner con `aria-busy`); selectores `.leyenda-tira` usados por `Map.astro` y `ZonasLista.astro`
-- `web/src/components/ZonasLista.astro` — filas con dot de intensidad Mercalli real, escala I–XII de referencia, chevron, `aria-pressed`; sección "Ciudades con reportes ciudadanos" (dedupe por nombre normalizado contra el catálogo); el rail filtra por las casillas de la tira y ordena por distancia con "Cerca de mí"
+- `web/src/components/CatalogCard.astro` — card de catálogos (acopios/albergues/salud): badges de estado y verificación en el encabezado (misma línea), badge-tipo Refugio/Albergue (campo `tipo`), sin tipo repetido en salud, datos de decisión en negrilla (`card-dato`); el espejo runtime vive en `render-catalogos.ts`
+- `web/src/components/ZonasLista.astro` — filas de zonas como cards (borde del sistema, radio 8 px, nombre a ancho completo y meta en línea propia, sin salto de palabra), dot de intensidad Mercalli real, escala I–XII de referencia, chevron, `aria-pressed`; sección "Ciudades con reportes ciudadanos" (dedupe por nombre normalizado contra el catálogo); el rail filtra por las casillas de la tira y ordena por distancia con "Cerca de mí"; el clic en una fila filtra el panel Rescates y salta a su pestaña
 - `web/public/_redirects` — `/mapa` → `/#mapa` (301, Cloudflare Pages)
 - `web/public/sw.js` — PWA offline; el `APP_SHELL` NO debe listar páginas borradas (rompe el install)
 - `web/src/lib/geo.ts` — haversine + formateo de distancia (build y cliente)
@@ -150,7 +155,7 @@ cd worker && npx wrangler secret put GITHUB_TOKEN
 
 - **Los datos entran por PRs** al repo: `data/*.json` → CI valida → mantenedor revisa contra la fuente → merge → deploy automático
 - **Cambios grandes vía `.sdd/`** (spec-driven): `/sdd:propose` → `/sdd:apply` → `/sdd:archive`; las specs archivadas viven en `.sdd/specs/`
-- **Zonas ↔ filtro de ciudad comparten estado**: clic en una fila de zona filtra los puntos de esa ciudad y sincroniza el select; el select resalta la fila y vuela; el epicentro vuelve a "Ciudad: Todas"; el select incluye la unión de ciudades con puntos, zonas afectadas y ciudades de reportes (dedupe normalizado)
+- **Zonas ↔ filtro de ciudad comparten estado**: clic en una fila de zona filtra los puntos de esa ciudad y sincroniza el select; la fila activa además filtra el panel Rescates y salta a la pestaña Rescates (el marcador/select del mapa solo filtra, sin cambiar de pestaña); el select resalta la fila y vuela; el epicentro vuelve a "Ciudad: Todas"; el select incluye la unión de ciudades con puntos, zonas afectadas y ciudades de reportes (dedupe normalizado)
 - **El único momento oscuro por página** es la barra de estado del evento (graphite); no añadir otras superficies oscuras sin tocar `design.md`
 - **Fuentes**: `fuente` apunta a la ficha oficial (p. ej. SGC); una URL de prensa que la cita puede ir en `fuente_secundaria`
 - **Zonas sin `intensidad`** en `zonas-afectadas.json` se dibujan neutrales etiquetadas "Sin reporte" — nunca estimar intensidad sin fuente
