@@ -5,8 +5,19 @@
   "description": "Contrato de una entrada del registro de puntos de ayuda. El ciudadano crea el punto (sin-confirmar); el autor lo edita y puede cerrarlo con su token; el mantenedor confirma, cierra, marca falso o promueve con fuente. flags admite arreglo (forma interna que escribe el worker) o entero (conteo de la proyección pública del API y del snapshot SSG).",
   "type": "object",
   "properties": {
-    "id": { "type": "string", "pattern": "^a-[a-z0-9-]{6,20}$" },
+    "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]{5,40}$", "description": "El worker genera a-… para puntos nuevos; el patrón relajado cubre los ids legacy del seed de catálogos (p. ej. cr-bog-samu-sur)." },
     "tipo": { "type": "string", "enum": ["acopio", "albergue", "hospital", "otro"] },
+    "subtipo": { "type": "string", "maxLength": 40, "description": "Sub-tipo del lugar cuando aporta información: refugio (albergue), clinica / punto-primeros-auxilios / puesto-vacunacion (hospital). Lo fija el seed o el mantenedor; el formulario no lo recolecta." },
+    "departamento": { "type": "string", "maxLength": 80 },
+    "capacidad": { "type": "integer", "minimum": 1 },
+    "ocupacion": { "type": "integer", "minimum": 0 },
+    "admite_mascotas": { "type": "boolean" },
+    "servicios": { "type": "array", "maxItems": 20, "items": { "type": "string", "maxLength": 100 }, "uniqueItems": true },
+    "urgencias_24h": { "type": "boolean" },
+    "recoleccion_periodica": { "type": "boolean" },
+    "recoleccion_detalle": { "type": "string", "maxLength": 300 },
+    "evidencia_links": { "type": "array", "maxItems": 10, "items": { "type": "string", "format": "uri" } },
+    "imagen_url": { "type": "string", "format": "uri" },
     "modalidad": { "type": "string", "enum": ["necesita", "recolecta", "ambos"] },
     "nombre": { "type": "string", "minLength": 3, "maxLength": 120 },
     "lat": { "type": "number", "minimum": -90, "maximum": 90 },
@@ -44,7 +55,11 @@
     },
     "token_hash": { "type": "string", "minLength": 8 },
     "enlazado_a": { "type": "string", "maxLength": 64 },
-    "ip_hash": { "type": "string", "minLength": 8 },
+    "ip_hash": {
+      "type": "string",
+      "minLength": 8,
+      "description": "Hash de la IP del autor (privacidad). Solo en la forma interna que escribe el worker: la proyección pública del API y el snapshot SSG lo omiten, por eso NO es obligatorio aquí (el worker siempre lo persiste)."
+    },
     "created_at": { "type": "string", "minLength": 10 },
     "ultima_actualizacion": { "type": "string", "minLength": 10 },
     "fuente": { "type": "string", "format": "uri" },
@@ -103,6 +118,6 @@
       "required": ["ip_hash", "created_at"]
     }
   },
-  "required": ["id", "tipo", "modalidad", "lat", "lng", "coordenadas_nivel", "descripcion", "items", "estado", "flags", "ip_hash", "created_at", "ultima_actualizacion"],
+  "required": ["id", "tipo", "modalidad", "lat", "lng", "coordenadas_nivel", "descripcion", "items", "estado", "flags", "created_at", "ultima_actualizacion"],
   "additionalProperties": false
 }
