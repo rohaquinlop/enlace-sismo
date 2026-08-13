@@ -24,9 +24,12 @@ jobs:
           fetch-depth: 0
 
       # Despliegue selectivo (desacoplar-datos-deploy): los cambios SOLO de
-      # datos — catálogos (data/** sin data/schema/**) y el registro en vivo
-      # (web/public/datos/**, commiteado por el worker) — se publican vía
-      # GET /api/datos/:catalogo sin deploy (GitHub como almacén + caché KV).
+      # datos — catálogos estáticos (data/** sin data/schema/**; acopios,
+      # albergues y centros-salud son el registro histórico del seed y ya no
+      # se sirven desde el repo) y el registro en vivo (web/public/datos/**,
+      # commiteado por el worker) — se publican vía API sin deploy.
+      # Los lugares viven en D1: los cambios al registro se reflejan por el
+      # API público + snapshot del propio deploy (y por workflow_dispatch).
       # El pipeline corre solo con cambios de código o por workflow_dispatch.
       - name: ¿Cambios de código?
         id: filtro

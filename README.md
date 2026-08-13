@@ -9,64 +9,57 @@ Plataforma open-source para centralizar información vital tras el sismo de magn
 del 10 de agosto de 2026 (epicentro: San José del Palmar, Chocó). Proyecto humanitario:
 **la desinformación mata**, por eso aquí solo hay datos reales con fuente verificable.
 
-## Principio rector
+## Modelo comunitario
 
-**Ningún dato se publica sin fuente verificable.** Los datos entran como PRs a este
-repositorio: cada entrada incluye su fuente oficial, quién la verificó y cuándo.
-CI valida (`npm run validate:data`) y bloquea cualquier dato sin fuente.
+Los catálogos de lugares (acopios, albergues, centros de salud) y los puntos de ayuda
+viven en **un solo registro en vivo** (base D1, API público): la comunidad los publica
+y los audita; el equipo los verifica y los promueve con fuente. No hay cola de revisión
+que retrase un dato útil: la corrección también es comunitaria.
+
+**Ningún dato se publica sin fuente verificable.** La regla de oro se conserva: todo
+dato publicado muestra su fuente, quién lo verificó y cuándo. Los lugares curados
+(antes `data/acopios.json`, `data/albergues.json`, `data/centros-salud.json`) fueron
+sembrados al registro con su fuente original; de ahí en adelante, los datos entran por
+la plataforma (reporte ciudadano → confirmación con fuente por el equipo) y el CI
+valida la forma de todo lo que se publica.
 
 Cada dato muestra su nivel de verificación:
 
 - **Oficial** — publicado por una entidad oficial (SGC, UNGRD, alcaldías, Cruz Roja).
-- **Confirmado** — verificado contra fuente por 2+ revisores.
-- **Sin confirmar** — pendiente; se muestra con advertencia.
+- **Confirmado** — verificado contra fuente por el equipo.
+- **Sin confirmar** — reporte ciudadano pendiente; se muestra con advertencia.
 
 ## Catálogos de datos
 
-| Catálogo | Contenido |
+| Fuente | Contenido |
 |---|---|
-| `data/acopios.json` | 36 puntos de acopio verificados (18 con fuente oficial de alcaldías) |
-| `data/albergues.json` | 6 refugios de Pereira (oficiales) |
+| `GET /api/ayuda` (D1) | **Lugares y puntos de ayuda en vivo** — acopios, albergues, hospitales y otros lugares que necesitan o recolectan. Arranca vacío (los catálogos históricos se vaciaron: datos desactualizados) y se llena con reportes comunitarios + promoción con fuente. API público abierto, proyección sin datos de IP |
 | `data/donacion-sangre.json` | Jornadas de donación de sangre con fechas, horario y grupos |
-| `data/centros-salud.json` | 7 hospitales de las zonas afectadas |
 | `data/contactos.json` | Líneas de emergencia oficiales |
 | `data/canales-ayuda.json` | Canales oficiales de donación y voluntariado |
 | `data/zonas-afectadas.json` | Epicentro SGC y ciudades con intensidad Mercalli (solo con fuente) |
-| `GET /api/ayuda` (D1) | **Puntos de ayuda en vivo** — lugares que necesitan (hospitales, albergues) o que recolectan y transportan a otras zonas (acopios). API público abierto, proyección sin datos de IP |
+| `data/acopios.json` · `albergues.json` · `centros-salud.json` | **Insumo del seed, vaciados** (2026-08-13): los datos históricos estaban desactualizados y se retiraron de producción; el contenido original queda en el historial de git para re-verificación |
 
 Cada punto tiene enlace "Cómo llegar" (Google Maps) y coordenadas verificadas contra
 ≥2 geocodificadores independientes — **un pin equivocado envía donantes al lugar
 equivocado**, así que la precisión es parte del protocolo.
 
-## Puntos de ayuda en vivo
+## Cómo participar (todo en la plataforma)
 
-Pasadas las primeras 72 h del sismo, la coordinación pasó de la búsqueda y rescate a la
-**oferta y demanda de ayuda** entre ciudades. Cualquier persona puede publicar desde
-`/reportar` un punto de ayuda:
-
-- **Quién necesita** — un hospital que requiere insumos, un albergue que necesita camas o ropa.
-- **Quién recolecta** — un acopio que reúne ítems y declara **a qué ciudades los llevará**.
+- **Reportar** — desde `/reportar` (o el botón "Declarar necesidad u oferta" del mapa),
+  cualquier persona publica un lugar o una necesidad con ubicación, ítems y destino.
+- **Auditar** — el botón "Reportar punto falso" en cada tarjeta: 3 reportes de la
+  comunidad ocultan el punto hasta que el equipo lo revise.
+- **Actualizar** — el autor edita o cierra su punto con su token de edición; el equipo
+  promueve con fuente los datos verificados (badge Oficial/Confirmado).
+- **Código** — este repo sigue siendo open-source: issues, PRs y cambios spec-driven
+  en `.sdd/` (propose → apply → archive).
 
 Cada punto lleva ítems estandarizados (catálogo + ítems específicos como "insulina") con
-cantidad y unidad opcionales; el alimento es solo **no perecedero**. Los puntos se
-publican como *sin confirmar*; la comunidad los valida con el botón "Reportar punto falso"
-(3 reportes los ocultan) y el autor puede actualizar o cerrar su punto con su token de
-edición. Los datos viven en una base D1 y se sirven por un **API público**
-(`GET https://api.enlacesismo.com/api/ayuda`, con filtros por ciudad, tipo, modalidad e
-ítem) para que medios, organizaciones y otras plataformas los consuman.
-
-## Contribuir
-
-**Este proyecto vive de contribuciones.** Todo dato pasa por PR y revisión de mantenedor:
-
-- **Datos** (acopios, jornadas de sangre, albergues…): lee [CONTRIBUTING.md](CONTRIBUTING.md)
-  y abre un PR con `data/*.json` actualizado. El protocolo incluye cómo verificar
-  coordenadas y cómo tratar datos que circulan en redes sociales — guía práctica en
-  [docs/guia-redes-sociales.md](docs/guia-redes-sociales.md).
-- **Código**: abre un issue para proponer cambios grandes; los cambios siguen el flujo
-  spec-driven en `.sdd/` (propose → apply → archive).
-- **Revisar**: cualquier persona puede comentar en un PR "verifiqué contra [fuente],
-  datos correctos".
+cantidad y unidad opcionales; el alimento es solo **no perecedero**. Los datos viven en
+una base D1 y se sirven por un **API público** (`GET https://api.enlacesismo.com/api/ayuda`,
+con filtros por ciudad, tipo, modalidad e ítem) para que medios, organizaciones y otras
+plataformas los consuman.
 
 ## Stack
 
@@ -74,9 +67,9 @@ edición. Los datos viven en una base D1 y se sirven por un **API público**
 |---|---|---|
 | Web (estática, PWA offline) | Astro + MapLibre GL | Cloudflare Pages |
 | API | Hono (TypeScript) | Cloudflare Workers |
-| Puntos de ayuda en vivo | D1 (SQLite) — tabla `puntos_ayuda` | Cloudflare D1 (migraciones en el deploy) |
+| Lugares y puntos de ayuda en vivo | D1 (SQLite) — tabla `puntos_ayuda` | Cloudflare D1 (migraciones en el deploy) |
 | Límites y caché | Cloudflare KV | Cloudflare KV |
-| Datos verificados | JSON en este repo, validados en CI | Repo (GitHub) + API `/api/datos/:catalogo` |
+| Catálogos estáticos (jornadas, zonas, contactos, canales, evento) | JSON en este repo, validados en CI | Repo (GitHub) + API `/api/datos/:catalogo` |
 
 ## Desarrollo local
 
@@ -85,29 +78,35 @@ npm install
 npm run dev        # web → http://localhost:4321
 npm run dev:api    # API → http://localhost:8787
 npm run validate:data
+
+# Seed de los catálogos históricos al registro D1 local (idempotente):
+cd worker && npm run seed          # D1 local
+cd worker && npm run seed:remote   # D1 remota (requiere auth de wrangler)
 ```
+
+El seed se corre **una vez** por entorno (dev y prod) después de aplicar las
+migraciones; en prod, tras sembrar, dispara el workflow `Deploy` manualmente para
+regenerar el snapshot SSG con los lugares curados.
 
 ## Despliegue (mantenedores)
 
 El push a `main` despliega automáticamente web y API (GitHub Actions → Cloudflare)
 **solo cuando cambia código** (`web/src/`, `worker/`, workflows, `data/schema/**`). El
 deploy aplica las migraciones D1, publica el worker y la web, y regenera el snapshot
-SSG de los puntos de ayuda (`web/public/datos/reportes-ayuda.json`) desde el API. Los
-cambios que tocan únicamente datos (`data/**` sin schemas, o `web/public/datos/**`)
-**no despliegan**: el API sirve los catálogos directo desde el repo con caché KV
-(`GET /api/datos/:catalogo`), así que un PR de datos es visible en ~1–2 min sin deploy.
-Para refrescar la fotografía estática (SSG) que ven los usuarios sin JS y los crawlers,
-dispara el workflow `Deploy` manualmente (botón *Run workflow* → el baseline se
-reconstruye con los datos actuales).
+SSG del registro (`web/public/datos/reportes-ayuda.json`) desde el API. Los cambios que
+tocan únicamente datos (`data/**` sin schemas, o `web/public/datos/**`) **no despliegan**:
+el API sirve los catálogos estáticos directo desde el repo con caché KV
+(`GET /api/datos/:catalogo`) y los lugares en vivo vienen del API público. Para
+refrescar la fotografía estática (SSG) que ven los usuarios sin JS y los crawlers,
+dispara el workflow `Deploy` manualmente (botón *Run workflow*).
 
 La configuración de KV/D1/secretos y los pasos manuales viven en
 `.github/workflows/` y `worker/wrangler.toml`.
 
-Secretos del worker: `ADMIN_TOKEN` (moderación de puntos de ayuda y rescates) y
-`GITHUB_TOKEN` (un solo fine-grained PAT con `issues:write` + `contents:write` sobre el
-repo — crea issues de sugerencias y commitea el registro de rescates
-`web/public/datos/reportes-puntos.json`, conservado en el backend; los puntos de ayuda
-viven en D1 y no usan GitHub). Ver `CONTRIBUTING.md`.
+Secretos del worker: `ADMIN_TOKEN` (moderación del registro de lugares y rescates) y
+`GITHUB_TOKEN` (un solo fine-grained PAT con `contents:write` sobre el repo — commitea
+el registro de rescates `web/public/datos/reportes-puntos.json`, conservado en el
+backend; los puntos de ayuda viven en D1 y no usan GitHub). Ver `CONTRIBUTING.md`.
 
 ## Licencia
 

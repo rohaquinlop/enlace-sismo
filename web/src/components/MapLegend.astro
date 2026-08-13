@@ -1,29 +1,31 @@
 ---
-import { acopios, albergues, centrosSalud, jornadasSangre } from "../lib/catalogs";
+import { jornadasSangre } from "../lib/catalogs";
 
 interface Props {
   ciudades: string[];
   mostrarZonas?: boolean;
   mostrarAyuda?: boolean;
-  ayudaActivos?: number;
+  ayudaConteos?: { acopio: number; albergue: number; hospital: number; otro: number };
 }
 
-const { ciudades, mostrarZonas = false, mostrarAyuda = false, ayudaActivos = 0 } = Astro.props;
+const {
+  ciudades,
+  mostrarZonas = false,
+  mostrarAyuda = false,
+  ayudaConteos = { acopio: 0, albergue: 0, hospital: 0, otro: 0 },
+} = Astro.props;
 
+// Los catálogos de lugares (acopios/albergues/salud) son entradas del
+// registro de ayuda: el chip "Ayuda" los cubre. La capa de catálogos solo
+// conserva las jornadas de sangre (cambio catalogos-comunitarios).
 const CATEGORIAS = [
-  { valor: "acopio", etiqueta: `Acopios (${acopios.length})`, clase: "punto-acopio" },
-  { valor: "albergue", etiqueta: `Albergues (${albergues.length})`, clase: "punto-albergue" },
-  { valor: "salud", etiqueta: `Salud (${centrosSalud.length})`, clase: "punto-salud" },
-  { valor: "sangre", etiqueta: `Donar sangre (${jornadasSangre.length})`, clase: "punto-sangre" },
+  { valor: "sangre", nombre: "Donar sangre", conteo: jornadasSangre.length, clase: "punto-sangre" },
 ];
 
 const ZONAS = [
   { valor: "zona", etiqueta: "Zonas", clase: "punto-zona" },
   { valor: "epicentro", etiqueta: "Epicentro", clase: "punto-epicentro" },
 ];
-
-const totalPuntos = acopios.length + albergues.length + centrosSalud.length + jornadasSangre.length;
-const etiquetaPuntos = totalPuntos === 1 ? "1 punto" : `${totalPuntos} puntos`;
 ---
 
 <!-- Barra de herramientas del mapa, siempre visible. Una sola instancia en el
@@ -39,17 +41,27 @@ const etiquetaPuntos = totalPuntos === 1 ? "1 punto" : `${totalPuntos} puntos`;
         <label class="tira-chip">
           <input type="checkbox" value={c.valor} checked />
           <span class:list={["tira-dot", c.clase]} aria-hidden="true"></span>
-          <span class="tira-label">{c.etiqueta}</span>
+          <span class="tira-label">
+            {c.nombre} (<span data-ayuda-conteo={c.valor}>{c.conteo}</span>)
+          </span>
         </label>
       ))}
       {
-        mostrarAyuda && (
-          <label class="tira-chip">
-            <input type="checkbox" value="ayuda" checked />
-            <span class="tira-dot punto-ayuda" aria-hidden="true"></span>
-            <span class="tira-label">Ayuda ({ayudaActivos})</span>
-          </label>
-        )
+        mostrarAyuda &&
+          [
+            { valor: "acopio", nombre: "Acopios", conteo: ayudaConteos.acopio, clase: "punto-acopio" },
+            { valor: "albergue", nombre: "Albergues", conteo: ayudaConteos.albergue, clase: "punto-albergue" },
+            { valor: "hospital", nombre: "Salud", conteo: ayudaConteos.hospital, clase: "punto-salud" },
+            { valor: "otro", nombre: "Otro", conteo: ayudaConteos.otro, clase: "punto-ayuda" },
+          ].map((c) => (
+            <label class="tira-chip">
+              <input type="checkbox" value={c.valor} checked />
+              <span class:list={["tira-dot", c.clase]} aria-hidden="true"></span>
+              <span class="tira-label">
+                {c.nombre} (<span data-ayuda-conteo={c.valor}>{c.conteo}</span>)
+              </span>
+            </label>
+          ))
       }
       {
         mostrarZonas &&
@@ -75,10 +87,8 @@ const etiquetaPuntos = totalPuntos === 1 ? "1 punto" : `${totalPuntos} puntos`;
         </span>
       )
     }
-    <!-- Actualizado por el script del mapa al filtrar; en el fallback sin mapa
-         muestra el total del build. aria-live: el cambio de conteo se anuncia
-         al filtrar capas o ciudad. -->
-    <span class="tira-conteo" id="puntos-conteo" aria-live="polite">{etiquetaPuntos}</span>
+    <!-- Cada chip lleva su conteo ("Donar sangre (N)", "Ayuda (N)"); el
+         contador global se eliminó en el audit (duplicaba los chips). -->
   </div>
   {
     mostrarZonas && (

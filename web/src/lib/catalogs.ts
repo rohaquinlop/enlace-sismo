@@ -1,68 +1,17 @@
-import acopiosData from "../../../data/acopios.json";
-import alberguesData from "../../../data/albergues.json";
-import centrosSaludData from "../../../data/centros-salud.json";
 import donacionSangreData from "../../../data/donacion-sangre.json";
+
+// NOTA (cambio catalogos-comunitarios): los catálogos de lugares (acopios,
+// albergues, centros de salud) viven en el registro unificado de puntos de
+// ayuda (D1 vía GET /api/ayuda + snapshot SSG web/public/datos/reportes-ayuda.json).
+// Los tipos Acopio/Albergue/CentroSalud y data/acopios.json|albergues.json|
+// centros-salud.json quedaron como registro histórico del seed; aquí solo
+// quedan los catálogos estáticos (jornadas de sangre y canales de ayuda).
 
 export interface Verificado {
   fuente: string;
   verificado_por: string;
   fecha_verificacion: string;
   verificacion: "oficial" | "confirmado" | "sin-confirmar";
-}
-
-export interface Acopio extends Verificado {
-  id: string;
-  nombre: string;
-  ciudad: string;
-  departamento: string;
-  direccion: string;
-  lat: number;
-  lng: number;
-  coordenadas_nivel?: "premisa" | "via" | "barrio";
-  tipo?: "oficial-comunal" | "oficial-gobierno" | "no-oficial";
-  horario?: string;
-  necesidades?: string[];
-  detalles?: string;
-  estado: "abierto" | "cerrado" | "sin-confirmar";
-  contacto?: string;
-  fecha_limite?: string;
-  recoleccion_periodica?: boolean;
-  recoleccion_detalle?: string;
-  evidencia_links?: string[];
-  imagen_url?: string;
-}
-
-export interface Albergue extends Verificado {
-  id: string;
-  nombre: string;
-  ciudad: string;
-  departamento: string;
-  direccion: string;
-  lat: number;
-  lng: number;
-  coordenadas_nivel?: "premisa" | "via" | "barrio";
-  capacidad?: number;
-  ocupacion?: number;
-  admite_mascotas?: boolean;
-  servicios?: string[];
-  estado: "abierto" | "cerrado" | "sin-confirmar";
-  tipo: "albergue" | "refugio";
-  contacto?: string;
-}
-
-export interface CentroSalud extends Verificado {
-  id: string;
-  nombre: string;
-  ciudad: string;
-  departamento: string;
-  direccion: string;
-  lat: number;
-  lng: number;
-  coordenadas_nivel?: "premisa" | "via" | "barrio";
-  tipo: "hospital" | "clinica" | "punto-primeros-auxilios" | "puesto-vacunacion";
-  estado: "operativo" | "limitado" | "cerrado" | "sin-confirmar";
-  urgencias_24h?: boolean;
-  contacto?: string;
 }
 
 export interface JornadaSangre extends Verificado {
@@ -100,14 +49,7 @@ export interface CanalAyuda extends Verificado {
 // Los datos se validan contra data/schema/* en CI (npm run validate:data); la
 // inferencia de resolveJsonModule produce `string` donde los schemas exigen
 // enums. El cast en la frontera tipa el JSON con los contratos del proyecto.
-export const acopios: Acopio[] = acopiosData.acopios as Acopio[];
-export const albergues: Albergue[] = alberguesData.albergues as Albergue[];
-export const centrosSalud: CentroSalud[] = centrosSaludData.centros as CentroSalud[];
 export const jornadasSangre: JornadaSangre[] = donacionSangreData.jornadas as JornadaSangre[];
-
-export const todasLasCiudades: string[] = Array.from(
-  new Set([...acopios, ...albergues, ...centrosSalud, ...jornadasSangre].map((e) => e.ciudad))
-).sort();
 
 export interface CiudadGrupo<T> {
   ciudad: string;

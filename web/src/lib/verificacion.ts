@@ -6,3 +6,9 @@ export function estadoVerificacion(p: { verificacion?: string; estado?: string }
   if (p.verificacion === "confirmado" || p.estado === "confirmado") return "confirmado";
   return "sin-confirmar";
 }
+
+/** Etiqueta de la verificación para badges ("oficial" → "Oficial"). */
+export function etiquetaVerificacion(p: { verificacion?: string; estado?: string }): string {
+  const v = estadoVerificacion(p);
+  return v === "oficial" ? "Oficial" : v === "confirmado" ? "Confirmado" : "Sin confirmar";
+}

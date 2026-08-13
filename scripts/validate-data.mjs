@@ -23,10 +23,12 @@ addFormats(ajv);
 const baseSchema = JSON.parse(readFileSync(join(schemaDir, "verificado.schema.json"), "utf8"));
 ajv.addSchema(baseSchema);
 
+// Los catálogos de lugares (acopios, albergues, centros de salud) viven en
+// el registro unificado de puntos de ayuda (D1): data/acopios.json,
+// data/albergues.json y data/centros-salud.json son el registro histórico
+// del seed (cambio catalogos-comunitarios) y NO se validan aquí — el CI
+// protege el registro vía el snapshot reportes-ayuda.json (abajo).
 const CATALOGOS = [
-  { file: "acopios.json", schema: "acopio.schema.json", key: "acopios" },
-  { file: "albergues.json", schema: "albergue.schema.json", key: "albergues" },
-  { file: "centros-salud.json", schema: "centro-salud.schema.json", key: "centros" },
   { file: "donacion-sangre.json", schema: "jornada-sangre.schema.json", key: "jornadas" },
   { file: "contactos.json", schema: "contacto.schema.json", key: null },
   { file: "canales-ayuda.json", schema: "canal-ayuda.schema.json", key: null },

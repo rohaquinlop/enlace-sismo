@@ -28,6 +28,10 @@ export const ITEMS_AYUDA = [
   { id: "maquinaria", label: "Maquinaria" },
   { id: "voluntarios", label: "Voluntarios" },
   { id: "transporte", label: "Transporte" },
+  // Vocabulario del seed de catálogos (acopios verificados): mismos ids que
+  // data/acopios.json para que la cobertura oferta↔demanda siga funcionando.
+  { id: "alimentos-bebe", label: "Alimentos para bebés" },
+  { id: "mascotas", label: "Artículos para mascotas" },
 ] as const;
 
 export type ItemAyudaId = (typeof ITEMS_AYUDA)[number]["id"];

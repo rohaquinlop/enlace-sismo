@@ -84,19 +84,15 @@ import { ITEMS_AYUDA, TIPOS_AYUDA, MODALIDADES } from "../lib/items-ayuda";
     <h2>Ubicación exacta *</h2>
     <UbicacionPicker />
 
-    <!-- Deduplicación: punto cercano existente (≤150 m) del registro de ayuda. -->
+    <!-- Deduplicación: punto cercano existente (≤150 m) del registro de ayuda.
+         El registro es el ÚNICO catálogo de lugares: acopios, albergues y
+         hospitales viven aquí, así que el dedupe cubre también los oficiales. -->
     <div class="dedupe-panel" id="dedupe-panel" hidden>
       <strong>Este lugar ya está reportado</strong>
       <p id="dedupe-info"></p>
       <div class="form-acciones">
         <button type="button" class="btn" id="btn-reportar-igual">Reportar de todas formas</button>
       </div>
-    </div>
-
-    <!-- Aviso suave contra catálogos oficiales (no bloquea). -->
-    <div class="dedupe-panel" id="aviso-oficial" hidden>
-      <strong>¿Es este punto oficial?</strong>
-      <p id="aviso-oficial-info"></p>
     </div>
 
     <h2>Qué se necesita o se recolecta</h2>
@@ -186,8 +182,6 @@ import { ITEMS_AYUDA, TIPOS_AYUDA, MODALIDADES } from "../lib/items-ayuda";
   import { haversineKm } from "../lib/geo";
   import { puntoAyudaVisible, type PuntoAyuda } from "../lib/puntos-ayuda";
   import { etiquetaItemAyuda, etiquetaTipo, ESTADOS_AYUDA, validarItemPersonalizado, type ItemAyuda } from "../lib/items-ayuda";
-  import { nombreCiudadNormalizado } from "../lib/ciudades";
-  import { acopios, albergues, centrosSalud } from "../lib/catalogs";
   import { escapar } from "../lib/render-catalogos";
   import { EVENTO_FIJADA, EVENTO_FIJAR, EVENTO_REINICIAR, type UbicacionFijada } from "../lib/ubicacion-picker";
 
@@ -234,8 +228,6 @@ import { ITEMS_AYUDA, TIPOS_AYUDA, MODALIDADES } from "../lib/items-ayuda";
   const dedupePanel = document.getElementById("dedupe-panel") as HTMLDivElement | null;
   const dedupeInfo = document.getElementById("dedupe-info") as HTMLParagraphElement | null;
   const btnReportarIgual = document.getElementById("btn-reportar-igual") as HTMLButtonElement | null;
-  const avisoOficial = document.getElementById("aviso-oficial") as HTMLDivElement | null;
-  const avisoOficialInfo = document.getElementById("aviso-oficial-info") as HTMLParagraphElement | null;
   const avisoServidor = document.getElementById("aviso-servidor") as HTMLParagraphElement | null;
 
   let vivos: PuntoAyuda[] = [];
@@ -311,7 +303,6 @@ import { ITEMS_AYUDA, TIPOS_AYUDA, MODALIDADES } from "../lib/items-ayuda";
     if (direccionEl.value === "" || direccionEl.value === ultimaAutoDireccion) {
       direccionEl.value = d.direccion;
       ultimaAutoDireccion = d.direccion;
-      revisarAvisoOficial();
     }
   }) as EventListener);
 
@@ -367,50 +358,8 @@ import { ITEMS_AYUDA, TIPOS_AYUDA, MODALIDADES } from "../lib/items-ayuda";
     if (dedupePanel) dedupePanel.hidden = true;
   });
 
-  // Aviso suave contra catálogos oficiales: coincide ciudad + nombre
-  // normalizados (la ciudad se deriva de la dirección del reverse geocode
-  // del pin; sin ciudad, el match es solo por nombre).
-  function ciudadDeDireccion(d: string): string {
-    const partes = d.split(",").map((s) => s.trim()).filter(Boolean);
-    return partes.length > 1 ? partes[partes.length - 1] : "";
-  }
-
-  function revisarAvisoOficial() {
-    if (!avisoOficial || !avisoOficialInfo) return;
-    const nombre = (document.getElementById("nombre") as HTMLInputElement | null)?.value.trim() ?? "";
-    const direccion = (document.getElementById("direccion") as HTMLInputElement | null)?.value.trim() ?? "";
-    const ciudad = ciudadDeDireccion(direccion);
-    const norm = nombreCiudadNormalizado(nombre);
-    if (nombre.length < 3 || !norm) {
-      avisoOficial.hidden = true;
-      return;
-    }
-    const normCiudad = ciudad ? nombreCiudadNormalizado(ciudad) : "";
-    const catalogos = [
-      ...acopios.map((a) => ({ nombre: a.nombre, ciudad: a.ciudad })),
-      ...albergues.map((a) => ({ nombre: a.nombre, ciudad: a.ciudad })),
-      ...centrosSalud.map((a) => ({ nombre: a.nombre, ciudad: a.ciudad })),
-    ];
-    const coincidencia = catalogos.find(
-      (n) =>
-        nombreCiudadNormalizado(n.nombre) === norm &&
-        (!normCiudad || nombreCiudadNormalizado(n.ciudad) === normCiudad)
-    );
-    if (coincidencia) {
-      avisoOficialInfo.textContent =
-        `"${coincidencia.nombre}" (${coincidencia.ciudad}) ya está en el catálogo verificado. Si es el mismo lugar, no lo dupliques: ` +
-        `coordina con los datos oficiales del catálogo.`;
-      avisoOficial.hidden = false;
-    } else {
-      avisoOficial.hidden = true;
-    }
-  }
-  document.getElementById("nombre")?.addEventListener("input", revisarAvisoOficial);
-  document.getElementById("direccion")?.addEventListener("input", revisarAvisoOficial);
-
   document.addEventListener(EVENTO_REINICIAR, () => {
     if (dedupePanel) dedupePanel.hidden = true;
-    if (avisoOficial) avisoOficial.hidden = true;
   });
 
   // ---------- Modal ----------
@@ -524,13 +473,12 @@ import { ITEMS_AYUDA, TIPOS_AYUDA, MODALIDADES } from "../lib/items-ayuda";
     if (latEl) latEl.value = String(p.lat);
     if (lngEl) lngEl.value = String(p.lng);
     // El picker coloca el marcador, vuela y corre reverse geocode + dedupe
-    // (el dedupe ignora este mismo punto; el aviso oficial se re-evalúa).
+    // (el dedupe ignora este mismo punto).
     document.dispatchEvent(
       new CustomEvent(EVENTO_FIJAR, {
         detail: { lat: p.lat, lng: p.lng, precision: p.coordenadas_nivel ?? "premisa" },
       })
     );
-    revisarAvisoOficial();
   }
 
   if (editarId && tokenEdicion) {

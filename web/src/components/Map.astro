@@ -1,27 +1,24 @@
 ---
-import type { Acopio, Albergue, CentroSalud, JornadaSangre } from "../lib/catalogs";
+import type { JornadaSangre } from "../lib/catalogs";
 import type { Zona } from "../lib/zonas";
 import type { CiudadReportada } from "../lib/ciudades";
 import evento from "../../../data/evento.json";
 import { haversineKm } from "../lib/geo";
 
 interface Props {
-  acopios: Acopio[];
-  albergues: Albergue[];
-  centros: CentroSalud[];
   jornadas?: JornadaSangre[];
   zonas?: Zona[];
   ciudadesReportadas?: CiudadReportada[];
 }
 
-const { acopios, albergues, centros, jornadas = [], zonas = [], ciudadesReportadas = [] } = Astro.props;
+const { jornadas = [], zonas = [], ciudadesReportadas = [] } = Astro.props;
 
 type Punto = {
   id: string;
   nombre: string;
   lat: number;
   lng: number;
-  tipo: "acopio" | "albergue" | "salud" | "sangre";
+  tipo: "sangre";
   estado: string;
   ciudad: string;
   direccion: string;
@@ -36,10 +33,11 @@ const fmtDia = (iso: string) => {
   return `${d} ${MESES[m - 1]}`;
 };
 
+// Capa de catálogos: SOLO jornadas de sangre. Los catálogos de lugares
+// (acopios, albergues, centros de salud) viven en el registro de puntos de
+// ayuda: se dibujan en la capa "ayuda" con su tipo (cambio catalogos-
+// comunitarios).
 const puntos: Punto[] = [
-  ...acopios.map((e) => ({ id: e.id, nombre: e.nombre, lat: e.lat, lng: e.lng, tipo: "acopio" as const, estado: e.estado, ciudad: e.ciudad, direccion: e.direccion, fuente: e.fuente, coordenadas_nivel: e.coordenadas_nivel })),
-  ...albergues.map((e) => ({ id: e.id, nombre: e.nombre, lat: e.lat, lng: e.lng, tipo: "albergue" as const, estado: e.estado, ciudad: e.ciudad, direccion: e.direccion, fuente: e.fuente, coordenadas_nivel: e.coordenadas_nivel })),
-  ...centros.map((e) => ({ id: e.id, nombre: e.nombre, lat: e.lat, lng: e.lng, tipo: "salud" as const, estado: e.estado, ciudad: e.ciudad, direccion: e.direccion, fuente: e.fuente, coordenadas_nivel: e.coordenadas_nivel })),
   ...jornadas.map((e) => ({
     id: e.id,
     nombre: e.punto,
@@ -79,7 +77,7 @@ const eventoJson = JSON.stringify({ fecha: evento.fecha.slice(0, 10) });
   import { puntoAyudaVisible, type PuntoAyuda } from "../lib/puntos-ayuda";
   import { agruparCiudades, nombreCiudadNormalizado, type CiudadReportada } from "../lib/ciudades";
   import { etiquetaTipo, etiquetaModalidadCorta, etiquetaItemAyuda, ESTADOS_AYUDA, type ItemAyuda } from "../lib/items-ayuda";
-  import type { Acopio, Albergue, CentroSalud, JornadaSangre } from "../lib/catalogs";
+  import type { JornadaSangre } from "../lib/catalogs";
   import type { Zona as ZonaCatalogo } from "../lib/zonas";
 
   type Punto = {
@@ -87,7 +85,7 @@ const eventoJson = JSON.stringify({ fecha: evento.fecha.slice(0, 10) });
     nombre: string;
     lat: number;
     lng: number;
-    tipo: "acopio" | "albergue" | "salud" | "sangre";
+    tipo: "sangre";
     estado: string;
     ciudad: string;
     direccion: string;
@@ -275,6 +273,16 @@ const eventoJson = JSON.stringify({ fecha: evento.fecha.slice(0, 10) });
     const PAPER = cssVar("--color-paper", "#f8f9fb");
     const INK = cssVar("--color-ink", "#1b2733");
 
+    // Color de los puntos de ayuda por tipo (mismo lenguaje que las páginas
+    // /acopios, /albergues, /salud): acopio azul, albergue verde, hospital
+    // rojo, otro púrpura (familia rescate).
+    const COLOR_POR_TIPO: Record<string, string> = {
+      acopio: COLORS.acopio,
+      albergue: COLORS.albergue,
+      hospital: COLORS.salud,
+      otro: COLORS.ayuda,
+    };
+
     const ESTADOS: Record<string, string> = {
       abierto: "Abierto",
       activa: "Activa",
@@ -298,6 +306,9 @@ const eventoJson = JSON.stringify({ fecha: evento.fecha.slice(0, 10) });
 
     // Puntos de ayuda: fuente única (D1 vía GET /api/ayuda; el snapshot SSG
     // web/public/datos/reportes-ayuda.json es el respaldo estático).
+    // Una capa por tipo (chip Acopios/Albergues/Salud/Otro), un solo source.
+    const TIPOS_AYUDA_CAPA = ["acopio", "albergue", "hospital", "otro"] as const;
+    const CAPAS_AYUDA_CIRCULO = TIPOS_AYUDA_CAPA.map((t) => `ayuda-${t}-circulo`);
     let puntosAyuda: PuntoAyudaMap[] = [];
 
     // Ciudades reportadas: dataset SSG (dedupe contra el catálogo ya hecho en
@@ -399,7 +410,7 @@ const eventoJson = JSON.stringify({ fecha: evento.fecha.slice(0, 10) });
         features: lista.map((p) => ({
           type: "Feature" as const,
           geometry: { type: "Point" as const, coordinates: [p.lng, p.lat] },
-          properties: { ...p, color: COLORS.ayuda },
+          properties: { ...p, color: COLOR_POR_TIPO[p.tipo] ?? COLORS.ayuda },
         })),
       };
     }
@@ -611,12 +622,6 @@ const eventoJson = JSON.stringify({ fecha: evento.fecha.slice(0, 10) });
       if (srcP && "setData" in srcP) {
         (srcP as maplibre.GeoJSONSource).setData(featureCollection(puntosFiltrados));
       }
-      // Conteo de puntos visibles en la tira (instrumento: cuánto hay aquí)
-      const conteo = document.getElementById("puntos-conteo");
-      if (conteo) {
-        conteo.textContent =
-          puntosFiltrados.length === 1 ? "1 punto" : `${puntosFiltrados.length} puntos`;
-      }
       const srcZ = map.getSource("zonas");
       if (srcZ && "setData" in srcZ) {
         (srcZ as maplibre.GeoJSONSource).setData(featureCollectionZonas(zonasFiltradas));
@@ -627,12 +632,14 @@ const eventoJson = JSON.stringify({ fecha: evento.fecha.slice(0, 10) });
       }
       if (visibles.has("epicentro")) arrancarOnda();
       else detenerOnda();
-      // Puntos de ayuda: la capa sigue SOLO al chip; el filtro de ciudad
-      // se aplica abajo (cada punto lleva su ciudad).
-      const ayudaVisibles = visibles.has("ayuda");
-      for (const idLayer of ["ayuda-circulo", "ayuda-texto"]) {
-        if (map.getLayer(idLayer)) {
-          map.setLayoutProperty(idLayer, "visibility", ayudaVisibles ? "visible" : "none");
+      // Puntos de ayuda: una capa por tipo, cada una sigue su chip
+      // (Acopios/Albergues/Salud/Otro). El filtro de ciudad se aplica abajo
+      // (cada punto lleva su ciudad).
+      for (const t of TIPOS_AYUDA_CAPA) {
+        for (const idLayer of [`ayuda-${t}-circulo`, `ayuda-${t}-texto`]) {
+          if (map.getLayer(idLayer)) {
+            map.setLayoutProperty(idLayer, "visibility", visibles.has(t) ? "visible" : "none");
+          }
         }
       }
       // Ciudades reportadas: familia de zonas (chip "Zonas")
@@ -660,9 +667,6 @@ const eventoJson = JSON.stringify({ fecha: evento.fecha.slice(0, 10) });
     // desde /api/datos/:catalogo y los comparte con el mapa. Sin datos
     // frescos, el mapa conserva los del build (SSG).
     interface DatosFrescos {
-      acopios?: Acopio[];
-      albergues?: Albergue[];
-      centros?: CentroSalud[];
       jornadas?: JornadaSangre[];
       zonas?: ZonaCatalogo[];
       evento?: { fecha?: string };
@@ -674,9 +678,6 @@ const eventoJson = JSON.stringify({ fecha: evento.fecha.slice(0, 10) });
       const [, m, d] = iso.split("-").map(Number);
       return `${d} ${MESES[m - 1]}`;
     };
-    const aPuntoAcopio = (e: Acopio): Punto => ({ id: e.id, nombre: e.nombre, lat: e.lat, lng: e.lng, tipo: "acopio", estado: e.estado, ciudad: e.ciudad, direccion: e.direccion, fuente: e.fuente, coordenadas_nivel: e.coordenadas_nivel });
-    const aPuntoAlbergue = (e: Albergue): Punto => ({ id: e.id, nombre: e.nombre, lat: e.lat, lng: e.lng, tipo: "albergue", estado: e.estado, ciudad: e.ciudad, direccion: e.direccion, fuente: e.fuente, coordenadas_nivel: e.coordenadas_nivel });
-    const aPuntoSalud = (e: CentroSalud): Punto => ({ id: e.id, nombre: e.nombre, lat: e.lat, lng: e.lng, tipo: "salud", estado: e.estado, ciudad: e.ciudad, direccion: e.direccion, fuente: e.fuente, coordenadas_nivel: e.coordenadas_nivel });
     const aPuntoSangre = (e: JornadaSangre): Punto => ({
       id: e.id,
       nombre: e.punto,
@@ -730,19 +731,34 @@ const eventoJson = JSON.stringify({ fecha: evento.fecha.slice(0, 10) });
           ultima_actualizacion: p.ultima_actualizacion,
         }));
       // Ciudades reportadas: se regeneran en runtime (dedupe contra el
-      // catálogo de puntos y zonas SGC).
+      // registro —incluye los lugares sembrados— y zonas SGC).
       const catalogadas = new Set([
         ...puntos.map((p) => nombreCiudadNormalizado(p.ciudad)),
+        ...vivos.map((p) => nombreCiudadNormalizado(p.ciudad ?? "")),
         ...zonas.filter((z) => z.tipo === "ciudad").map((z) => nombreCiudadNormalizado(z.nombre)),
       ]);
-      ciudadesReportadasMap = agruparCiudades(vivos)
+      ciudadesReportadasMap = agruparCiudades(vivos, { soloCiudadanos: true })
         .filter((c) => !catalogadas.has(nombreCiudadNormalizado(c.nombre)))
         .map(aCiudadMap);
       const srcC = map.getSource("ciudades-reportadas");
       if (srcC && "setData" in srcC) {
         (srcC as maplibre.GeoJSONSource).setData(featureCollectionCiudades(ciudadesReportadasMap));
       }
+      actualizarConteosAyuda();
       if (cargado) aplicarFiltros();
+    }
+
+    // Leyenda en vivo: los chips de la tira muestran el conteo por tipo
+    // (Acopios/Albergues/Salud/Otro) según los puntos visibles en el mapa.
+    function actualizarConteosAyuda() {
+      const conteos: Record<string, number> = { acopio: 0, albergue: 0, hospital: 0, otro: 0 };
+      for (const p of puntosAyuda) {
+        if (p.tipo in conteos) conteos[p.tipo]++;
+      }
+      document.querySelectorAll<HTMLElement>("[data-ayuda-conteo]").forEach((el) => {
+        const t = el.dataset.ayudaConteo ?? "";
+        if (t in conteos) el.textContent = String(conteos[t]);
+      });
     }
 
     fetch("/datos/reportes-ayuda.json")
@@ -758,14 +774,8 @@ const eventoJson = JSON.stringify({ fecha: evento.fecha.slice(0, 10) });
       ((e: CustomEvent<DatosFrescos>) => {
         const d = e.detail;
         if (!d || typeof d !== "object") return;
-        if (d.acopios || d.albergues || d.centros || d.jornadas) {
-          const porTipo = (t: Punto["tipo"]) => puntos.filter((p) => p.tipo === t);
-          puntos = [
-            ...(d.acopios ? d.acopios.map(aPuntoAcopio) : porTipo("acopio")),
-            ...(d.albergues ? d.albergues.map(aPuntoAlbergue) : porTipo("albergue")),
-            ...(d.centros ? d.centros.map(aPuntoSalud) : porTipo("salud")),
-            ...(d.jornadas ? d.jornadas.map(aPuntoSangre) : porTipo("sangre")),
-          ];
+        if (d.jornadas) {
+          puntos = d.jornadas.map(aPuntoSangre);
         }
         if (d.zonas) {
           zonas = conDistancia(d.zonas);
@@ -1073,37 +1083,45 @@ const eventoJson = JSON.stringify({ fecha: evento.fecha.slice(0, 10) });
         },
       });
 
-      // Puntos de ayuda (registro en vivo + verificados)
+      // Puntos de ayuda (registro en vivo + verificados): un source, una
+      // capa por tipo (acopio/albergue/hospital/otro). Cada capa filtra por
+      // `tipo` y sigue su chip en la tira; el color por tipo lo pone la
+      // propiedad `color` de cada feature (mismo lenguaje que las páginas
+      // /acopios, /albergues, /salud).
       map.addSource("ayuda", { type: "geojson", data: featureCollectionAyuda(puntosAyuda) });
-      map.addLayer({
-        id: "ayuda-circulo",
-        type: "circle",
-        source: "ayuda",
-        paint: {
-          "circle-radius": 9,
-          "circle-color": ["get", "color"],
-          "circle-stroke-width": 2.5,
-          "circle-stroke-color": PAPER,
-        },
-      });
-      map.addLayer({
-        id: "ayuda-texto",
-        type: "symbol",
-        source: "ayuda",
-        minzoom: 10,
-        layout: {
-          "text-field": ["get", "nombre"],
-          "text-size": 9,
-          "text-offset": [0, 1.4],
-          "text-anchor": "top",
-          "text-max-width": 12,
-        },
-        paint: {
-          "text-color": INK,
-          "text-halo-color": PAPER,
-          "text-halo-width": 1.5,
-        },
-      });
+      for (const t of TIPOS_AYUDA_CAPA) {
+        map.addLayer({
+          id: `ayuda-${t}-circulo`,
+          type: "circle",
+          source: "ayuda",
+          filter: ["==", ["get", "tipo"], t],
+          paint: {
+            "circle-radius": 9,
+            "circle-color": ["get", "color"],
+            "circle-stroke-width": 2.5,
+            "circle-stroke-color": PAPER,
+          },
+        });
+        map.addLayer({
+          id: `ayuda-${t}-texto`,
+          type: "symbol",
+          source: "ayuda",
+          filter: ["==", ["get", "tipo"], t],
+          minzoom: 10,
+          layout: {
+            "text-field": ["get", "nombre"],
+            "text-size": 9,
+            "text-offset": [0, 1.4],
+            "text-anchor": "top",
+            "text-max-width": 12,
+          },
+          paint: {
+            "text-color": INK,
+            "text-halo-color": PAPER,
+            "text-halo-width": 1.5,
+          },
+        });
+      }
 
       // Ubicación del usuario (rellenada por "Cerca de mí")
       map.addSource("usuario", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
@@ -1174,21 +1192,27 @@ const eventoJson = JSON.stringify({ fecha: evento.fecha.slice(0, 10) });
         map.getCanvas().style.cursor = "";
       });
 
-      // Popup de puntos de ayuda: nombre, modalidad, ítems, destino, contacto
-      map.on("click", "ayuda-circulo", (e) => {
-        const f = e.features?.[0];
-        if (!f) return;
-        const p = f.properties as unknown as PuntoAyudaMap;
-        const coords = (f.geometry as { type: "Point"; coordinates: [number, number] }).coordinates;
-        abrirPopupAyuda(p, coords);
-      });
-
-      map.on("mouseenter", "ayuda-circulo", () => {
-        map.getCanvas().style.cursor = "pointer";
-      });
-      map.on("mouseleave", "ayuda-circulo", () => {
-        map.getCanvas().style.cursor = "";
-      });
+      // Popup de puntos de ayuda: nombre, modalidad, ítems, destino, contacto.
+      // Un handler por capa de tipo; el feature ganador se consulta sobre
+      // TODAS las capas (queryRenderedFeatures devuelve el dibujado encima),
+      // así el popup siempre corresponde al círculo visible superior, sin
+      // importar el orden de creación de las capas.
+      for (const t of TIPOS_AYUDA_CAPA) {
+        const idCirculo = `ayuda-${t}-circulo`;
+        map.on("click", idCirculo, (e) => {
+          const f = map.queryRenderedFeatures(e.point, { layers: CAPAS_AYUDA_CIRCULO })[0];
+          if (!f) return;
+          const p = f.properties as unknown as PuntoAyudaMap;
+          const coords = (f.geometry as { type: "Point"; coordinates: [number, number] }).coordinates;
+          abrirPopupAyuda(p, coords);
+        });
+        map.on("mouseenter", idCirculo, () => {
+          map.getCanvas().style.cursor = "pointer";
+        });
+        map.on("mouseleave", idCirculo, () => {
+          map.getCanvas().style.cursor = "";
+        });
+      }
 
       // Popup de ciudad reportada: lista los puntos ciudadanos de esa ciudad
       map.on("click", "ciudades-reportadas-circulo", (e) => {
@@ -1199,7 +1223,9 @@ const eventoJson = JSON.stringify({ fecha: evento.fecha.slice(0, 10) });
         // punto gana: el marcador solo abre su popup cuando el clic no cayó
         // en ningún punto (MapLibre dispara los handlers de TODAS las capas
         // del clic; el del marcador corre al final y reemplazaría al punto).
-        const debajo = map.queryRenderedFeatures(e.point, { layers: ["ayuda-circulo", "puntos-circulo"] });
+        const debajo = map.queryRenderedFeatures(e.point, {
+          layers: [...CAPAS_AYUDA_CIRCULO, "puntos-circulo"],
+        });
         if (debajo.length > 0) return;
         const coords = (f.geometry as { type: "Point"; coordinates: [number, number] }).coordinates;
         window.dispatchEvent(new CustomEvent("enlace:mapa:punto-click"));

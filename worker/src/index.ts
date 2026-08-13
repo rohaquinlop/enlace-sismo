@@ -1,6 +1,5 @@
 import { Hono, type Context } from "hono";
 import { cors } from "hono/cors";
-import sugerencias from "./sugerencias";
 import upload from "./upload";
 import puntos from "./puntos";
 import ayuda from "./ayuda";
@@ -14,10 +13,12 @@ type Env = {
   PUBLIC_ORIGIN: string;
   // Base de datos de los puntos de ayuda (D1): migración 0001_puntos-ayuda.
   ENLACE_SISMO_DB: D1Database;
-  // Un solo fine-grained PAT sobre el repo: issues de sugerencias (salud y
-  // acopios, sugerencias.ts) y commit del registro en vivo de puntos de rescate
-  // (github.ts → web/public/datos/reportes-puntos.json). Configurar como secreto
-  // del Worker: wrangler secret put GITHUB_TOKEN. Documentado en AGENTS.md.
+  // Un solo fine-grained PAT sobre el repo: commit del registro en vivo de
+  // puntos de rescate (github.ts → web/public/datos/reportes-puntos.json) y
+  // subida del rate limit de lectura de catálogos (datos.ts). El flujo de
+  // sugerencias por issues se retiró (cambio catalogos-comunitarios): los
+  // catálogos de lugares entran por /api/ayuda + moderación. Configurar como
+  // secreto del Worker: wrangler secret put GITHUB_TOKEN. Documentado en AGENTS.md.
   GITHUB_TOKEN: string;
   // Repo destino del registro (solo para deploys desde fork; default abajo).
   GITHUB_REPO?: string;
@@ -60,9 +61,6 @@ app.get("/api/health", (c) => c.json({ ok: true, servicio: "enlace-sismo-api", v
 
 app.route("/api/upload", upload);
 app.route("/api/imagen", upload);
-
-// ---------- Sugerencias (issues de GitHub) ----------
-app.route("/api/sugerencias", sugerencias);
 
 // ---------- Puntos de rescate (registro en vivo, GitHub como almacén) ----------
 app.route("/api/puntos", puntos);

@@ -20,11 +20,15 @@ export const nombreCiudadNormalizado = (s: string): string =>
     .toLowerCase()
     .trim();
 
-/** Agrupa los puntos visibles por ciudad (solo los que tienen `ciudad`). */
-export function agruparCiudades(vivos: PuntoAyuda[]): CiudadReportada[] {
+/** Agrupa los puntos visibles por ciudad (solo los que tienen `ciudad`).
+ *  Con `soloCiudadanos` excluye los puntos `promovido` (entradas curadas del
+ *  seed): la sección de ciudades reportadas señala reportes comunitarios, no
+ *  lugares ya verificados. */
+export function agruparCiudades(vivos: PuntoAyuda[], opts: { soloCiudadanos?: boolean } = {}): CiudadReportada[] {
   const grupos = new Map<string, PuntoAyuda[]>();
   for (const p of vivos) {
     if (!p.ciudad || !puntoAyudaVisible(p)) continue;
+    if (opts.soloCiudadanos && p.estado === "promovido") continue;
     const lista = grupos.get(p.ciudad) ?? [];
     lista.push(p);
     grupos.set(p.ciudad, lista);

@@ -1,2 +1,11 @@
+# Redirecciones de Cloudflare Pages.
+# Las URLs de sugerencia desaparecieron con el flujo de Issues/PRs de datos
+# (cambio catalogos-comunitarios): reportar vive en /reportar (registro en vivo).
 /mapa   /#mapa   301
 /mapa/  /#mapa   301
+/acopios/sugerir-acopio   /reportar   301
+/acopios/sugerir-acopio/  /reportar   301
+/albergues/sugerir-albergue   /reportar   301
+/albergues/sugerir-albergue/  /reportar   301
+/salud/sugerir-centro-salud   /reportar   301
+/salud/sugerir-centro-salud/  /reportar   301

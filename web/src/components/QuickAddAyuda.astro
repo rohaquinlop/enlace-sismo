@@ -95,13 +95,24 @@ import { ITEMS_AYUDA, MODALIDADES } from "../lib/items-ayuda";
   }
 
   // Descripción genérica cuando el usuario no escribe nota: adaptada a la
-  // modalidad y honesta sobre el origen (reporte rápido desde el mapa, sin
-  // detalle que no existe). El contrato del API exige ≥ 3 caracteres.
-  const DESCRIPCION_GENERICA: Record<string, string> = {
-    necesita: "Necesidad declarada desde el mapa.",
-    recolecta: "Oferta declarada desde el mapa.",
-    ambos: "Necesidad y oferta declaradas desde el mapa.",
-  };
+  // modalidad, con el lugar al que se refiere y honesta sobre el origen
+  // (reporte rápido desde el mapa, sin detalle que no existe). El contrato
+  // del API exige ≥ 3 caracteres.
+  function descripcionGenerica(modalidad: string): string {
+    const lugar = quickAdd?.nombre
+      ? ` para ${quickAdd.nombre}`
+      : quickAdd && quickAdd.tipo !== "otro"
+        ? ` para ${etiquetaTipo(quickAdd.tipo)}`
+        : "";
+    switch (modalidad) {
+      case "recolecta":
+        return `Oferta declarada desde el mapa${lugar}.`;
+      case "ambos":
+        return `Necesidad y oferta declaradas desde el mapa${lugar}.`;
+      default:
+        return `Necesidad declarada desde el mapa${lugar}.`;
+    }
+  }
 
   const el = document.getElementById("quick-add-ayuda") as HTMLDivElement | null;
   const caja = el?.querySelector<HTMLDivElement>(".quick-add-caja");
@@ -307,7 +318,7 @@ import { ITEMS_AYUDA, MODALIDADES } from "../lib/items-ayuda";
     const modalidad = modalidadActual();
     // Descripción: nota del usuario o genérica adaptada a la modalidad.
     const nota = inputNota?.value.trim() ?? "";
-    const descripcion = nota || (DESCRIPCION_GENERICA[modalidad] ?? "Punto declarado desde el mapa.");
+    const descripcion = nota || descripcionGenerica(modalidad);
     // Destino: solo si la modalidad recolecta/ambos y hay ciudades escritas.
     const ciudades = (inputDestino?.value ?? "")
       .split(",")

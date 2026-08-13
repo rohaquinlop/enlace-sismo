@@ -12,3 +12,4 @@ bun.lock
 capturas/*
 !capturas/README.md
 .sdd/
+enlace-sismo-handoff.md

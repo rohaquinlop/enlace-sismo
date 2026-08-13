@@ -2,93 +2,139 @@
 
 Gracias por ayudar. Este proyecto vive porque la información es **real y verificable**.
 
+## Modelo comunitario (catalogos-comunitarios)
+
+Los lugares (acopios, albergues, centros de salud) y los puntos de ayuda viven en **un
+solo registro en vivo** (base D1 + API público). La contribución de datos es **100 %
+en la plataforma**: reportar, auditar y corregir no requiere GitHub ni PRs.
+
+- **Reportar** — `/reportar` o el botón "Declarar necesidad u oferta" de los popups del
+  mapa. El punto se publica al instante (sin cola de revisión) con ubicación, ítems y
+  destino.
+- **Auditar** — "Reportar punto falso" en cada tarjeta: 3 reportes de la comunidad
+  ocultan el punto hasta que el equipo lo revisa.
+- **Actualizar / cerrar** — el autor con su token de edición; el equipo promueve con
+  fuente los datos verificados (badge Oficial/Confirmado).
+
+Los PRs de datos de lugares ya **no existen**: `data/acopios.json`, `data/albergues.json`
+y `data/centros-salud.json` son el insumo del seed (vaciados el 2026-08-13: datos
+desactualizados retirados de producción; el contenido original queda en el
+historial de git para re-verificación). Los
+catálogos que sí se actualizan por PR son los de fuentes oficiales estáticas (jornadas
+de sangre, zonas, contactos, canales de ayuda, evento) — los mantiene el equipo con
+fuente verificable, sin formularios comunitarios.
+
 ## La regla de oro
 
 > **Ningún dato se publica sin fuente verificable.**
-> Cada entrada en `data/` debe incluir:
-> - `fuente` — URL o identificación de la fuente oficial (boletín de alcaldía, comunicado de UNGRD, cuenta oficial verificada, nota de prensa de medio serio).
-> - `verificado_por` — tu nombre o handle real.
-> - `fecha_verificacion` — cuándo lo confirmaste.
 
-La validación automática (`npm run validate:data`) corre en cada PR y **bloquea el merge** si falta alguno de estos campos.
+En el registro en vivo la regla la aplica el mantenedor al **promover** un punto
+(`POST /api/ayuda/:id/estado` con `fuente`, `verificado_por`, `fecha_verificacion` y
+`verificacion`); el API rechaza una promoción sin fuente. En los catálogos estáticos del
+repo, `npm run validate:data` bloquea cualquier entrada sin esos campos.
 
-## Cómo agregar un punto de acopio (u otro dato)
+## Cómo reportar un dato correcto en la plataforma
 
-1. Copia la plantilla de `data/acopios.example.json` al final del arreglo en `data/acopios.json`.
-2. Reemplaza **todos** los valores de ejemplo con datos reales.
-3. Verifica contra la fuente oficial antes de enviar:
-   - Boletines de la alcaldía de la ciudad (sitios y cuentas oficiales).
-   - Comunicados de UNGRD (`gestiondelriesgo.gov.co`).
-   - Publicaciones de la Cruz Roja Colombiana, Defensa Civil o el SGC.
-   - Notas de prensa de medios nacionales serios (El Tiempo, El Espectador, RCN, Caracol, etc.).
-4. Abre el PR. Un mantenedor revisa contra la fuente y lo fusiona.
-5. Al fusionar, los datos se publican en la plataforma en **~1–2 min sin esperar un deploy**:
-   el API los sirve directo desde el repo con caché de 60 s (`GET /api/datos/:catalogo`).
-   El deploy automático solo corre cuando cambia código (web, worker o schemas); no hace
-   falta correr ningún comando local ni configurar nada (se reutiliza el KV existente).
+1. Abre `/reportar` (o el quick-add del mapa) y publica el lugar con su ubicación.
+   El formulario detecta duplicados a ≤150 m del registro.
+2. El punto aparece al instante como **sin confirmar** en la página de su tipo
+   (`/acopios`, `/albergues`, `/salud`), en el panel Ayuda y en el mapa.
+3. Si tienes la fuente oficial, compártela (campo "fuente" en la verificación del
+   mantenedor, o en el detalle del reporte): el equipo promueve el dato con badge
+   Oficial/Confirmado.
 
-> Al agregar un **albergue**, incluye `tipo: "albergue" | "refugio"` — es obligatorio en
-> `data/schema/albergue.schema.json` y el CI lo exige (la card muestra el badge Refugio/Albergue).
+## Cómo señalar un dato incorrecto
+
+Usa **"Reportar punto falso"** en la tarjeta del punto (detalle obligatorio, 1 por IP).
+Con 3 reportes el punto se oculta y queda en la bandeja del equipo. Si un lugar ya
+cerró o cambió, el autor puede actualizarlo o cerrarlo con su token.
 
 ## Reglas de seguridad (no negociables)
 
-- **Cuentas bancarias y enlaces de pago**: solo se aceptan con `"verificacion": "oficial"` (publicados por la entidad oficial) y **2 aprobaciones de mantenedores**. Nunca publiques cuentas personales.
-- **Personas desaparecidas**: el reporte y la búsqueda se referencia a ColombiaTeBusca (https://colombiatebusca.com); este proyecto no mantiene un registro propio.
-- **No inventes coordenadas**: la dirección y el pin deben apuntar al MISMO lugar (el enlace "Cómo llegar" usa las coordenadas). Antes de publicar una coordenada nueva, corre `node scripts/verificar-coordenadas.mjs` y publica solo donde coinciden ≥2 fuentes independientes (Google Maps embed + ArcGIS + POI de OSM). Marca la precisión en `coordenadas_nivel` (`premisa` = edificio/POI · `via` = calle · `barrio` = centroide). Un pin equivocado es peor que ningún pin: si no puedes confirmarlo, deja el campo y pide ayuda en el PR.
-- **Datos desde redes sociales**: los posts oficiales de X se leen con `node scripts/leer-redes.mjs <URL>` (texto + fotos); Instagram, Facebook y WhatsApp requieren captura de pantalla en `capturas/` con la URL del post en un `.txt` junto a la imagen. Las cuentas personales NO son fuente publicable; el gráfico oficial que difunden sí, verificado contra el original de la entidad. **Guía completa paso a paso: [docs/guia-redes-sociales.md](docs/guia-redes-sociales.md)**.
+- **Cuentas bancarias y enlaces de pago**: solo en `data/canales-ayuda.json` con
+  `"estado": "oficial"` (publicados por la entidad) y **2 aprobaciones de mantenedores**.
+  Nunca publiques cuentas personales.
+- **Personas desaparecidas**: se referencia a ColombiaTeBusca (https://colombiatebusca.com);
+  este proyecto no mantiene un registro propio ni una API de reportes.
+- **Ingresos hospitalarios: prohibidos.** No hay registro de pacientes en ningún formato
+  (nombres, iniciales, hospital, fecha/hora): dato sensible sin consentimiento posible
+  (Ley 1581/2012). Los PRs que lo propongan se rechazan.
+- **No inventes coordenadas**: antes de publicar una coordenada nueva (seed o PR),
+  corre `node scripts/verificar-coordenadas.mjs` y publica solo donde coinciden ≥2
+  fuentes independientes (Google Maps embed + ArcGIS + POI de OSM). Marca la precisión
+  en `coordenadas_nivel` (`premisa` = edificio/POI · `via` = calle · `barrio` =
+  centroide). Un pin equivocado es peor que ningún pin.
+- **Datos desde redes sociales**: los posts oficiales de X se leen con
+  `node scripts/leer-redes.mjs <URL>` (texto + fotos); Instagram, Facebook y WhatsApp
+  requieren captura de pantalla en `capturas/` con la URL del post en un `.txt` junto a
+  la imagen. Las cuentas personales NO son fuente publicable; el gráfico oficial que
+  difunden sí, verificado contra el original de la entidad. **Guía completa paso a
+  paso: [docs/guia-redes-sociales.md](docs/guia-redes-sociales.md)**.
 - **Estados**: usa `sin-confirmar` si no estás seguro. La web muestra la advertencia.
 
 ## Cómo ayudar sin código
 
-- **Reporta errores**: abre un issue con el enlace del dato incorrecto.
-- **Revisa PRs**: cualquier persona puede comentar "verifiqué contra [fuente], datos correctos".
+- **Reporta errores**: abre un issue con el enlace del dato incorrecto (o usa "Reportar
+  punto falso" en la plataforma).
+- **Revisa PRs de catálogos estáticos**: cualquier persona puede comentar "verifiqué
+  contra [fuente], datos correctos".
 - **Difunde canales oficiales**: comparte esta página, no capturas de dudosas cadenas.
 
 ## Estructura del repositorio
 
 ```
-data/          Datos verificados (acopios, albergues, donación de sangre, salud, contactos, canales de ayuda)
+data/          Catálogos estáticos (jornadas de sangre, contactos, canales, zonas,
+               evento) + insumo del seed de lugares (acopios, albergues, centros
+               de salud — vaciados: datos desactualizados retirados 2026-08-13)
 scripts/       Validación de datos, verificación de coordenadas y lectura de redes
 capturas/      Intake de redes (GITIGNORADA, nunca se publica)
 web/           Frontend (Astro, Cloudflare Pages)
-worker/        API (Hono, Cloudflare Workers)
-.github/       CI, despliegue automático y procesamiento de sugerencias
+worker/        API (Hono, Cloudflare Workers) — incluye seed-catalogos.ts
+.github/       CI, despliegue automático
 ```
 
-## Puntos de ayuda en vivo (D1 + API público)
+## El registro en vivo (D1 + API público)
 
-Pasadas las 72 h, la coordinación es entre **quién necesita** (hospitales, albergues) y
-**quién recolecta y transporta** (acopios hacia otras ciudades). Cualquier persona publica
-un punto de ayuda desde `/reportar` con **ubicación exacta**, **ítems** (catálogo o
-personalizados con cantidad/unidad) y, para quienes recolectan, **destino** (a qué
-ciudades llevarán la ayuda). El alimento es solo **no perecedero**.
-
-**Cómo funciona:** el formulario envía a `POST /api/ayuda`; el worker valida (honeypot,
-rate limits, enums, Ajv contra `data/schema/punto-ayuda.schema.json`) y persiste en la
-base **D1** (tabla `puntos_ayuda`). El punto aparece de inmediato en el mapa, en el panel
-Ayuda del dashboard y en el **API público** `GET /api/ayuda` (filtros por `ciudad`,
+Todo lugar (acopio, albergue, hospital u otro) es una entrada de la tabla `puntos_ayuda`
+en **D1**, servida por el **API público** `GET /api/ayuda` (filtros por `ciudad`,
 `tipo`, `modalidad`, `item` y `estado`; proyección sin datos de IP; CORS abierto — medios
-y organizaciones pueden consumirlo sin clave). El deploy regenera el snapshot SSG
-(`web/public/datos/reportes-ayuda.json`) desde el API; ese archivo es generado y **no se
-edita por PR**.
+y organizaciones pueden consumirlo sin clave). Las páginas `/acopios`, `/albergues` y
+`/salud` son vistas del registro filtradas por tipo (SSG desde el snapshot +
+refresco runtime). El deploy regenera el snapshot `web/public/datos/reportes-ayuda.json`
+desde el API; ese archivo es generado y **no se edita por PR**.
 
 **Estados y ciclo de vida:**
 
 - Un punto nace `sin-confirmar`. El autor recibe un **token de edición** al crearlo
-  (queda guardado en su navegador; el worker guarda solo el hash y admite respaldo por
-  IP) y con él puede **actualizar** sus ítems/destino/horario y **cerrar su punto**
-  (estado `cerrado`) cuando el lugar ya no necesita o dejó de recolectar.
-- **La comunidad valida de forma visible:** cada tarjeta tiene "Reportar punto falso"
-  (1 flag por IP, detalle obligatorio). **3 flags ocultan el punto**; el conteo se
-  muestra en la tarjeta. Un admin puede marcar `confirmado`, `cerrado`, `falso` o
-  `promovido` vía `POST /api/ayuda/:id/estado` con `ADMIN_TOKEN`.
-- **Promoción:** cuando un punto se confirma contra fuente oficial, el mantenedor lo
-  promueve con `fuente`/`verificado_por`/`fecha_verificacion`/`verificacion` y puede
-  fijar `enlazado_a` (id de la entrada del catálogo oficial). A diferencia de los
-  rescates, el `promovido` **no oculta** el punto: la necesidad verificada sigue útil
-  hasta cerrarse.
+  (hash en el worker; respaldo por IP) y con él puede **actualizar** sus
+  ítems/destino/horario y **cerrar su punto** (estado `cerrado`).
+- **La comunidad valida de forma visible:** "Reportar punto falso" (1 flag por IP,
+  detalle obligatorio). **3 flags ocultan el punto**; el conteo se muestra en la
+  tarjeta. Un admin puede marcar `confirmado`, `cerrado`, `falso` o `promovido` vía
+  `POST /api/ayuda/:id/estado` con `ADMIN_TOKEN`.
+- **Promoción:** el mantenedor promueve con `fuente`/`verificado_por`/
+  `fecha_verificacion`/`verificacion` (la fuente es obligatoria al promover — regla de
+  oro). El `promovido` **no oculta** el punto: la necesidad verificada sigue útil hasta
+  cerrarse. `enlazado_a` quedó obsoleto (la entidad es única) y se conserva por
+  compatibilidad con el historial.
 - **Sin degradación automática:** la vigencia la renueva el autor al actualizar
   ("actualizado hace X") y la cierra él o el mantenedor.
+- **Entradas sembradas** (cuando el seed corre con datos re-verificados):
+  `promovido` con su fuente original,
+  sin autor ciudadano (solo el mantenedor las corrige vía API; la comunidad las audita
+  con flags).
+
+**Seed de catálogos (mantenedores, una vez por entorno):**
+
+```bash
+cd worker
+npx wrangler d1 migrations apply enlace-sismo --local   # dev (el deploy lo hace en prod)
+npm run seed          # D1 local — idempotente (INSERT OR IGNORE por id)
+npm run seed:remote   # D1 remota — tras desplegar la migración 0002
+```
+
+Tras sembrar en prod, dispara el workflow `Deploy` manualmente (workflow_dispatch) para
+regenerar el snapshot SSG con los lugares curados.
 
 **Requisitos de infraestructura (mantenedores):**
 
@@ -97,8 +143,10 @@ edita por PR**.
   (`wrangler d1 migrations apply enlace-sismo --remote`); el token de Cloudflare del
   workflow necesita permiso D1 edit.
 - `ADMIN_TOKEN` (moderación: `POST /api/ayuda/:id/estado` y rescates).
-- Los puntos de ayuda **no usan** `GITHUB_TOKEN` (viven en D1); ese secreto sigue
-  existiendo para sugerencias y el registro de rescates.
+- `GITHUB_TOKEN` (fine-grained PAT con `contents:write` sobre el repo): **solo** para el
+  registro de rescates (github.ts) y el rate limit de lectura de catálogos. Los puntos
+  de ayuda no lo usan (viven en D1). Rotación: crear PAT nuevo → `wrangler secret put
+  GITHUB_TOKEN` → smoke test → borrar el secreto viejo si es distinto.
 
 ## Registro de rescates (backend conservado)
 
@@ -115,31 +163,26 @@ No reincorporar la UI sin una decisión de producto.
 Cada reporte guarda la `ciudad` derivada del geocoder (normalizada: "Cali ciudad" → "Cali").
 Las ciudades sin presencia en `zonas-afectadas.json` aparecen al instante en el select de
 ciudad, en el mapa como marcador neutral ("Sin reporte de intensidad") y en la sección
-"Ciudades con reportes ciudadanos" del panel Zonas — **sin tocar el catálogo SGC**.
+"Ciudades con reportes ciudadanos" del panel Zonas — **sin tocar el catálogo SGC**. Los
+puntos sembrados (promovidos) no generan ciudades reportadas: sus ciudades ya son
+catalogadas.
 
 Cuando una ciudad reportada se confirma contra fuente oficial (SGC, UNGRD, alcaldía):
 
 1. Añádela a `data/zonas-afectadas.json` con `fuente`, `verificado_por` y
    `fecha_verificacion` (regla de oro) y `detalle: "Sismo sentido"`.
-2. `intensidad` Mercalli SOLO si la fuente la reporta (spec `zonas-intensidad.md`);
-   sin ella, la ciudad se dibuja neutral como las demás sin reporte.
+2. `intensidad` Mercalli SOLO si la fuente la reporta; sin ella, la ciudad se dibuja
+   neutral como las demás sin reporte.
 3. Abre el PR; al fusionar, el dashboard deduplica por nombre normalizado y la ciudad
    deja de listarse como "reportada" para pasar a zona SGC.
 
-## Sugerencias de centros de salud
+## Catálogos estáticos (PRs de mantenedores)
 
-La plataforma permite al público sugerir centros de salud mediante un formulario web.
-El flujo es: formulario → API → GitHub Issue → revisión del mantenedor → PR al catálogo → CI → merge.
-
-**Secreto requerido**: el Worker usa el mismo `GITHUB_TOKEN` de las sugerencias y del
-registro de rescates (un solo fine-grained PAT con `issues:write` y `contents:write`
-sobre el repo) configurado como secreto de Cloudflare Worker. Rotación: crear PAT nuevo →
-`wrangler secret put GITHUB_TOKEN` → smoke test → borrar el secreto viejo si es distinto.
-
-El formulario crea un issue etiquetado `sugerencia-salud` · `sin-verificar`. No hay
-procesamiento automático posterior: un mantenedor revisa el issue contra la fuente, añade
-la entrada a `data/centros-salud.json` (todo entra como `verificacion: "sin-confirmar"`) y
-abre el PR, que el CI valida antes del merge.
+`data/donacion-sangre.json`, `data/contactos.json`, `data/canales-ayuda.json`,
+`data/zonas-afectadas.json` y `data/evento.json` se actualizan por PR con fuente
+verificable (regla de oro; el CI los valida y bloquea el merge sin fuente). Los cambios
+de datos no despliegan: el API los sirve desde el repo con caché KV de 60 s
+(`GET /api/datos/:catalogo`) en ~1–2 min.
 
 ## Desarrollo local
 
@@ -152,5 +195,5 @@ npm run validate:data
 
 ## Mantenedores
 
-Para ser mantenedor (aprobar PRs de datos), abre un issue. El equipo actual se
-presenta en el README.
+Para ser mantenedor (promover puntos con fuente y aprobar PRs de catálogos estáticos),
+abre un issue. El equipo actual se presenta en el README.

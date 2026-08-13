@@ -1,9 +1,24 @@
 ---
+import { readFileSync } from "node:fs";
 import BaseLayout from "../layouts/BaseLayout.astro";
-import CatalogCard from "../components/CatalogCard.astro";
-import { centrosSalud, agruparPorCiudad } from "../lib/catalogs";
+import { renderCatalogoPagina } from "../lib/render-catalogos";
+import { puntoAyudaVisible, type PuntoAyuda } from "../lib/puntos-ayuda";
 
-const grupos = agruparPorCiudad(centrosSalud);
+// Los centros de salud viven en el registro unificado (D1): el snapshot SSG
+// (generado por el deploy) es el baseline; el refresco runtime los actualiza
+// desde GET /api/ayuda.
+let vivos: PuntoAyuda[] = [];
+try {
+  const raw = readFileSync(new URL("../../public/datos/reportes-ayuda.json", import.meta.url), "utf8");
+  const parsed = JSON.parse(raw);
+  if (Array.isArray(parsed)) vivos = parsed as PuntoAyuda[];
+} catch {
+  // Sin snapshot todavía (primer clon o antes del primer deploy).
+}
+const visibles = vivos
+  .filter((p) => p.tipo === "hospital" && puntoAyudaVisible(p))
+  .sort((a, b) => b.ultima_actualizacion.localeCompare(a.ultima_actualizacion));
+const contenido = renderCatalogoPagina("hospital", visibles);
 ---
 
 <BaseLayout
@@ -18,53 +33,16 @@ const grupos = agruparPorCiudad(centrosSalud);
     </p>
   </section>
 
-  <div id="contenido-salud">
-  {
-    centrosSalud.length === 0 ? (
-      <div class="vacio">
-        <h3>Aún no hay centros de salud verificados</h3>
-        <p>
-          Se está confirmando el estado de la red hospitalaria con las secretarías de salud.
-          ¿Tienes un dato verificado? Súbelo al repositorio.
-        </p>
-        <a class="btn btn-primary" href="/salud/sugerir-centro-salud">Sugerir un centro de salud</a>
-        <a class="btn" href="https://github.com/rohaquinlop/enlace-sismo/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener" style="margin-top:var(--space-xs)">Agregar un centro (guía)</a>
-      </div>
-    ) : (
-      <>
-        <div class="filtros">
-          <div class="filtros-controls">
-            <label for="filtro-ciudad">Filtrar por ciudad:</label>
-            <select id="filtro-ciudad">
-              <option value="">Todas</option>
-              {grupos.map((g) => <option value={g.ciudad}>{g.ciudad}</option>)}
-            </select>
-          </div>
-          <a class="btn btn-primary" href="/salud/sugerir-centro-salud">Sugerir un centro de salud</a>
-        </div>
-        {grupos.map((grupo) => (
-          <section class="ciudad-grupo" data-ciudad={grupo.ciudad} data-lat={grupo.lat} data-lng={grupo.lng}>
-            <h2 class="ciudad-titulo">{grupo.ciudad}</h2>
-            <div class="grid">
-              {grupo.items.map((c) => (
-                <div class="card-item" data-ciudad={c.ciudad}>
-                  <CatalogCard entrada={c} tipo="salud" />
-                </div>
-              ))}
-            </div>
-          </section>
-        ))}
-      </>
-    )
-  }
-  </div>
+  <!-- Misma función de render que el refresco runtime: el SSG y el runtime
+       nunca divergen. -->
+  <div id="contenido-salud" set:html={contenido}></div>
 </BaseLayout>
 
 <script>
   import { haversineKm } from "../lib/geo";
-  import { fetchCatalogo } from "../lib/datos";
-  import { renderSaludPagina } from "../lib/render-catalogos";
-  import type { CentroSalud } from "../lib/catalogs";
+  import { fetchPuntosAyuda } from "../lib/datos";
+  import { renderCatalogoPagina } from "../lib/render-catalogos";
+  import { puntoAyudaVisible, type PuntoAyuda } from "../lib/puntos-ayuda";
 
   let ultimaPos: { latitude: number; longitude: number } | null = null;
 
@@ -121,15 +99,19 @@ const grupos = agruparPorCiudad(centrosSalud);
     );
   }
 
-  // Refresco runtime (desacoplar-datos-deploy): datos frescos del API con
-  // fallback al SSG. Si el API falla, la página queda como se renderizó.
+  // Refresco runtime: los centros de salud son una vista del registro
+  // unificado (GET /api/ayuda?tipo=hospital). Si el API falla, la página
+  // queda como SSG.
   async function refrescar() {
-    const data = await fetchCatalogo<{ centros: CentroSalud[] }>("centros-salud");
-    if (!data || !Array.isArray(data.centros)) return;
+    const data = await fetchPuntosAyuda();
+    if (!Array.isArray(data)) return;
     const cont = document.getElementById("contenido-salud");
     if (!cont) return;
     const previo = (document.getElementById("filtro-ciudad") as HTMLSelectElement | null)?.value ?? "";
-    cont.innerHTML = renderSaludPagina(data.centros);
+    const visibles = (data as PuntoAyuda[])
+      .filter((p) => p.tipo === "hospital" && puntoAyudaVisible(p))
+      .sort((a, b) => b.ultima_actualizacion.localeCompare(a.ultima_actualizacion));
+    cont.innerHTML = renderCatalogoPagina("hospital", visibles);
     filtrar = bindFiltros();
     const select = document.getElementById("filtro-ciudad") as HTMLSelectElement | null;
     if (previo && select && Array.from(select.options).some((o) => o.value === previo)) {

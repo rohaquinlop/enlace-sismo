@@ -3,7 +3,6 @@
 // El worker escribe la forma interna (flags como arreglo); el front solo ve
 // la proyección pública (flags como conteo, sin datos de IP).
 import type { ItemAyuda, Modalidad, PrecisionPin, TipoAyuda } from "./items-ayuda";
-import type { Acopio } from "./catalogs";
 import { nombreCiudadNormalizado } from "./ciudades";
 
 /** Punto de ayuda — proyección pública (GET /api/ayuda y snapshot SSG). */
@@ -31,6 +30,19 @@ export interface PuntoAyuda {
   verificacion?: "oficial" | "confirmado" | "sin-confirmar";
   created_at: string;
   ultima_actualizacion: string;
+  // Campos del seed de catálogos (acopios/albergues/centros de salud):
+  // opcionales; los escriben el seed y el mantenedor, no el formulario.
+  subtipo?: string;
+  departamento?: string;
+  capacidad?: number;
+  ocupacion?: number;
+  admite_mascotas?: boolean;
+  servicios?: string[];
+  urgencias_24h?: boolean;
+  recoleccion_periodica?: boolean;
+  recoleccion_detalle?: string;
+  evidencia_links?: string[];
+  imagen_url?: string;
 }
 
 const ESTADOS_VISIBLES = ["sin-confirmar", "confirmado", "promovido"];
@@ -60,15 +72,16 @@ function idsDeItems(items: ItemAyuda[]): Set<string> {
 
 /**
  * Resumen de cobertura de una necesidad: PUNTOS ÚNICOS que la cubren
- * (ofertas en vivo con modalidad recolecta/ambos + acopios oficiales del
- * catálogo) en la misma ciudad (nombre normalizado). Un punto que cubre
- * varios ítems cuenta una sola vez. Los ítems personalizados no participan.
+ * (modalidad recolecta/ambos, visibles) en la misma ciudad (nombre
+ * normalizado). Un punto que cubre varios ítems cuenta una sola vez. Los
+ * ítems personalizados no participan. Los acopios sembrados del catálogo
+ * son puntos del mismo registro (promovido + recolecta): no hay catálogo
+ * aparte que sumar.
  */
 export function resumenCobertura(
   punto: PuntoAyuda,
-  vivos: PuntoAyuda[],
-  acopiosOficiales: Acopio[]
-): { puntosEnVivo: number; acopiosOficiales: number } {
+  vivos: PuntoAyuda[]
+): { puntosEnVivo: number } {
   const miCiudad = nombreCiudadNormalizado(punto.ciudad ?? "");
   const necesitados = idsDeItems(punto.items);
   const cubre = (items: ItemAyuda[]): boolean => {
@@ -83,21 +96,14 @@ export function resumenCobertura(
     if (nombreCiudadNormalizado(p.ciudad ?? "") !== miCiudad) continue;
     if (cubre(p.items)) puntosUnicos.add(p.id);
   }
-  const acopiosUnicos = new Set<string>();
-  for (const a of acopiosOficiales) {
-    if (a.estado === "cerrado" || !Array.isArray(a.necesidades)) continue;
-    if (miCiudad && nombreCiudadNormalizado(a.ciudad) !== miCiudad) continue;
-    if ((a.necesidades ?? []).some((n) => necesitados.has(n))) acopiosUnicos.add(a.id);
-  }
-  return { puntosEnVivo: puntosUnicos.size, acopiosOficiales: acopiosUnicos.size };
+  return { puntosEnVivo: puntosUnicos.size };
 }
 
 /** Texto de la línea de cobertura de una tarjeta ("" si nada la cubre). */
-export function lineaCobertura(punto: PuntoAyuda, vivos: PuntoAyuda[], acopiosOficiales: Acopio[]): string {
-  const r = resumenCobertura(punto, vivos, acopiosOficiales);
-  const total = r.puntosEnVivo + r.acopiosOficiales;
-  if (total === 0) return "";
-  return `Cubierto por ${total} punto${total === 1 ? "" : "s"} en tu ciudad`;
+export function lineaCobertura(punto: PuntoAyuda, vivos: PuntoAyuda[]): string {
+  const r = resumenCobertura(punto, vivos);
+  if (r.puntosEnVivo === 0) return "";
+  return `Cubierto por ${r.puntosEnVivo} punto${r.puntosEnVivo === 1 ? "" : "s"} en tu ciudad`;
 }
 
 /** Timestamp desde el que un punto está visible (para "actualizado hace X"). */
