@@ -404,8 +404,8 @@ export function renderZonasListaHTML(zonas: Zona[], ciudadesReportadas: CiudadRe
   return (
     `<div class="dash-index zonas-overlay">` +
     `<div class="zonas-header"><div class="zonas-titulo">` +
-    `<h3>Zonas afectadas</h3>` +
-    `<span class="zonas-count" aria-label="${filas.length} zonas afectadas">${filas.length}</span></div>` +
+    `<h3>Zonas</h3>` +
+    `<span class="zonas-count" aria-label="${filas.length} zonas">${filas.length}</span></div>` +
     `<div class="zonas-escala" aria-label="Escala de intensidad Mercalli, de I a XII">` +
     `<span class="zonas-escala-label">Mercalli I–XII</span><span class="mercalli-ref">` +
     ROMANOS.slice(1)
