@@ -1,5 +1,5 @@
-const CACHE = "enlace-sismo-v4";
-const APP_SHELL = ["/", "/acopios", "/albergues", "/salud", "/desaparecidos", "/reportar", "/actualizar-reporte", "/ayuda", "/contactos"];
+const CACHE = "enlace-sismo-v5";
+const APP_SHELL = ["/", "/acopios", "/albergues", "/salud", "/desaparecidos", "/reportar", "/ayuda", "/contactos"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(

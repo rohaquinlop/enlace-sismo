@@ -1,5 +1,5 @@
 // Modal de resultado (éxito/error) compartido por los formularios de
-// sugerencia (acopios, albergues, salud) y reporte de puntos de rescate.
+// sugerencia (acopios, albergues, salud) y reporte de puntos de ayuda.
 // El HTML lo renderiza <ModalResultado />; este módulo gestiona abrir,
 // cerrar, foco y el botón de compartir. Un solo lugar para el patrón que
 // antes vivía copiado en 4 páginas.

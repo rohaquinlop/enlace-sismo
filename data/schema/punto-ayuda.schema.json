@@ -1,0 +1,108 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://enlacesismo.com/schemas/punto-ayuda.schema.json",
+  "title": "Punto de ayuda (registro en vivo, D1)",
+  "description": "Contrato de una entrada del registro de puntos de ayuda. El ciudadano crea el punto (sin-confirmar); el autor lo edita y puede cerrarlo con su token; el mantenedor confirma, cierra, marca falso o promueve con fuente. flags admite arreglo (forma interna que escribe el worker) o entero (conteo de la proyección pública del API y del snapshot SSG).",
+  "type": "object",
+  "properties": {
+    "id": { "type": "string", "pattern": "^a-[a-z0-9-]{6,20}$" },
+    "tipo": { "type": "string", "enum": ["acopio", "albergue", "hospital", "otro"] },
+    "modalidad": { "type": "string", "enum": ["necesita", "recolecta", "ambos"] },
+    "nombre": { "type": "string", "minLength": 3, "maxLength": 120 },
+    "lat": { "type": "number", "minimum": -90, "maximum": 90 },
+    "lng": { "type": "number", "minimum": -180, "maximum": 180 },
+    "coordenadas_nivel": {
+      "type": "string",
+      "enum": ["premisa", "via", "barrio"],
+      "description": "premisa = edificio/POI exacto · via = calle · barrio = centroide."
+    },
+    "ciudad": { "type": "string", "minLength": 2, "maxLength": 80 },
+    "direccion": { "type": "string", "maxLength": 300 },
+    "descripcion": { "type": "string", "minLength": 3, "maxLength": 1000 },
+    "items": {
+      "type": "array",
+      "maxItems": 20,
+      "items": { "$ref": "#/$defs/item" }
+    },
+    "destino": { "$ref": "#/$defs/destino" },
+    "horario": { "type": "string", "maxLength": 120 },
+    "contacto": { "type": "string", "maxLength": 200 },
+    "estado": {
+      "type": "string",
+      "enum": ["sin-confirmar", "confirmado", "cerrado", "falso", "promovido"]
+    },
+    "flags": {
+      "oneOf": [
+        { "type": "array", "items": { "$ref": "#/$defs/flag" } },
+        { "type": "integer", "minimum": 0 }
+      ],
+      "description": "Arreglo en el almacén; entero (conteo) en la proyección pública."
+    },
+    "ediciones": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/edicion" }
+    },
+    "token_hash": { "type": "string", "minLength": 8 },
+    "enlazado_a": { "type": "string", "maxLength": 64 },
+    "ip_hash": { "type": "string", "minLength": 8 },
+    "created_at": { "type": "string", "minLength": 10 },
+    "ultima_actualizacion": { "type": "string", "minLength": 10 },
+    "fuente": { "type": "string", "format": "uri" },
+    "verificado_por": { "type": "string", "minLength": 2 },
+    "fecha_verificacion": { "type": "string", "format": "date" },
+    "verificacion": { "type": "string", "enum": ["oficial", "confirmado", "sin-confirmar"] }
+  },
+  "$defs": {
+    "item": {
+      "type": "object",
+      "properties": {
+        "tipo": { "type": "string", "enum": ["catalogo", "personalizado"] },
+        "id": { "type": "string", "minLength": 2, "maxLength": 40 },
+        "nombre": { "type": "string", "minLength": 2, "maxLength": 80 },
+        "cantidad": { "type": "integer", "minimum": 0, "maximum": 999999 },
+        "unidad": { "type": "string", "maxLength": 20 }
+      },
+      "required": ["tipo"],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": { "properties": { "tipo": { "const": "catalogo" } }, "required": ["tipo"] },
+          "then": { "required": ["id"], "not": { "required": ["nombre"] } }
+        },
+        {
+          "if": { "properties": { "tipo": { "const": "personalizado" } }, "required": ["tipo"] },
+          "then": { "required": ["nombre"], "not": { "required": ["id"] } }
+        }
+      ]
+    },
+    "destino": {
+      "type": "object",
+      "properties": {
+        "transporta": { "type": "boolean" },
+        "ciudades": { "type": "array", "maxItems": 10, "items": { "type": "string", "minLength": 2, "maxLength": 80 } },
+        "nota": { "type": "string", "maxLength": 300 }
+      },
+      "required": ["transporta"],
+      "additionalProperties": false
+    },
+    "flag": {
+      "type": "object",
+      "properties": {
+        "detalle": { "type": "string", "maxLength": 500 },
+        "ip_hash": { "type": "string", "minLength": 8 },
+        "created_at": { "type": "string", "minLength": 10 }
+      },
+      "required": ["detalle", "ip_hash", "created_at"]
+    },
+    "edicion": {
+      "type": "object",
+      "properties": {
+        "ip_hash": { "type": "string", "minLength": 8 },
+        "created_at": { "type": "string", "minLength": 10 }
+      },
+      "required": ["ip_hash", "created_at"]
+    }
+  },
+  "required": ["id", "tipo", "modalidad", "lat", "lng", "coordenadas_nivel", "descripcion", "items", "estado", "flags", "ip_hash", "created_at", "ultima_actualizacion"],
+  "additionalProperties": false
+}

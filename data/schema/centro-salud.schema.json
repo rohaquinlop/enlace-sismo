@@ -11,6 +11,7 @@
     "direccion": { "type": "string", "minLength": 5 },
     "lat": { "type": "number", "minimum": -90, "maximum": 90 },
     "lng": { "type": "number", "minimum": -180, "maximum": 180 },
+    "coordenadas_nivel": { "type": "string", "enum": ["premisa", "via", "barrio"], "description": "premisa = edificio/POI exacto · via = calle · barrio = centroide." },
     "tipo": { "type": "string", "enum": ["hospital", "clinica", "punto-primeros-auxilios", "puesto-vacunacion"] },
     "estado": { "type": "string", "enum": ["operativo", "limitado", "cerrado", "sin-confirmar"] },
     "urgencias_24h": { "type": "boolean" },

@@ -2,6 +2,7 @@
 import { readFileSync } from "node:fs";
 import BaseLayout from "../layouts/BaseLayout.astro";
 import Map from "../components/Map.astro";
+import QuickAddAyuda from "../components/QuickAddAyuda.astro";
 import MapLegend from "../components/MapLegend.astro";
 import DatosEvento from "../components/DatosEvento.astro";
 import ZonasLista from "../components/ZonasLista.astro";
@@ -9,13 +10,13 @@ import StatusBadge from "../components/StatusBadge.astro";
 import { acopios, albergues, centrosSalud, jornadasSangre, todasLasCiudades } from "../lib/catalogs";
 import { zonas } from "../lib/zonas";
 import evento from "../../../data/evento.json";
-import { puntoActivo, agregarNecesidades, type PuntoVivo } from "../lib/puntos-rescate";
+import { puntoAyudaVisible, lineaCobertura, actualizadoHace, agregarItemsNecesarios, etiquetaAgregado, type PuntoAyuda } from "../lib/puntos-ayuda";
 import { agruparCiudades, fusionarCiudadesSelect, nombreCiudadNormalizado, type CiudadReportada } from "../lib/ciudades";
-import { etiquetaTipo, etiquetaNecesidad, etiquetaPrecision } from "../lib/necesidades";
+import { etiquetaTipo, etiquetaModalidadCorta, etiquetaItemAyuda, etiquetaPrecision, ESTADOS_AYUDA } from "../lib/items-ayuda";
 import { estadoVerificacion } from "../lib/verificacion";
 
 // Ciudades del filtro = unión de las que tienen puntos de datos, las zonas
-// afectadas y las ciudades derivadas de los reportes ciudadanos en vivo:
+// afectadas y las ciudades derivadas de los puntos de ayuda en vivo:
 // clic en una zona sin puntos registrados filtra a "0 puntos" (información
 // honesta) en vez de quedarse en "todas".
 const catalogadas = Array.from(
@@ -28,30 +29,28 @@ const catalogadas = Array.from(
 // reporte son la misma ciudad.
 const catalogadasNorm = new Set(catalogadas.map(nombreCiudadNormalizado));
 
-// Registro en vivo de puntos de rescate: el archivo lo commitea el worker;
+// Puntos de ayuda: el snapshot lo genera el deploy (GET /api/ayuda → D1);
 // el build lo lee para la lista SSG (fallback sin JS/API).
-let vivos: PuntoVivo[] = [];
+let vivos: PuntoAyuda[] = [];
 try {
-  const raw = readFileSync(new URL("../../public/datos/reportes-puntos.json", import.meta.url), "utf8");
+  const raw = readFileSync(new URL("../../public/datos/reportes-ayuda.json", import.meta.url), "utf8");
   const parsed = JSON.parse(raw);
-  if (Array.isArray(parsed)) vivos = parsed as PuntoVivo[];
+  if (Array.isArray(parsed)) vivos = parsed as PuntoAyuda[];
 } catch {
-  // Sin registro en vivo todavía (primer clon o antes del primer reporte).
+  // Sin snapshot todavía (primer clon o antes del primer deploy).
 }
-const activos = vivos
-  .filter((p) => puntoActivo(p))
-  .sort((a, b) => b.created_at.localeCompare(a.created_at));
-const agregado = agregarNecesidades(activos);
+const visibles = vivos.filter((p) => puntoAyudaVisible(p)).sort((a, b) => b.ultima_actualizacion.localeCompare(a.ultima_actualizacion));
 
-// Badge de verificación de un punto (review de diseño): derivado de los
-// datos sin inventar — oficial si el mantenedor lo promovió; confirmado si
-// el estado o la verificación lo dicen; el resto, sin confirmar. La regla
-// vive en lib/verificacion.ts (mismo origen que el render runtime).
-const badgeVerificacion = (p: PuntoVivo): string => estadoVerificacion(p);
+// Ítems agregados de los puntos que necesitan (modalidad necesita/ambos):
+// suma de cantidades, no solo conteo de puntos (coherente con las tarjetas).
+const cuentanItems = (p: PuntoAyuda) => p.modalidad === "necesita" || p.modalidad === "ambos";
+const agregado = agregarItemsNecesarios(visibles);
 
-// Ciudades con reportes ciudadanos: agrupadas desde el registro en vivo y
-// deduplicadas contra el catálogo (una ciudad oficial no se lista como
-// reportada). El select las incorpora; un PR verificado las promueve a zona SGC.
+// Badge de verificación de un punto (derivado de los datos sin inventar).
+const badgeVerificacion = (p: PuntoAyuda): string => estadoVerificacion(p);
+
+// Ciudades con puntos de ayuda: agrupadas del registro y deduplicadas
+// contra el catálogo (una ciudad oficial no se lista como reportada).
 const ciudadesReportadas: CiudadReportada[] = agruparCiudades(vivos).filter(
   (c) => !catalogadasNorm.has(nombreCiudadNormalizado(c.nombre))
 );
@@ -61,6 +60,13 @@ const ciudadesFiltro = fusionarCiudadesSelect(
 );
 const enlaceMaps = (lat: number, lng: number) =>
   `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
+const lineaDestino = (p: PuntoAyuda): string => {
+  if (!p.destino) return "";
+  if (p.destino.transporta && p.destino.ciudades.length > 0) {
+    return `Lleva a: ${p.destino.ciudades.join(", ")}`;
+  }
+  return "Entrega solo en este punto";
+};
 ---
 
 <BaseLayout
@@ -86,8 +92,8 @@ const enlaceMaps = (lat: number, lng: number) =>
             <button type="button" class="rail-tab" role="tab" id="tab-zonas" aria-controls="panel-zonas" aria-selected="true">
               Zonas
             </button>
-            <button type="button" class="rail-tab" role="tab" id="tab-rescates" aria-controls="panel-rescates" aria-selected="false" tabindex="-1">
-              Rescates
+            <button type="button" class="rail-tab" role="tab" id="tab-ayuda" aria-controls="panel-ayuda" aria-selected="false" tabindex="-1">
+              Ayuda
             </button>
           </div>
           <div class="rail-panel" role="tabpanel" id="panel-zonas" aria-labelledby="tab-zonas">
@@ -98,80 +104,88 @@ const enlaceMaps = (lat: number, lng: number) =>
               <ZonasLista zonas={zonas} ciudadesReportadas={ciudadesReportadas} />
             </div>
           </div>
-          <!-- Puntos de rescate: reportes ciudadanos en vivo (registro
-               commiteado por el worker; la lista es SSG, el script la
-               refresca tras confirmar desde el lugar). -->
-          <div class="rail-panel" role="tabpanel" id="panel-rescates" aria-labelledby="tab-rescates">
+          <!-- Puntos de ayuda: reportes ciudadanos en vivo (D1 vía API; el
+               snapshot es SSG, el script la refresca tras crear/editar). -->
+          <div class="rail-panel" role="tabpanel" id="panel-ayuda" aria-labelledby="tab-ayuda">
             <div class="dash-index">
               <div class="dash-index-head">
-                <h3>Puntos de rescate</h3>
-                <span class="zonas-count" id="rescate-conteo" aria-label={`${activos.length} puntos activos`}>{activos.length}</span>
+                <h3>Puntos de ayuda</h3>
+                <span class="zonas-count" id="ayuda-conteo" aria-label={`${visibles.length} puntos activos`}>{visibles.length}</span>
               </div>
               <!-- Acción principal del panel: barra de acción sticky al inicio
                    (acceso rápido a /reportar; el contenido scrollea debajo). -->
               <a class="dash-row dash-cta" href="/reportar">
                 <span class="dash-row-top">
-                  <span class="dash-row-nombre">Reportar un punto</span>
+                  <span class="dash-row-nombre">Reportar una necesidad u oferta</span>
                   <span class="dash-row-meta">en vivo</span>
                 </span>
-                <p>¿Ves un lugar donde se necesita ayuda? Publícalo con ubicación exacta y necesidades.</p>
+                <p>¿Tu lugar necesita algo o recolecta para otras zonas? Publícalo con ubicación, ítems y destino.</p>
               </a>
               <!-- Contenido re-renderizado por el refresco runtime y por el
-                   filtro de zona activa (clic en una zona → sus rescates).
-                   data-registro: el SSG alimenta el filtro desde el primer
+                   filtro de zona activa (clic en una zona → sus puntos).
+                   data-ayuda: el SSG alimenta el filtro desde el primer
                    momento (antes del primer refresco del API). -->
-              <div id="rescate-panel" data-registro={JSON.stringify(vivos)}>
+              <div id="ayuda-panel" data-ayuda={JSON.stringify(vivos)}>
                 {
-                  activos.length === 0 ? (
-                    <p class="rescate-vacio">
-                      Sin puntos activos ahora.
-                      {vivos.filter((p) => !puntoActivo(p)).length > 0 ? ` Hay ${vivos.filter((p) => !puntoActivo(p)).length} en el histórico.` : ""}{" "}
-                      <a href="/reportar">Reportar un punto</a>
+                  visibles.length === 0 ? (
+                    <p class="ayuda-vacio">
+                      Sin puntos de ayuda ahora.
+                      {vivos.filter((p) => !puntoAyudaVisible(p)).length > 0 ? ` Hay ${vivos.filter((p) => !puntoAyudaVisible(p)).length} en el histórico.` : ""}{" "}
+                      <a href="/reportar">Reportar una necesidad u oferta</a>
                     </p>
                   ) : (
                     <>
                       {
                         agregado.length > 0 && (
-                          <span class="rescate-agregado" id="rescate-agregado">
-                            {activos.length} punto{activos.length === 1 ? "" : "s"} necesitan:{" "}
+                          <span class="ayuda-agregado" id="ayuda-agregado">
+                            {visibles.filter(cuentanItems).length} punto{visibles.filter(cuentanItems).length === 1 ? "" : "s"} necesitan:{" "}
                             {agregado
                               .slice(0, 4)
-                              .map((a) => `${etiquetaNecesidad(a.id)} ×${a.cuenta}`)
+                              .map((a) => `${etiquetaItemAyuda({ tipo: "catalogo", id: a.id })} ×${etiquetaAgregado(a)}`)
                               .join(", ")}
                           </span>
                         )
                       }
-                      <div id="rescate-lista">
-                        {activos.map((p) => (
-                          <article class="rescate-fila" data-id={p.id} data-volar-rescate={p.id} title="Ver en el mapa">
+                      <div id="ayuda-lista">
+                        {visibles.map((p) => (
+                          <article class="ayuda-fila" data-id={p.id} data-volar-ayuda={p.id} title="Ver en el mapa">
                             <div class="dash-row-top">
                               <span class="dash-row-nombre">
-                                {etiquetaTipo(p.tipo)}{p.direccion ? ` — ${p.direccion}` : ""}
+                                {p.nombre ?? etiquetaTipo(p.tipo)}{p.direccion ? ` — ${p.direccion}` : ""}
                               </span>
                               <span class="dash-row-meta">
-                                {p.ciudad ? `${p.ciudad} · ` : ""}{p.confirmaciones.length}{" "}
-                                conf.
+                                {p.ciudad ? `${p.ciudad} · ` : ""}{etiquetaModalidadCorta(p.modalidad)}
                                 {p.coordenadas_nivel ? ` · ${etiquetaPrecision(p.coordenadas_nivel)}` : ""}
                               </span>
                             </div>
-                            <span class="rescate-badges">
+                            <span class="ayuda-badges">
                               <StatusBadge estado={badgeVerificacion(p)} />
+                              <span class="ayuda-estado">{ESTADOS_AYUDA[p.estado] ?? p.estado}</span>
                             </span>
-                            {p.descripcion && <p class="rescate-descripcion">{p.descripcion}</p>}
+                            {p.descripcion && <p class="ayuda-descripcion">{p.descripcion}</p>}
                             {
-                              p.necesidades.length > 0 && (
-                                <span class="popup-rescate-ns">
-                                  {p.necesidades.map((n) => (
-                                    <span>{etiquetaNecesidad(n)}</span>
+                              p.items.length > 0 && (
+                                <span class="popup-ayuda-ns">
+                                  {p.items.map((i) => (
+                                    <span>{etiquetaItemAyuda(i)}</span>
                                   ))}
                                 </span>
                               )
                             }
-                            <div class="rescate-acciones">
+                            {lineaDestino(p) && <p class="ayuda-destino">{lineaDestino(p)}</p>}
+                            {
+                              lineaCobertura(p, vivos, acopios) && (
+                                <p class="ayuda-cobertura">{lineaCobertura(p, vivos, acopios)}</p>
+                              )
+                            }
+                            {p.horario && <p class="ayuda-destino">Horario: {p.horario}</p>}
+                            {p.flags > 0 && <p class="ayuda-destino">{p.flags} reporte(s) de falso</p>}
+                            {actualizadoHace(p) && <p class="ayuda-destino">Actualizado {actualizadoHace(p)}</p>}
+                            <div class="ayuda-acciones">
                               <a class="btn" href={enlaceMaps(p.lat, p.lng)} target="_blank" rel="noopener">Cómo llegar</a>
-                              <button type="button" class="btn btn-primary" data-confirmar={p.id}>
-                                Confirmar con mi ubicación
-                              </button>
+                              <button type="button" class="btn" data-flag={p.id}>Reportar punto falso</button>
+                              <!-- Actualizar / Cerrar punto: solo con token del
+                                   navegador; el render JS los agrega (SSG sin token). -->
                             </div>
                           </article>
                         ))}
@@ -192,22 +206,76 @@ const enlaceMaps = (lat: number, lng: number) =>
           </div>
         </aside>
 
-        <MapLegend ciudades={ciudadesFiltro} mostrarZonas mostrarRescates rescatesActivos={activos.length} />
+        <MapLegend ciudades={ciudadesFiltro} mostrarZonas mostrarAyuda ayudaActivos={visibles.length} />
       </div>
     </section>
 
+    <!-- Diálogo de acción del panel Ayuda: reportar punto falso / cerrar punto.
+         Los botones "Actualizar" se habilitan solo con token (script). -->
+    <div class="dialogo-accion" id="dialogo-accion" hidden>
+      <div class="dialogo-accion-caja" role="dialog" aria-modal="true" aria-labelledby="dialogo-titulo">
+        <h3 id="dialogo-titulo"></h3>
+        <p id="dialogo-texto"></p>
+        <textarea id="dialogo-detalle" aria-label="Detalle del reporte" hidden placeholder="Explica por qué es falso…"></textarea>
+        <p class="dialogo-accion-msg" id="dialogo-msg" aria-live="polite"></p>
+        <div class="dialogo-accion-acciones">
+          <button type="button" class="btn" id="dialogo-cancelar">Cancelar</button>
+          <button type="button" class="btn btn-primary" id="dialogo-ok">Confirmar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Mini-formulario de ayuda desde el mapa (quick-add): lo abre el botón
+         "Declarar necesidad u oferta" de los popups del mapa. -->
+    <QuickAddAyuda />
+
 <script>
   import { apiUrl } from "../lib/api";
-  import { fetchCatalogo } from "../lib/datos";
-  import { puntoActivo, agregarNecesidades, type PuntoVivo } from "../lib/puntos-rescate";
+  import { fetchCatalogo, fetchPuntosAyuda } from "../lib/datos";
+  import { puntoAyudaVisible, lineaCobertura, actualizadoHace, agregarItemsNecesarios, etiquetaAgregado, type PuntoAyuda } from "../lib/puntos-ayuda";
   import { agruparCiudades, nombreCiudadNormalizado, type CiudadReportada } from "../lib/ciudades";
   import { estadoVerificacion } from "../lib/verificacion";
-  import { etiquetaTipo, etiquetaNecesidad, etiquetaPrecision } from "../lib/necesidades";
+  import { etiquetaTipo, etiquetaModalidadCorta, etiquetaItemAyuda, etiquetaPrecision, ESTADOS_AYUDA, type ItemAyuda } from "../lib/items-ayuda";
   import { renderZonasListaHTML } from "../lib/render-catalogos";
   import { acopios, albergues, centrosSalud, jornadasSangre } from "../lib/catalogs";
   import type { Acopio, Albergue, CentroSalud, JornadaSangre } from "../lib/catalogs";
   import { zonas } from "../lib/zonas";
   import type { Zona } from "../lib/zonas";
+
+  // Quick-add desde el mapa: el punto se publicó (QuickAddAyuda guardó el
+  // token). Refrescar el panel, volar al punto nuevo para abrir su popup y
+  // resaltar SU tarjeta (sin esto, el panel conserva el resaltado del punto
+  // anterior — información vieja). El popup del quick-add, al cerrarse,
+  // devuelve el mapa a la vista completa (desdeQuickAdd).
+  window.addEventListener("enlace:ayuda:publicado", (e) => {
+    const id = (e as CustomEvent<{ id?: string }>).detail?.id;
+    if (!id) return;
+    void (async () => {
+      await refrescarAyuda();
+      if (!(ultimoAyuda ?? []).some((x) => x.id === id)) {
+        // El POST fue ok pero el refresco no trajo el punto (blip de red):
+        // reintentar una vez antes de rendirse, o el vuelo/resaltado
+        // quedarían en silencio y el punto recién publicado no aparecería
+        // hasta el próximo poll de 60 s.
+        await new Promise((r) => setTimeout(r, 1200));
+        await refrescarAyuda();
+      }
+      window.dispatchEvent(new CustomEvent("enlace:mapa:volar-ayuda", { detail: { id, desdeQuickAdd: true } }));
+      window.dispatchEvent(new CustomEvent("enlace:mapa:punto-ayuda-activo", { detail: { id } }));
+    })();
+  });
+
+  // Tokens de edición de los puntos creados desde este navegador (localStorage).
+  // El token se entrega al crear y permite editar/cerrar el punto desde
+  // cualquier dispositivo (respaldo por IP en el worker).
+  const CLAVE_TOKENS = "enlace-ayuda:tokens";
+  function leerTokens(): Record<string, string> {
+    try {
+      return JSON.parse(localStorage.getItem(CLAVE_TOKENS) ?? "{}") as Record<string, string>;
+    } catch {
+      return {};
+    }
+  }
 
   // Tabs del rail (mejora progresiva): sin JS, ambos paneles quedan visibles
   // y el tablist es inerte. Con JS, solo el panel activo se muestra.
@@ -273,147 +341,253 @@ const enlaceMaps = (lat: number, lng: number) =>
 
   // Sync con el mapa: popup de zona o geolocalización → pestaña Zonas.
   // Un id vacío solo limpia el resaltado; no cambia de pestaña.
-  // La zona activa además filtra el panel Rescates (epicentro = todas).
-  /** Navegación zona → rescates: filtra el panel por ciudad y muestra la
-      pestaña Rescates (el usuario ve los puntos de esa zona al instante). */
-  function activarZonaRescates(nombre: string | null, cambiarPestana = false) {
-    if (zonaRescates !== nombre) {
-      zonaRescates = nombre;
-      if (ultimoRegistro) aplicarRegistro(ultimoRegistro);
+  // La zona activa además filtra el panel Ayuda (epicentro = todas).
+  /** Navegación zona → ayuda: filtra el panel por ciudad y muestra la
+      pestaña Ayuda (el usuario ve los puntos de esa zona al instante). */
+  function activarZonaAyuda(nombre: string | null, cambiarPestana = false) {
+    if (zonaAyuda !== nombre) {
+      zonaAyuda = nombre;
+      if (ultimoAyuda) aplicarAyuda(ultimoAyuda);
     }
     if (cambiarPestana && nombre) {
-      const tabRescates = document.getElementById("tab-rescates") as HTMLButtonElement | null;
-      if (tabRescates) activar(tabRescates);
+      const tabAyuda = document.getElementById("tab-ayuda") as HTMLButtonElement | null;
+      if (tabAyuda) activar(tabAyuda);
     }
   }
 
-  // Clic en una fila de zona (ZonasLista): filtra rescates por esa ciudad y
-  // muestra la pestaña Rescates. Funciona aunque el mapa no haya cargado
+  // Clic en una fila de zona (ZonasLista): filtra ayuda por esa ciudad y
+  // muestra la pestaña Ayuda. Funciona aunque el mapa no haya cargado
   // (modo flujo): el evento lo emite la fila, no el mapa.
   window.addEventListener("enlace:mapa:volar-zona", (e) => {
     const id = (e as CustomEvent<{ id?: string }>).detail?.id;
     if (!id) return;
     const z = zonasActuales.find((x) => x.id === id);
-    activarZonaRescates(z && z.tipo !== "epicentro" ? z.nombre : null, !!z && z.tipo !== "epicentro");
+    activarZonaAyuda(z && z.tipo !== "epicentro" ? z.nombre : null, !!z && z.tipo !== "epicentro");
   });
 
   // Popup de zona abierto en el mapa (marcador o select de ciudad): filtra
   // el panel SIN cambiar de pestaña — el usuario está explorando el mapa; el
-  // salto a Rescates es solo del clic explícito en las filas (volar-zona).
+  // salto a Ayuda es solo del clic explícito en las filas (volar-zona).
   window.addEventListener("enlace:mapa:zona-activa", (e) => {
     const id = (e as CustomEvent<{ id?: string }>).detail?.id;
     if (!id) {
-      activarZonaRescates(null);
+      activarZonaAyuda(null);
       return;
     }
     const z = zonasActuales.find((x) => x.id === id);
-    activarZonaRescates(z && z.tipo !== "epicentro" ? z.nombre : null);
+    activarZonaAyuda(z && z.tipo !== "epicentro" ? z.nombre : null);
   });
   window.addEventListener("enlace:mapa:ciudad-reportada", (e) => {
     const nombre = (e as CustomEvent<{ nombre?: string }>).detail?.nombre;
-    if (nombre) activarZonaRescates(nombre, true);
+    if (nombre) activarZonaAyuda(nombre, true);
   });
   window.addEventListener("enlace:mapa:posicion", () => tabZonas && activar(tabZonas));
 
-  // Chip "Rescates" ↔ pestaña del rail: marcado muestra el panel, desmarcado
-  // vuelve a Zonas si la pestaña activa era Rescates.
-  const chipRescates = document.querySelector<HTMLInputElement>(".leyenda-tira input[value='rescates']");
-  const tabRescates = tabs.find((t) => t.id === "tab-rescates");
-  chipRescates?.addEventListener("change", () => {
-    if (chipRescates.checked) {
-      if (tabRescates) activar(tabRescates);
-    } else if (tabRescates?.getAttribute("aria-selected") === "true") {
+  // Chip "Ayuda" ↔ pestaña del rail: marcado muestra el panel, desmarcado
+  // vuelve a Zonas si la pestaña activa era Ayuda.
+  const chipAyuda = document.querySelector<HTMLInputElement>(".leyenda-tira input[value='ayuda']");
+  const tabAyuda = tabs.find((t) => t.id === "tab-ayuda");
+  chipAyuda?.addEventListener("change", () => {
+    if (chipAyuda.checked) {
+      if (tabAyuda) activar(tabAyuda);
+    } else if (tabAyuda?.getAttribute("aria-selected") === "true") {
       if (tabZonas) activar(tabZonas);
     }
   });
 
-  // Confirmar un punto desde la lista: geolocalización → POST → refrescar.
-  const panelRescates = document.getElementById("panel-rescates");
+  const panelAyuda = document.getElementById("panel-ayuda");
 
-  // Navegación del panel Rescates: clic en la fila → el mapa vuela al punto
-  // y abre su popup (los botones Cómo llegar/Confirmar no disparan el vuelo).
-  panelRescates?.addEventListener("click", (e) => {
+  // Navegación del panel Ayuda: clic en la fila → el mapa vuela al punto
+  // y abre su popup (los botones no disparan el vuelo).
+  panelAyuda?.addEventListener("click", (e) => {
     const target = e.target as HTMLElement;
     if (target.closest("a, button")) return;
-    const fila = target.closest<HTMLElement>("[data-volar-rescate]");
-    if (fila?.dataset.volarRescate) {
+    const fila = target.closest<HTMLElement>("[data-volar-ayuda]");
+    if (fila?.dataset.volarAyuda) {
       window.dispatchEvent(
-        new CustomEvent("enlace:mapa:volar-rescate", { detail: { id: fila.dataset.volarRescate } })
+        new CustomEvent("enlace:mapa:volar-ayuda", { detail: { id: fila.dataset.volarAyuda } })
       );
     }
   });
 
+  // Abrir el diálogo de acción desde las tarjetas (flag / cerrar).
+  panelAyuda?.addEventListener("click", (e) => {
+    const target = e.target as HTMLElement;
+    const flagBtn = target.closest<HTMLButtonElement>("[data-flag]");
+    if (flagBtn?.dataset.flag) {
+      abrirDialogo({ tipo: "flag", id: flagBtn.dataset.flag });
+      return;
+    }
+    const cerrarBtn = target.closest<HTMLButtonElement>("[data-cerrar]");
+    if (cerrarBtn?.dataset.cerrar) {
+      abrirDialogo({ tipo: "cerrar", id: cerrarBtn.dataset.cerrar });
+    }
+  });
+
+  // Clic en un punto de ayuda del mapa → el panel Ayuda muestra su tarjeta:
+  // activa la pestaña, resalta la fila y la trae a la vista (misma dirección
+  // que volar-ayuda, pero disparada por el mapa). El resaltado se conserva
+  // tras los re-renders del refresco (ultimoPuntoActivo). Un id vacío (clic
+  // en un punto del catálogo, que no tiene tarjeta en el panel) limpia el
+  // resaltado: un punto viejo marcado sería información engañosa.
+  let ultimoPuntoActivo: string | null = null;
+  window.addEventListener("enlace:mapa:punto-ayuda-activo", (e) => {
+    const detalle = (e as CustomEvent<{ id?: string; ciudad?: string }>).detail;
+    const id = detalle?.id;
+    if (!id) {
+      ultimoPuntoActivo = null;
+      document.querySelectorAll<HTMLElement>(".ayuda-fila.activa").forEach((f) => f.classList.remove("activa"));
+      document.querySelectorAll<HTMLElement>(".ayuda-fila[aria-current]").forEach((f) => f.removeAttribute("aria-current"));
+      return;
+    }
+    ultimoPuntoActivo = id;
+    // Clic en un punto del mapa → el panel muestra los puntos de SU ciudad
+    // (misma semántica que una fila de zona: el punto pertenece a una zona).
+    // Sin esto, un punto en una ciudad distinta al filtro activo no aparece
+    // en el panel y el resaltado falla en silencio (información vieja).
+    const punto = (ultimoAyuda ?? []).find((x) => x.id === id);
+    const ciudad = detalle?.ciudad ?? punto?.ciudad;
+    if (ciudad) {
+      activarZonaAyuda(ciudad, true);
+    } else {
+      // Punto sin ciudad (geocoder caído al crearlo): un filtro de panel
+      // activo lo ocultaría en silencio — limpiar el filtro para mostrarlo.
+      activarZonaAyuda(null);
+      const tabAyudaAct = document.getElementById("tab-ayuda") as HTMLButtonElement | null;
+      if (tabAyudaAct) activar(tabAyudaAct);
+    }
+    resaltarPuntoAyuda(id);
+  });
+
+  function resaltarPuntoAyuda(id: string) {
+    document.querySelectorAll<HTMLElement>(".ayuda-fila.activa").forEach((f) => f.classList.remove("activa"));
+    const fila = document.querySelector<HTMLElement>(`#ayuda-lista [data-id="${CSS.escape(id)}"]`);
+    if (!fila) return;
+    fila.classList.add("activa");
+    fila.setAttribute("aria-current", "true");
+    fila.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }
+
   // "Ver todos" del filtro de zona: limpia el panel y el select del mapa.
-  panelRescates?.addEventListener("click", (e) => {
-    const btn = (e.target as HTMLElement).closest<HTMLButtonElement>("[data-rescates-todos]");
+  panelAyuda?.addEventListener("click", (e) => {
+    const btn = (e.target as HTMLElement).closest<HTMLButtonElement>("[data-ayuda-todos]");
     if (!btn) return;
-    zonaRescates = null;
+    zonaAyuda = null;
     const select = document.querySelector<HTMLSelectElement>(".leyenda-tira select");
     if (select && select.value !== "") {
       select.value = "";
       select.dispatchEvent(new Event("change")); // el mapa vuelve a "Ciudad: Todas"
     }
-    if (ultimoRegistro) aplicarRegistro(ultimoRegistro);
+    if (ultimoAyuda) aplicarAyuda(ultimoAyuda);
   });
-
 
   const escapar = (s: string) =>
     s.replace(/[&<>"']/g, (c) =>
       ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!
     );
 
-  panelRescates?.addEventListener("click", (e) => {
-    const btn = (e.target as HTMLElement).closest<HTMLButtonElement>("[data-confirmar]");
-    if (!btn) return;
-    const id = btn.dataset.confirmar;
-    if (!id) return;
-    if (!("geolocation" in navigator)) {
-      btn.textContent = "Sin geolocalización";
-      return;
+  // ---------- Diálogo de acción: Reportar punto falso / Cerrar punto ----------
+  const dialogo = document.getElementById("dialogo-accion") as HTMLDivElement | null;
+  const dialogoTitulo = document.getElementById("dialogo-titulo") as HTMLHeadingElement | null;
+  const dialogoTexto = document.getElementById("dialogo-texto") as HTMLParagraphElement | null;
+  const dialogoDetalle = document.getElementById("dialogo-detalle") as HTMLTextAreaElement | null;
+  const dialogoMsg = document.getElementById("dialogo-msg") as HTMLParagraphElement | null;
+  const dialogoOk = document.getElementById("dialogo-ok") as HTMLButtonElement | null;
+  const dialogoCancelar = document.getElementById("dialogo-cancelar") as HTMLButtonElement | null;
+
+  type AccionDialogo = { tipo: "flag" | "cerrar"; id: string } | null;
+  let accionDialogo: AccionDialogo = null;
+  // Foco: se restaura al botón que abrió el diálogo al cerrar (a11y).
+  let ultimoFoco: HTMLElement | null = null;
+
+  function abrirDialogo(accion: NonNullable<AccionDialogo>) {
+    if (!dialogo || !dialogoTitulo || !dialogoTexto || !dialogoDetalle || !dialogoMsg || !dialogoOk) return;
+    accionDialogo = accion;
+    ultimoFoco = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    dialogoDetalle.value = "";
+    dialogoDetalle.removeAttribute("aria-invalid");
+    dialogoMsg.textContent = "";
+    if (accion.tipo === "flag") {
+      dialogoTitulo.textContent = "Reportar punto falso";
+      dialogoTexto.textContent =
+        "Tres reportes de la comunidad ocultan el punto. Explica por qué crees que no es real:";
+      dialogoDetalle.hidden = false;
+      dialogoOk.textContent = "Enviar reporte";
+    } else {
+      dialogoTitulo.textContent = "Cerrar este punto";
+      dialogoTexto.textContent =
+        "El punto dejará de mostrarse. ¿El lugar ya no necesita ayuda o dejó de recolectar?";
+      dialogoDetalle.hidden = true;
+      dialogoOk.textContent = "Cerrar punto";
     }
-    btn.setAttribute("aria-busy", "true");
-    btn.textContent = "Confirmando…";
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        try {
-          const res = await fetch(apiUrl(`/api/puntos/${id}/confirmar`), {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-          });
-          const data = (await res.json().catch(() => null)) as { ok?: boolean; error?: string } | null;
-          if (res.ok && data?.ok) {
-            btn.textContent = "Confirmado";
-            await refrescarRescates();
-            // El re-render por innerHTML destruyó el botón: restaurar el foco
-            // en el mismo punto si sigue activo.
-            document.querySelector<HTMLElement>(`#rescate-lista [data-confirmar="${id}"]`)?.focus();
-          } else {
-            btn.textContent = data?.error ?? "No se pudo confirmar";
-          }
-        } catch {
-          btn.textContent = "No se pudo confirmar";
+    dialogo.hidden = false;
+    requestAnimationFrame(() => (accion.tipo === "flag" ? dialogoDetalle.focus() : dialogoOk?.focus()));
+  }
+
+  function cerrarDialogo() {
+    if (!dialogo) return;
+    accionDialogo = null;
+    dialogo.hidden = true;
+    ultimoFoco?.focus();
+    ultimoFoco = null;
+  }
+
+  dialogoCancelar?.addEventListener("click", cerrarDialogo);
+  dialogo?.addEventListener("click", (e) => {
+    if (e.target === dialogo) cerrarDialogo();
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && dialogo && !dialogo.hidden) cerrarDialogo();
+  });
+
+  dialogoOk?.addEventListener("click", async () => {
+    const accion = accionDialogo;
+    if (!accion || !dialogoMsg) return;
+    dialogoOk.disabled = true;
+    try {
+      if (accion.tipo === "flag") {
+        const detalle = dialogoDetalle?.value.trim() ?? "";
+        if (detalle.length < 3) {
+          dialogoDetalle?.setAttribute("aria-invalid", "true");
+          dialogoMsg.textContent = "El detalle es obligatorio (mínimo 3 caracteres).";
+          return;
         }
-        btn.removeAttribute("aria-busy");
-        window.setTimeout(() => {
-          btn.textContent = "Confirmar con mi ubicación";
-        }, 4000);
-      },
-      () => {
-        btn.removeAttribute("aria-busy");
-        btn.textContent = "Permiso denegado";
-        window.setTimeout(() => {
-          btn.textContent = "Confirmar con mi ubicación";
-        }, 4000);
-      },
-      { enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 }
-    );
+        const res = await fetch(apiUrl(`/api/ayuda/${encodeURIComponent(accion.id)}/flag`), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ detalle }),
+        });
+        const data = (await res.json().catch(() => null)) as { ok?: boolean; error?: string } | null;
+        if (res.ok && data?.ok) {
+          cerrarDialogo();
+          await refrescarAyuda();
+        } else {
+          dialogoMsg.textContent = data?.error ?? "No se pudo enviar el reporte.";
+        }
+      } else {
+        const token = leerTokens()[accion.id];
+        const res = await fetch(apiUrl(`/api/ayuda/${encodeURIComponent(accion.id)}`), {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ estado: "cerrado", token }),
+        });
+        const data = (await res.json().catch(() => null)) as { ok?: boolean; error?: string } | null;
+        if (res.ok && data?.ok) {
+          cerrarDialogo();
+          await refrescarAyuda();
+        } else {
+          dialogoMsg.textContent = data?.error ?? "No se pudo cerrar el punto.";
+        }
+      }
+    } finally {
+      dialogoOk.disabled = false;
+    }
   });
 
   // ---------- Refresco runtime de datos (desacoplar-datos-deploy) ----------
-  // Catálogos, zonas, evento y registro en vivo se leen del API
-  // (/api/datos/:catalogo; el worker sirve el repo con caché KV). Si el API
-  // falla o tarda, la página conserva lo renderizado en build (SSG).
+  // Catálogos, zonas y evento se leen del API (/api/datos/:catalogo); los
+  // puntos de ayuda de GET /api/ayuda (D1). Si el API falla o tarda, la
+  // página conserva lo renderizado en build (SSG).
 
   interface EventoBoletin {
     id?: string;
@@ -435,7 +609,7 @@ const enlaceMaps = (lat: number, lng: number) =>
     jornadas?: JornadaSangre[];
     zonas?: Zona[];
     evento?: EventoBoletin;
-    registro?: PuntoVivo[];
+    ayuda?: PuntoAyuda[];
   }
 
   // Estado actual: arranca en los datos del build y se actualiza con cada
@@ -447,21 +621,21 @@ const enlaceMaps = (lat: number, lng: number) =>
     jornadas: JornadaSangre[];
   } = { acopios, albergues, centros: centrosSalud, jornadas: jornadasSangre };
   let zonasActuales: Zona[] = zonas;
-  // Registro en vivo: arranca con el SSG del build (panel ya renderizado) y
-  // se actualiza con cada refresco del API o con la copia estática si cae.
-  // Declarado arriba: lo usan los listeners de zona→rescates (TDZ-safe).
-  let ultimoRegistro: PuntoVivo[] | null = null;
-  const registroSSG = document.getElementById("rescate-panel")?.getAttribute("data-registro");
-  if (registroSSG) {
+  // Puntos de ayuda: arrancan con el SSG del build (panel ya renderizado) y
+  // se actualizan con cada refresco del API o con la copia estática si cae.
+  // Declarado arriba: lo usan los listeners de zona→ayuda (TDZ-safe).
+  let ultimoAyuda: PuntoAyuda[] | null = null;
+  const ayudaSSG = document.getElementById("ayuda-panel")?.getAttribute("data-ayuda");
+  if (ayudaSSG) {
     try {
-      const p = JSON.parse(registroSSG) as unknown;
-      if (Array.isArray(p)) ultimoRegistro = p as PuntoVivo[];
+      const p = JSON.parse(ayudaSSG) as unknown;
+      if (Array.isArray(p)) ultimoAyuda = p as PuntoAyuda[];
     } catch {
-      // SSG sin registro (primer clon): el refresco lo llenará.
+      // SSG sin snapshot (primer clon): el refresco lo llenará.
     }
   }
-  // Zona activa que filtra el panel Rescates (null = todas).
-  let zonaRescates: string | null = null;
+  // Zona activa que filtra el panel Ayuda (null = todas).
+  let zonaAyuda: string | null = null;
   // Huella del último render de la sección de ciudades reportadas (evita
   // re-renders duplicados en el mismo ciclo de refresco).
   let ultimaHuellaCiudades = "";
@@ -472,9 +646,9 @@ const enlaceMaps = (lat: number, lng: number) =>
     : [];
   let fechaZonas = slotZonas?.dataset.fechaEvento ?? "";
 
-  /** Ciudades con reportes ciudadanos vigentes (dedupe normalizado contra catálogo + zonas SGC). */
+  /** Ciudades con puntos de ayuda vigentes (dedupe contra catálogo + zonas SGC). */
   function ciudadesReportadasActuales(): CiudadReportada[] {
-    if (!ultimoRegistro) return ciudadesSSG;
+    if (!ultimoAyuda) return ciudadesSSG;
     const catalogadas = new Set(
       [
         ...catalogoActual.acopios.map((e) => e.ciudad),
@@ -484,7 +658,7 @@ const enlaceMaps = (lat: number, lng: number) =>
         ...zonasActuales.filter((z) => z.tipo === "ciudad").map((z) => z.nombre),
       ].map(nombreCiudadNormalizado)
     );
-    return agruparCiudades(ultimoRegistro).filter(
+    return agruparCiudades(ultimoAyuda).filter(
       (c) => !catalogadas.has(nombreCiudadNormalizado(c.nombre))
     );
   }
@@ -504,9 +678,8 @@ const enlaceMaps = (lat: number, lng: number) =>
     window.dispatchEvent(new CustomEvent("enlace:zonas:re-render"));
   }
 
-  /** Fila del panel Rescates (mismo markup SSG; clic en la fila = ver en el mapa). */
-  /** Badge de verificación en HTML (mismo mapeo que el SSG, sin inventar). */
-  function badgeVerificacionHTML(p: PuntoVivo): string {
+  /** Fila del panel Ayuda (mismo markup SSG; clic en la fila = ver en el mapa). */
+  function badgeVerificacionHTML(p: PuntoAyuda): string {
     const estado = estadoVerificacion(p);
     const clase =
       estado === "oficial"
@@ -518,68 +691,112 @@ const enlaceMaps = (lat: number, lng: number) =>
     return `<span class="badge ${clase}">${texto}</span>`;
   }
 
-  function filaRescateHTML(p: PuntoVivo): string {
+  function chipsItemsHTML(items: ItemAyuda[]): string {
+    if (items.length === 0) return "";
+    return `<span class="popup-ayuda-ns">${items.map((i) => `<span>${escapar(etiquetaItemAyuda(i))}</span>`).join("")}</span>`;
+  }
+
+  function filaAyudaHTML(p: PuntoAyuda): string {
+    const nombre = p.nombre ?? etiquetaTipo(p.tipo);
+    const direccion = p.direccion ? ` — ${p.direccion}` : "";
+    const meta = `${p.ciudad ? `${escapar(p.ciudad)} · ` : ""}${escapar(etiquetaModalidadCorta(p.modalidad))}${p.coordenadas_nivel ? ` · ${escapar(etiquetaPrecision(p.coordenadas_nivel))}` : ""}`;
+    let destino = "";
+    if (p.destino) {
+      destino = p.destino.transporta && p.destino.ciudades.length > 0
+        ? `<p class="ayuda-destino">Lleva a: ${escapar(p.destino.ciudades.join(", "))}</p>`
+        : `<p class="ayuda-destino">Entrega solo en este punto</p>`;
+    }
+    const cobertura = lineaCobertura(p, ultimoAyuda ?? [], catalogoActual.acopios);
+    const coberturaHtml = cobertura ? `<p class="ayuda-cobertura">${escapar(cobertura)}</p>` : "";
+    const horario = p.horario ? `<p class="ayuda-destino">Horario: ${escapar(p.horario)}</p>` : "";
+    const flags = p.flags > 0 ? `<p class="ayuda-destino">${p.flags} reporte(s) de falso</p>` : "";
+    const actualizado = actualizadoHace(p);
+    const actualizadoHtml = actualizado ? `<p class="ayuda-destino">Actualizado ${escapar(actualizado)}</p>` : "";
+    const conToken = Boolean(leerTokens()[p.id]);
+    const acciones = [
+      `<a class="btn" href="https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}" target="_blank" rel="noopener">Cómo llegar</a>`,
+      `<button type="button" class="btn" data-flag="${escapar(p.id)}">Reportar punto falso</button>`,
+    ];
+    if (conToken) {
+      acciones.push(
+        `<a class="btn" href="/reportar?editar=${encodeURIComponent(p.id)}">Actualizar</a>`,
+        `<button type="button" class="btn" data-cerrar="${escapar(p.id)}">Cerrar punto</button>`
+      );
+    }
     return (
-      `<article class="rescate-fila" data-id="${escapar(p.id)}" data-volar-rescate="${escapar(p.id)}" title="Ver en el mapa">` +
-      `<div class="dash-row-top"><span class="dash-row-nombre">${escapar(etiquetaTipo(p.tipo))}${p.direccion ? ` — ${escapar(p.direccion)}` : ""}</span>` +
-      `<span class="dash-row-meta">${p.ciudad ? `${escapar(p.ciudad)} · ` : ""}${p.confirmaciones.length} conf.${p.coordenadas_nivel ? ` · ${escapar(etiquetaPrecision(p.coordenadas_nivel))}` : ""}</span></div>` +
-      `<span class="rescate-badges">${badgeVerificacionHTML(p)}</span>` +
-      `${p.descripcion ? `<p class="rescate-descripcion">${escapar(p.descripcion)}</p>` : ""}` +
-      `${p.necesidades.length > 0 ? `<span class="popup-rescate-ns">${p.necesidades.map((n) => `<span>${escapar(etiquetaNecesidad(n))}</span>`).join("")}</span>` : ""}` +
-      `<div class="rescate-acciones"><a class="btn" href="https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}" target="_blank" rel="noopener">Cómo llegar</a>` +
-      `<button type="button" class="btn btn-primary" data-confirmar="${escapar(p.id)}">Confirmar con mi ubicación</button></div>` +
+      `<article class="ayuda-fila" data-id="${escapar(p.id)}" data-volar-ayuda="${escapar(p.id)}" title="Ver en el mapa">` +
+      `<div class="dash-row-top"><span class="dash-row-nombre">${escapar(nombre)}${escapar(direccion)}</span>` +
+      `<span class="dash-row-meta">${meta}</span></div>` +
+      `<span class="ayuda-badges">${badgeVerificacionHTML(p)}<span class="ayuda-estado">${escapar(ESTADOS_AYUDA[p.estado] ?? p.estado)}</span></span>` +
+      `${p.descripcion ? `<p class="ayuda-descripcion">${escapar(p.descripcion)}</p>` : ""}` +
+      `${chipsItemsHTML(p.items)}` +
+      `${destino}${coberturaHtml}${horario}${flags}${actualizadoHtml}` +
+      `<div class="ayuda-acciones">${acciones.join("")}</div>` +
       `</article>`
     );
   }
 
-  /** Contenido del panel Rescates: filtro de zona activa + lista o vacío. */
-  function htmlPanelRescates(vivos: PuntoVivo[]): string {
-    const enZona = (p: PuntoVivo) =>
-      !zonaRescates || nombreCiudadNormalizado(p.ciudad ?? "") === nombreCiudadNormalizado(zonaRescates);
-    const activos = vivos
-      .filter((p) => puntoActivo(p) && enZona(p))
-      .sort((a, b) => b.created_at.localeCompare(a.created_at));
-    const agregado = agregarNecesidades(activos);
-    const filtro = zonaRescates
-      ? `<div class="rescate-filtro"><span>Rescates en <strong>${escapar(zonaRescates)}</strong></span>` +
-        `<button type="button" class="btn" data-rescates-todos>Ver todos</button></div>`
+  /** Contenido del panel Ayuda: filtro de zona activa + lista o vacío. */
+  function htmlPanelAyuda(vivos: PuntoAyuda[]): string {
+    const enZona = (p: PuntoAyuda) =>
+      !zonaAyuda || nombreCiudadNormalizado(p.ciudad ?? "") === nombreCiudadNormalizado(zonaAyuda);
+    const visibles = vivos
+      .filter((p) => puntoAyudaVisible(p) && enZona(p))
+      .sort((a, b) => b.ultima_actualizacion.localeCompare(a.ultima_actualizacion));
+    const filtro = zonaAyuda
+      ? `<div class="ayuda-filtro"><span>Ayuda en <strong>${escapar(zonaAyuda)}</strong></span>` +
+        `<button type="button" class="btn" data-ayuda-todos>Ver todos</button></div>`
       : "";
-    if (activos.length === 0) {
-      const historico = vivos.filter((p) => !puntoActivo(p)).length;
+    if (visibles.length === 0) {
+      const historico = vivos.filter((p) => !puntoAyudaVisible(p)).length;
       return (
         filtro +
-        `<p class="rescate-vacio">` +
-        `${zonaRescates ? `Sin puntos activos en ${escapar(zonaRescates)} ahora. ` : "Sin puntos activos ahora. "}` +
+        `<p class="ayuda-vacio">` +
+        `${zonaAyuda ? `Sin puntos de ayuda en ${escapar(zonaAyuda)} ahora. ` : "Sin puntos de ayuda ahora. "}` +
         `${historico > 0 ? ` Hay ${historico} en el histórico.` : ""} ` +
-        `<a href="/reportar">Reportar un punto</a></p>`
+        `<a href="/reportar">Reportar una necesidad u oferta</a></p>`
       );
     }
+    // Ítems agregados de los puntos que necesitan (modalidad necesita/ambos):
+    // suma de cantidades vía lib compartida (coherente con las tarjetas).
+    const cuentanItems = (p: PuntoAyuda) => p.modalidad === "necesita" || p.modalidad === "ambos";
+    const agregado = agregarItemsNecesarios(visibles);
+    const nNecesitan = visibles.filter(cuentanItems).length;
+    const agregadoHtml =
+      agregado.length > 0
+        ? `<span class="ayuda-agregado" id="ayuda-agregado">${nNecesitan} punto${nNecesitan === 1 ? "" : "s"} necesitan: ${agregado
+            .slice(0, 4)
+            .map((a) => `${escapar(etiquetaItemAyuda({ tipo: "catalogo", id: a.id }))} ×${escapar(etiquetaAgregado(a))}`)
+            .join(", ")}</span>`
+        : "";
     return (
       filtro +
-      `${agregado.length > 0 ? `<span class="rescate-agregado" id="rescate-agregado">${activos.length} punto${activos.length === 1 ? "" : "s"} necesitan: ${agregado.slice(0, 4).map((a) => `${escapar(etiquetaNecesidad(a.id))} ×${a.cuenta}`).join(", ")}</span>` : ""}` +
-      `<div id="rescate-lista">${activos.map(filaRescateHTML).join("")}</div>`
+      agregadoHtml +
+      `<div id="ayuda-lista">${visibles.map(filaAyudaHTML).join("")}</div>`
     );
   }
 
-  /** Aplica el registro en vivo al rail Rescates, chip, ciudades y select. */
-  function aplicarRegistro(vivos: PuntoVivo[], detalle: DatosFrescos = {}) {
+  /** Aplica los puntos de ayuda al rail, chip, ciudades y select. */
+  function aplicarAyuda(vivos: PuntoAyuda[], detalle: DatosFrescos = {}) {
     if (!Array.isArray(vivos)) return;
-    ultimoRegistro = vivos;
-    detalle.registro = vivos;
-    const panel = document.getElementById("rescate-panel");
-    if (panel) panel.innerHTML = htmlPanelRescates(vivos);
-    const conteoPanel = document.getElementById("rescate-conteo");
+    ultimoAyuda = vivos;
+    detalle.ayuda = vivos;
+    const panel = document.getElementById("ayuda-panel");
+    if (panel) panel.innerHTML = htmlPanelAyuda(vivos);
+    // El re-render destruyó el resaltado: re-aplicarlo si hay un punto activo.
+    if (ultimoPuntoActivo) resaltarPuntoAyuda(ultimoPuntoActivo);
+    const conteoPanel = document.getElementById("ayuda-conteo");
     if (conteoPanel) {
       const n = vivos.filter(
         (p) =>
-          puntoActivo(p) &&
-          (!zonaRescates || nombreCiudadNormalizado(p.ciudad ?? "") === nombreCiudadNormalizado(zonaRescates))
+          puntoAyudaVisible(p) &&
+          (!zonaAyuda || nombreCiudadNormalizado(p.ciudad ?? "") === nombreCiudadNormalizado(zonaAyuda))
       ).length;
       conteoPanel.textContent = String(n);
       conteoPanel.setAttribute("aria-label", `${n} puntos activos`);
     }
-    const conteo = document.querySelector<HTMLSpanElement>(".leyenda-tira input[value='rescates'] ~ .tira-label");
-    if (conteo) conteo.textContent = `Rescates (${vivos.filter((p) => puntoActivo(p)).length})`;
+    const conteo = document.querySelector<HTMLSpanElement>(".leyenda-tira input[value='ayuda'] ~ .tira-label");
+    if (conteo) conteo.textContent = `Ayuda (${vivos.filter((p) => puntoAyudaVisible(p)).length})`;
 
     // Ciudades reportadas: sección del panel Zonas + opciones del select.
     // Guard de huella: el mismo ciclo de refresco ya re-renderizó el panel
@@ -639,13 +856,13 @@ const enlaceMaps = (lat: number, lng: number) =>
     });
   }
 
-  /** Refresco del registro tras confirmar un punto (fetch propio + evento al mapa). */
-  async function refrescarRescates() {
-    if (!panelRescates) return;
+  /** Refresco de los puntos de ayuda tras crear/editar/flag/cerrar. */
+  async function refrescarAyuda() {
+    if (!panelAyuda) return;
     const detalle: DatosFrescos = {};
-    const vivos = await fetchCatalogo<PuntoVivo[]>("registro");
+    const vivos = await fetchPuntosAyuda();
     if (!Array.isArray(vivos)) return;
-    aplicarRegistro(vivos, detalle);
+    aplicarAyuda(vivos, detalle);
     window.dispatchEvent(new CustomEvent("enlace:mapa:datos-frescos", { detail: detalle }));
   }
 
@@ -697,16 +914,16 @@ const enlaceMaps = (lat: number, lng: number) =>
     }
   }
 
-  /** Ciclo completo: catálogos + zonas + evento + registro, una vez por poll. */
+  /** Ciclo completo: catálogos + zonas + evento + puntos de ayuda, una vez por poll. */
   async function refrescarDatos() {
-    const [acopiosD, alberguesD, centrosD, jornadasD, zonasD, eventoD, registroD] = await Promise.all([
+    const [acopiosD, alberguesD, centrosD, jornadasD, zonasD, eventoD, ayudaD] = await Promise.all([
       fetchCatalogo<{ acopios: Acopio[] }>("acopios"),
       fetchCatalogo<{ albergues: Albergue[] }>("albergues"),
       fetchCatalogo<{ centros: CentroSalud[] }>("centros-salud"),
       fetchCatalogo<{ jornadas: JornadaSangre[] }>("donacion-sangre"),
       fetchCatalogo<Zona[]>("zonas-afectadas"),
       fetchCatalogo<EventoBoletin>("evento"),
-      fetchCatalogo<PuntoVivo[]>("registro"),
+      fetchPuntosAyuda(),
     ]);
     const detalle: DatosFrescos = {};
     if (acopiosD?.acopios) {
@@ -737,34 +954,33 @@ const enlaceMaps = (lat: number, lng: number) =>
       detalle.evento = eventoD;
       actualizarBarraEvento(eventoD);
     }
-    if (registroD) {
-      ultimoRegistro = registroD;
+    if (ayudaD) {
+      ultimoAyuda = ayudaD;
     } else {
       // API caída: la copia estática desplegada mantiene el filtro de
-      // rescates por zona (misma fuente que el SSG del panel).
+      // ayuda por zona (misma fuente que el SSG del panel).
       try {
-        // cache: no-store — el registro lo commitea el worker y puede
-        // cambiar entre deploys; no servir una copia vieja del HTTP cache.
-        const res = await fetch("/datos/reportes-puntos.json", { cache: "no-store" });
+        // cache: no-store — el snapshot puede cambiar entre deploys.
+        const res = await fetch("/datos/reportes-ayuda.json", { cache: "no-store" });
         if (res.ok) {
-          const estatico = (await res.json()) as PuntoVivo[];
-          if (Array.isArray(estatico)) ultimoRegistro = estatico;
+          const estatico = (await res.json()) as PuntoAyuda[];
+          if (Array.isArray(estatico)) ultimoAyuda = estatico;
         }
       } catch {
         // Sin red: el panel queda como SSG (sin filtro aplicado).
       }
     }
     if (Object.keys(detalle).length === 0) {
-      // API caída: aplicar el registro estático para que el filtro por zona
-      // funcione igual (ultimoRegistro se llenó en el else de arriba).
-      if (ultimoRegistro && !registroD) aplicarRegistro(ultimoRegistro, {});
+      // API caída: aplicar el snapshot estático para que el filtro por zona
+      // funcione igual (ultimoAyuda se llenó en el else de arriba).
+      if (ultimoAyuda && !ayudaD) aplicarAyuda(ultimoAyuda, {});
       return; // API caída: queda el SSG
     }
     // eventoD también re-renderiza el panel Zonas: la fecha de las filas
     // (fila-linea) debe seguir a la barra de estado (la huella evita
     // re-renders inútiles).
-    if (zonasD || registroD || eventoD) reRenderZonas();
-    if (registroD) aplicarRegistro(registroD, detalle);
+    if (zonasD || ayudaD || eventoD) reRenderZonas();
+    if (ayudaD) aplicarAyuda(ayudaD, detalle);
     actualizarPuntosConteo();
     window.dispatchEvent(new CustomEvent("enlace:mapa:datos-frescos", { detail: detalle }));
   }
@@ -778,7 +994,9 @@ const enlaceMaps = (lat: number, lng: number) =>
     if (!document.hidden) void refrescarDatos();
   });
 
-  // Estado inicial con JS: solo Zonas visible
+  // Estado inicial con JS: solo Zonas visible; re-render del panel Ayuda con
+  // el token del navegador (botones Actualizar/Cerrar solo para puntos propios).
+  if (ultimoAyuda) aplicarAyuda(ultimoAyuda);
   if (tabZonas) activar(tabZonas);
 </script>
 </BaseLayout>

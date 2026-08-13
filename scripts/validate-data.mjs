@@ -127,6 +127,42 @@ for (const cat of CATALOGOS) {
   }
 }
 
+// Snapshot del registro de puntos de ayuda (proyección pública del API).
+// Es GENERADO por el deploy (fetch a GET /api/ayuda + commit): los datos
+// viven en D1 y no se editan por PR; el CI solo protege el formato.
+{
+  const snapPath = join(root, "web", "public", "datos", "reportes-ayuda.json");
+  let doc = null;
+  try {
+    doc = JSON.parse(readFileSync(snapPath, "utf8"));
+  } catch (e) {
+    fail(`reportes-ayuda.json (snapshot): JSON inválido — ${e.message}`);
+  }
+  if (doc !== null) {
+    if (!Array.isArray(doc)) {
+      fail("reportes-ayuda.json (snapshot): debe ser un arreglo de puntos");
+    } else {
+      const validateSnap = ajv.compile(
+        JSON.parse(readFileSync(join(schemaDir, "punto-ayuda.schema.json"), "utf8"))
+      );
+      const ids = new Set();
+      for (const [i, entry] of doc.entries()) {
+        totalEntries++;
+        const label = `#${i + 1} (${entry.id ?? "sin id"})`;
+        if (!validateSnap(entry)) {
+          for (const err of validateSnap.errors ?? []) {
+            fail(`reportes-ayuda.json (snapshot) ${label}: ${err.instancePath || "/"} ${err.message}`);
+          }
+        }
+        if (entry.id) {
+          if (ids.has(entry.id)) fail(`reportes-ayuda.json (snapshot) ${label}: id duplicado "${entry.id}"`);
+          ids.add(entry.id);
+        }
+      }
+    }
+  }
+}
+
 // Evento (información oficial del SGC) — valida que tenga fuente
 try {
   const evento = JSON.parse(readFileSync(join(dataDir, "evento.json"), "utf8"));

@@ -11,6 +11,7 @@
     "direccion": { "type": "string", "minLength": 5 },
     "lat": { "type": "number", "minimum": -90, "maximum": 90 },
     "lng": { "type": "number", "minimum": -180, "maximum": 180 },
+    "coordenadas_nivel": { "type": "string", "enum": ["premisa", "via", "barrio"], "description": "premisa = edificio/POI exacto · via = calle · barrio = centroide." },
     "capacidad": { "type": "integer", "minimum": 1 },
     "ocupacion": { "type": "integer", "minimum": 0 },
     "admite_mascotas": { "type": "boolean" },

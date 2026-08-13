@@ -54,11 +54,11 @@
   /* ---- Color · ubicación del usuario ---- */
   --color-geo: oklch(58% 0.15 245);
 
-  /* ---- Color · puntos de rescate (reportes ciudadanos en vivo) ----
+  /* ---- Color · puntos de ayuda (registro en vivo) ----
      Violeta (290): fuera de la rama Mercalli (105–27) y del resto de
      semánticos (error 25 · sangre 350 · ok 150 · geo 245 · accent 256).
      L50 → contraste ~6:1 sobre paper (badges legibles). */
-  --color-rescate: oklch(50% 0.18 290);
+  --color-ayuda: oklch(50% 0.18 290);
 
   /* ---- Color · estados de verificación y operativos ----
      Saturación del fondo ligeramente alta (review de diseño): los badges

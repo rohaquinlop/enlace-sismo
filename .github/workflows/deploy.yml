@@ -11,6 +11,10 @@ jobs:
   deploy:
     name: Publicar a Cloudflare
     runs-on: ubuntu-latest
+    # El paso de snapshot commitea reportes-ayuda.json: el GITHUB_TOKEN del
+    # workflow necesita escritura de contents (si el repo limita el default).
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
         with:
@@ -67,6 +71,14 @@ jobs:
         if: steps.filtro.outputs.desplegar == 'true'
         run: npm run validate:data
 
+      - name: Aplicar migraciones D1
+        if: steps.filtro.outputs.desplegar == 'true'
+        working-directory: worker
+        run: npx wrangler d1 migrations apply enlace-sismo --remote
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
       - name: Publicar worker (API)
         if: steps.filtro.outputs.desplegar == 'true'
         working-directory: worker
@@ -84,3 +96,19 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      # Snapshot del registro de puntos de ayuda (puntos-de-ayuda): D1 es la
+      # fuente de verdad; el snapshot alimenta el baseline SSG/offline de la
+      # web (reportes-ayuda.json, validado en CI). Se valida con validate:data
+      # antes de commitear (la proyección no debe romper el schema). Es
+      # web/public/datos/** → no vuelve a disparar el deploy (filtro selectivo).
+      - name: Snapshot del registro de ayuda (SSG)
+        if: steps.filtro.outputs.desplegar == 'true'
+        run: |
+          curl -fsSL --retry 3 "https://api.enlacesismo.com/api/ayuda" -o web/public/datos/reportes-ayuda.json
+          npm run validate:data
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add web/public/datos/reportes-ayuda.json
+          git diff --cached --quiet || git commit -m "datos: snapshot del registro de ayuda (post-deploy)"
+          git push

@@ -13,6 +13,7 @@
     "direccion": { "type": "string", "minLength": 5 },
     "lat": { "type": "number", "minimum": -90, "maximum": 90 },
     "lng": { "type": "number", "minimum": -180, "maximum": 180 },
+    "coordenadas_nivel": { "type": "string", "enum": ["premisa", "via", "barrio"], "description": "premisa = edificio/POI exacto · via = calle · barrio = centroide." },
     "fecha_inicio": { "type": "string", "format": "date", "description": "Primer día de la jornada (YYYY-MM-DD). OBLIGATORIO." },
     "fecha_fin": { "type": "string", "format": "date", "description": "Último día de la jornada; se omite si la jornada sigue en curso." },
     "horario": { "type": "string", "description": "Horario diario en texto, ej. '9:00 - 17:00'." },

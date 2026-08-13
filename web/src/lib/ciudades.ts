@@ -1,12 +1,12 @@
-// Ciudades derivadas de los reportes ciudadanos en vivo.
-// La ciudad es un atributo del reporte (nunca un dato sísmico): el catálogo
+// Ciudades derivadas de los puntos de ayuda en vivo (registro D1).
+// La ciudad es un atributo del punto (nunca un dato sísmico): el catálogo
 // SGC no se toca; las ciudades reportadas se deduplican por nombre normalizado.
-import type { PuntoVivo } from "./puntos-rescate";
-import { puntoActivo } from "./puntos-rescate";
+import type { PuntoAyuda } from "./puntos-ayuda";
+import { puntoAyudaVisible } from "./puntos-ayuda";
 
 export interface CiudadReportada {
   nombre: string;
-  puntos: PuntoVivo[];
+  puntos: PuntoAyuda[];
   /** Centroide (media de lat/lng de sus puntos) — destino del vuelo del mapa. */
   lat: number;
   lng: number;
@@ -20,11 +20,11 @@ export const nombreCiudadNormalizado = (s: string): string =>
     .toLowerCase()
     .trim();
 
-/** Agrupa los puntos activos por ciudad (solo los que tienen `ciudad`). */
-export function agruparCiudades(vivos: PuntoVivo[], ahora = Date.now()): CiudadReportada[] {
-  const grupos = new Map<string, PuntoVivo[]>();
+/** Agrupa los puntos visibles por ciudad (solo los que tienen `ciudad`). */
+export function agruparCiudades(vivos: PuntoAyuda[]): CiudadReportada[] {
+  const grupos = new Map<string, PuntoAyuda[]>();
   for (const p of vivos) {
-    if (!p.ciudad || !puntoActivo(p, ahora)) continue;
+    if (!p.ciudad || !puntoAyudaVisible(p)) continue;
     const lista = grupos.get(p.ciudad) ?? [];
     lista.push(p);
     grupos.set(p.ciudad, lista);

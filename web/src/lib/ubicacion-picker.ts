@@ -3,7 +3,7 @@
 // y por las páginas que lo integran (/reportar y formularios de sugerencia).
 
 import { haversineKm } from "./geo";
-import type { PrecisionPin } from "./necesidades";
+import type { PrecisionPin } from "./items-ayuda";
 
 /** Entrada contra la que deduplicar (catálogo verificado del tipo elegido). */
 export interface DedupeItem {
@@ -24,6 +24,14 @@ export interface UbicacionFijada {
   coordenadas_nivel: PrecisionPin;
 }
 
+/** Detalle del evento `enlace:ubicacion:fijar` (pin programático). */
+export interface FijarPinEvento {
+  lat: number;
+  lng: number;
+  /** Precisión del pin existente (p. ej. al editar un punto). */
+  precision?: PrecisionPin;
+}
+
 /** Detalle del evento `enlace:ubicacion:dedupe`. */
 export interface DedupeEvento {
   candidato: DedupeItem | null;
@@ -31,6 +39,8 @@ export interface DedupeEvento {
 
 /** El pin se fijó (GPS, clic, arrastre, búsqueda o coordenadas manuales). */
 export const EVENTO_FIJADA = "enlace:ubicacion:fijada";
+/** La página pide al picker fijar un pin programáticamente (p. ej. modo edición). */
+export const EVENTO_FIJAR = "enlace:ubicacion:fijar";
 /** Hay (o dejó de haber) un candidato de dedupe a ≤150 m. */
 export const EVENTO_DEDUPE = "enlace:ubicacion:dedupe";
 /** La página pide al picker reiniciarse (p. ej. tras un envío exitoso). */

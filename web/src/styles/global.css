@@ -688,7 +688,7 @@ h2 {
   display: none;
 }
 
-/* Rail derecho con pestañas (Zonas · Rescates) */
+/* Rail derecho con pestañas (Zonas · Ayuda) */
 .rail {
   display: flex;
   flex-direction: column;
@@ -758,7 +758,7 @@ h2 {
 .punto-albergue { background: var(--color-ok); }
 .punto-salud { background: var(--color-error); }
 .punto-sangre { background: var(--color-sangre); }
-.punto-rescate { background: var(--color-rescate); }
+.punto-ayuda { background: var(--color-ayuda); }
 .punto-zona { background: var(--color-neutral); }
 .punto-epicentro { background: var(--color-error); }
 
@@ -808,7 +808,7 @@ h2 {
 }
 
 /* Filas de zona interactivas (lista ↔ mapa). Mismo sistema de cards que los
-   puntos de rescate (review de diseño): borde, radio 8 px, padding 12–16 px. */
+   puntos de ayuda (review de diseño): borde, radio 8 px, padding 12–16 px. */
 .dash-row.zona-fila {
   width: 100%;
   text-align: left;
@@ -1214,7 +1214,7 @@ body:has(.dash.con-mapa) .nav-secciones {
 }
 
 /* Índice de secciones (panel y sheet). Sin caja propia: las cards anidadas
-   (zonas, rescates) aportan la única capa de superficie (audit Hallmark:
+   (zonas, ayuda) aportan la única capa de superficie (audit Hallmark:
    sin card-in-card). Mismo tratamiento en flujo y en modo mapa. */
 .dash-index {
   background: none;
@@ -1223,9 +1223,9 @@ body:has(.dash.con-mapa) .nav-secciones {
   padding: 0 var(--space-sm);
 }
 
-/* CTA "Reportar un punto": barra de acción al inicio del panel Rescates
+/* CTA "Reportar una necesidad u oferta": barra de acción al inicio del panel Ayuda
    (acceso rápido; sticky dentro del rail al scrollear). Card del sistema,
-   misma superficie que las filas de rescate. */
+   misma superficie que las filas de ayuda. */
 .dash-index .dash-row.dash-cta {
   position: sticky;
   top: var(--space-2xs);
@@ -2337,19 +2337,19 @@ body:has(.dash.con-mapa) .nav-secciones {
   border-color: var(--color-sangre);
 }
 
-.popup-badge-rescate {
-  color: var(--color-rescate);
-  border-color: var(--color-rescate);
+.popup-badge-ayuda {
+  color: var(--color-ayuda);
+  border-color: var(--color-ayuda);
 }
 
-/* Puntos de rescate: chips de necesidades y acciones */
-.popup-rescate-ns {
+/* Puntos de ayuda: chips de ítems y acciones */
+.popup-ayuda-ns {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2xs);
   margin-top: var(--space-2xs);
 }
-.popup-rescate-ns span {
+.popup-ayuda-ns span {
   font-family: var(--font-body);
   font-size: var(--text-xs);
   border: var(--rule-hair) solid var(--color-rule-2);
@@ -2358,7 +2358,7 @@ body:has(.dash.con-mapa) .nav-secciones {
   color: var(--color-muted);
 }
 
-.rescate-agregado {
+.ayuda-agregado {
   display: block;
   font-family: var(--font-body);
   font-size: var(--text-xs);
@@ -2366,7 +2366,7 @@ body:has(.dash.con-mapa) .nav-secciones {
   letter-spacing: 0.02em;
   margin-top: var(--space-2xs);
 }
-.rescate-acciones {
+.ayuda-acciones {
   display: flex;
   flex-direction: column;
   gap: var(--space-xs);
@@ -2374,16 +2374,16 @@ body:has(.dash.con-mapa) .nav-secciones {
 }
 
 /* Acciones a ancho completo, mismo ancho entre sí (review de diseño) */
-.rescate-acciones .btn {
+.ayuda-acciones .btn {
   width: 100%;
 }
 
-.rescate-vacio {
+.ayuda-vacio {
   color: var(--color-muted);
   font-size: var(--text-sm);
 }
-/* Filtro por zona activa del panel Rescates (clic en una zona → sus rescates) */
-.rescate-filtro {
+/* Filtro por zona activa del panel Ayuda (clic en una zona → sus puntos) */
+.ayuda-filtro {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -2392,16 +2392,22 @@ body:has(.dash.con-mapa) .nav-secciones {
   font-size: var(--text-sm);
   color: var(--color-ink);
 }
-.rescate-fila[data-volar-rescate] {
+.ayuda-fila[data-volar-ayuda] {
   cursor: pointer;
 }
-.rescate-fila[data-volar-rescate]:hover {
+.ayuda-fila[data-volar-ayuda]:hover {
   border-color: var(--color-rule-2);
   background: var(--color-paper-2);
 }
-/* Puntos de rescate como cards (review de diseño): borde del sistema, radio
+/* Tarjeta seleccionada desde el mapa (clic en un punto → panel Ayuda) */
+.ayuda-fila.activa {
+  border-color: var(--color-accent);
+  background: var(--color-paper-2);
+  box-shadow: inset 0 0 0 1px var(--color-accent);
+}
+/* Puntos de ayuda como cards (review de diseño): borde del sistema, radio
    8 px, padding 12–16 px, jerarquía con nombre en negrilla. */
-.rescate-fila {
+.ayuda-fila {
   display: flex;
   flex-direction: column;
   gap: var(--space-2xs);
@@ -2411,23 +2417,23 @@ body:has(.dash.con-mapa) .nav-secciones {
   background: var(--color-paper);
   margin-bottom: var(--space-xs);
 }
-.rescate-fila:last-child {
+.ayuda-fila:last-child {
   margin-bottom: 0;
 }
-.rescate-fila .dash-row-top {
+.ayuda-fila .dash-row-top {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: var(--space-sm);
 }
-.rescate-fila .dash-row-nombre {
+.ayuda-fila .dash-row-nombre {
   font-weight: 600;
   font-size: var(--text-sm);
   letter-spacing: -0.01em;
   overflow-wrap: break-word;
   min-width: 0;
 }
-.rescate-fila .dash-row-meta {
+.ayuda-fila .dash-row-meta {
   font-family: var(--font-body);
   font-size: var(--text-xs);
   letter-spacing: 0.01em;
@@ -2438,13 +2444,216 @@ body:has(.dash.con-mapa) .nav-secciones {
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.rescate-badges {
+.ayuda-badges {
   display: inline-flex;
   gap: var(--space-2xs);
 }
-.rescate-descripcion {
+.ayuda-descripcion {
   font-size: var(--text-sm);
   margin: var(--space-2xs) 0 0;
+}
+
+/* Puntos de ayuda: estado operativo, destino de transporte y cobertura */
+.ayuda-estado {
+  font-size: var(--text-xs);
+  letter-spacing: 0.01em;
+  color: var(--color-muted);
+}
+
+/* Opciones de modalidad (radio/checkbox como chips del sistema) */
+.modalidad-opcion {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2xs);
+  min-height: 44px;
+  padding: var(--space-xs) var(--space-sm);
+  border: var(--rule-hair) solid var(--color-rule);
+  border-radius: var(--radius-badge);
+  background: var(--color-paper);
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+.modalidad-opcion input {
+  width: 1rem;
+  height: 1rem;
+  min-height: 0;
+  padding: 0;
+  border: none;
+  accent-color: var(--color-accent);
+}
+
+/* Fila del agregador de ítem personalizado (nombre + cantidad + unidad + botón) */
+.items-personalizados-fila {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2xs);
+  align-items: center;
+}
+.items-personalizados-fila input {
+  flex: 1 1 8rem;
+  min-width: 0;
+}
+
+/* Botón para quitar un ítem personalizado del chip */
+.chip-quitar {
+  border: none;
+  background: none;
+  color: var(--color-muted);
+  cursor: pointer;
+  padding: var(--space-2xs);
+  border-radius: var(--radius-xs);
+  font-size: var(--text-sm);
+  line-height: 1;
+}
+.chip-quitar:hover {
+  color: var(--color-error);
+}
+.ayuda-destino {
+  font-size: var(--text-xs);
+  color: var(--color-ink-2);
+  margin: var(--space-2xs) 0 0;
+}
+.ayuda-cobertura {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--color-ok);
+  margin: var(--space-2xs) 0 0;
+}
+.ayuda-cobertura.sin-cobertura {
+  font-weight: 400;
+  color: var(--color-muted);
+}
+
+/* Diálogo de acción del panel (Reportar punto falso / Cerrar punto) */
+.dialogo-accion {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  display: grid;
+  place-items: center;
+  background: var(--color-modal-overlay);
+}
+.dialogo-accion[hidden] {
+  display: none;
+}
+.dialogo-accion-caja {
+  width: min(26rem, calc(100vw - 2rem));
+  background: var(--color-paper);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-modal);
+  padding: var(--space-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+.dialogo-accion-caja h3 {
+  font-size: var(--text-md);
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+.dialogo-accion-caja p {
+  font-size: var(--text-sm);
+  color: var(--color-ink-2);
+  margin: 0;
+}
+.dialogo-accion-caja textarea {
+  width: 100%;
+  min-height: 5rem;
+  font: inherit;
+  padding: var(--space-xs) var(--space-sm);
+  border: var(--rule-hair) solid var(--color-rule-2);
+  border-radius: var(--radius-sm);
+  background: var(--color-paper);
+  color: var(--color-ink);
+  resize: vertical;
+}
+.dialogo-accion-caja textarea[aria-invalid="true"] {
+  border-color: var(--color-error);
+}
+.dialogo-accion-acciones {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-xs);
+}
+.dialogo-accion-msg {
+  font-size: var(--text-sm);
+  color: var(--color-error);
+  min-height: 1.2em;
+}
+
+/* ============================================================
+   Quick-add de ayuda desde el mapa (popup → mini-formulario modal)
+   Mismo patrón que .dialogo-accion: overlay fijo, caja centrada,
+   cierre por Escape/overlay. Reusa .form-group, .necesidad-chip,
+   .modalidad-opcion y .btn del sistema (definidos arriba).
+   ============================================================ */
+.quick-add {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  display: grid;
+  place-items: center;
+  background: var(--color-modal-overlay);
+  padding: var(--space-md);
+}
+.quick-add[hidden] {
+  display: none;
+}
+.quick-add-caja {
+  width: min(30rem, 100%);
+  max-height: min(90dvh, 42rem);
+  overflow: auto;
+  background: var(--color-paper);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-modal);
+  padding: var(--space-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+.quick-add-caja h3 {
+  font-size: var(--text-md);
+  letter-spacing: -0.02em; /* mismo tracking que los demás títulos (display) */
+  margin: 0;
+}
+.quick-add-contexto {
+  font-size: var(--text-sm);
+  color: var(--color-ink-2);
+  margin: 0;
+}
+.quick-add-caja fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+.quick-add-caja fieldset legend {
+  display: block;
+  font-weight: 500;
+  font-size: var(--text-sm);
+  margin-bottom: var(--space-2xs); /* mismo estilo que .form-group.necesidades legend */
+}
+.quick-add-caja .helper {
+  font-size: var(--text-xs);
+}
+.quick-add-msg {
+  font-size: var(--text-sm);
+  color: var(--color-error);
+  min-height: 1.2em;
+  margin: 0;
+}
+.quick-add-acciones {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-xs);
+  margin-top: var(--space-2xs);
+}
+
+/* Botón de acción dentro de los popups del mapa (quick-add) */
+.popup-accion {
+  width: 100%;
+  margin-top: var(--space-sm);
+  text-align: center;
 }
 
 /* ============================================================

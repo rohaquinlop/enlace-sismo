@@ -1,0 +1,371 @@
+---
+import { ITEMS_AYUDA, MODALIDADES } from "../lib/items-ayuda";
+---
+
+<!-- Mini-formulario de ayuda desde el mapa (quick-add): el popup de un punto
+     (catálogo o registro en vivo) abre este modal sin salir del mapa. La
+     ubicación, el tipo de lugar, el nombre y la ciudad se prefijan desde el
+     punto clicado; el usuario solo elige modalidad, ítems y (opcionalmente)
+     destino, contacto y nota. Publica vía POST /api/ayuda y deja la
+     moderación/edición en manos del registro existente. -->
+<div class="quick-add" id="quick-add-ayuda" hidden>
+  <div class="quick-add-caja" role="dialog" aria-modal="true" aria-labelledby="quick-add-titulo" aria-describedby="quick-add-contexto">
+    <h3 id="quick-add-titulo">Declarar necesidad u oferta</h3>
+    <p class="quick-add-contexto" id="quick-add-contexto"></p>
+
+    <fieldset class="form-group quick-add-modalidad">
+      <legend>¿Qué hace este lugar? *</legend>
+      {MODALIDADES.map((m) => (
+        <label class="modalidad-opcion">
+          <input type="radio" name="qa-modalidad" value={m.id} />
+          <span>{m.label}</span>
+        </label>
+      ))}
+    </fieldset>
+
+    <fieldset class="form-group necesidades quick-add-items">
+      <legend>Ítems</legend>
+      <div class="necesidades-grid">
+        {ITEMS_AYUDA.map((n) => (
+          <label class="necesidad-chip">
+            <input type="checkbox" value={n.id} />
+            <span>{n.label}</span>
+          </label>
+        ))}
+      </div>
+      <span class="helper">Alimento solo no perecedero (transporte de larga distancia).</span>
+      <div class="items-personalizados-fila">
+        <input type="text" id="qa-item-nombre" maxlength="80" placeholder="Ítem específico (p. ej. insulina)" aria-label="Nombre del ítem específico" />
+        <input type="number" id="qa-item-cantidad" min="0" max="999999" placeholder="Cantidad" aria-label="Cantidad" />
+        <input type="text" id="qa-item-unidad" maxlength="20" placeholder="Unidad (opcional)" aria-label="Unidad" />
+        <button type="button" class="btn" id="qa-agregar-item">Agregar</button>
+      </div>
+      <span class="helper" id="qa-helper-item"></span>
+      <div class="necesidades-grid" id="qa-items-personalizados" hidden></div>
+    </fieldset>
+
+    <div class="form-group" id="qa-grupo-destino" hidden>
+      <label for="qa-destino">¿A dónde la llevas?</label>
+      <input type="text" id="qa-destino" maxlength="400" placeholder="Ciudades separadas por coma (p. ej. Cali, Armenia)" />
+      <span class="helper">Opcional. Si recolectas para otras zonas, indica las ciudades destino.</span>
+    </div>
+
+    <div class="form-group">
+      <label for="qa-contacto">Contacto (opcional)</label>
+      <input type="text" id="qa-contacto" maxlength="200" placeholder="Teléfono o WhatsApp para coordinar la llegada" />
+      <span class="helper">Se publica tal cual: úsalo con criterio.</span>
+    </div>
+
+    <div class="form-group">
+      <label for="qa-nota">Nota (opcional)</label>
+      <textarea id="qa-nota" rows="2" maxlength="300" placeholder="Horarios, condiciones de acceso, cuánta gente atiende…"></textarea>
+    </div>
+
+    <p class="quick-add-msg" id="qa-msg" aria-live="polite"></p>
+    <div class="quick-add-acciones">
+      <button type="button" class="btn" id="qa-cancelar">Cancelar</button>
+      <button type="button" class="btn btn-primary" id="qa-publicar">Publicar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  import { apiUrl } from "../lib/api";
+  import { etiquetaItemAyuda, etiquetaTipo, etiquetaPrecision, validarItemPersonalizado, type ItemAyuda } from "../lib/items-ayuda";
+
+  // Tokens de edición: misma clave que /reportar (los botones Actualizar/Cerrar
+  // del panel Ayuda leen esta clave para mostrar las acciones del autor).
+  const CLAVE_TOKENS = "enlace-ayuda:tokens";
+
+  function leerTokens(): Record<string, string> {
+    try {
+      return JSON.parse(localStorage.getItem(CLAVE_TOKENS) ?? "{}") as Record<string, string>;
+    } catch {
+      return {};
+    }
+  }
+  function guardarToken(id: string, token: string) {
+    try {
+      const t = leerTokens();
+      t[id] = token;
+      localStorage.setItem(CLAVE_TOKENS, JSON.stringify(t));
+    } catch {
+      // Sin localStorage (modo privado): la edición queda respaldada por IP.
+    }
+  }
+
+  // Descripción genérica cuando el usuario no escribe nota: adaptada a la
+  // modalidad y honesta sobre el origen (reporte rápido desde el mapa, sin
+  // detalle que no existe). El contrato del API exige ≥ 3 caracteres.
+  const DESCRIPCION_GENERICA: Record<string, string> = {
+    necesita: "Necesidad declarada desde el mapa.",
+    recolecta: "Oferta declarada desde el mapa.",
+    ambos: "Necesidad y oferta declaradas desde el mapa.",
+  };
+
+  const el = document.getElementById("quick-add-ayuda") as HTMLDivElement | null;
+  const caja = el?.querySelector<HTMLDivElement>(".quick-add-caja");
+  const contexto = document.getElementById("quick-add-contexto") as HTMLParagraphElement | null;
+  const msg = document.getElementById("qa-msg") as HTMLParagraphElement | null;
+  const btnPublicar = document.getElementById("qa-publicar") as HTMLButtonElement | null;
+  const btnCancelar = document.getElementById("qa-cancelar") as HTMLButtonElement | null;
+  const grupoDestino = document.getElementById("qa-grupo-destino") as HTMLDivElement | null;
+  const inputDestino = document.getElementById("qa-destino") as HTMLInputElement | null;
+  const inputContacto = document.getElementById("qa-contacto") as HTMLInputElement | null;
+  const inputNota = document.getElementById("qa-nota") as HTMLTextAreaElement | null;
+  const inputItemNombre = document.getElementById("qa-item-nombre") as HTMLInputElement | null;
+  const inputItemCantidad = document.getElementById("qa-item-cantidad") as HTMLInputElement | null;
+  const inputItemUnidad = document.getElementById("qa-item-unidad") as HTMLInputElement | null;
+  const helperItem = document.getElementById("qa-helper-item") as HTMLSpanElement | null;
+  const contenedorItems = document.getElementById("qa-items-personalizados") as HTMLDivElement | null;
+
+  type ContextoQuickAdd = {
+    lat: number;
+    lng: number;
+    tipo: string;
+    ciudad: string;
+    nombre: string;
+    coordenadas_nivel: string;
+  };
+  let quickAdd: ContextoQuickAdd | null = null;
+  let itemsPersonalizados: ItemAyuda[] = [];
+  // Un POST en vuelo no se cancela: Escape/overlay/Cancelar no cierran
+  // mientras enviando sea true (el punto se publicaría igual y el mapa
+  // volaría — el usuario creería haber cancelado).
+  let enviando = false;
+  // Foco: se restaura al botón del popup que abrió el modal al cerrar (a11y).
+  let ultimoFoco: HTMLElement | null = null;
+
+  const escapar = (s: string) =>
+    s.replace(/[&<>"']/g, (c) =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!
+    );
+
+  function modalidadActual(): string {
+    return document.querySelector<HTMLInputElement>("input[name='qa-modalidad']:checked")?.value ?? "necesita";
+  }
+
+  function alternarDestino() {
+    if (!grupoDestino) return;
+    const m = modalidadActual();
+    grupoDestino.hidden = m !== "recolecta" && m !== "ambos";
+  }
+
+  document.querySelectorAll<HTMLInputElement>("input[name='qa-modalidad']").forEach((radio) => {
+    radio.addEventListener("change", alternarDestino);
+  });
+
+  function renderItemsPersonalizados() {
+    if (!contenedorItems) return;
+    contenedorItems.hidden = itemsPersonalizados.length === 0;
+    contenedorItems.innerHTML = itemsPersonalizados
+      .map(
+        (i, idx) =>
+          `<span class="necesidad-chip"><span>${escapar(etiquetaItemAyuda(i))}</span>` +
+          `<button type="button" class="chip-quitar" data-quitar-item="${idx}" aria-label="Quitar ${escapar(etiquetaItemAyuda(i))}">×</button></span>`
+      )
+      .join("");
+  }
+
+  document.getElementById("qa-agregar-item")?.addEventListener("click", () => {
+    if (!inputItemNombre || !helperItem) return;
+    const validado = validarItemPersonalizado(
+      inputItemNombre.value,
+      inputItemCantidad?.value ?? "",
+      inputItemUnidad?.value ?? ""
+    );
+    if (!validado.ok) {
+      helperItem.textContent = validado.error;
+      return;
+    }
+    const { item } = validado;
+    if (itemsPersonalizados.some((i) => (i.nombre ?? "").toLowerCase() === (item.nombre ?? "").toLowerCase())) {
+      helperItem.textContent = "Ese ítem ya está en la lista.";
+      return;
+    }
+    itemsPersonalizados.push(item);
+    inputItemNombre.value = "";
+    if (inputItemCantidad) inputItemCantidad.value = "";
+    if (inputItemUnidad) inputItemUnidad.value = "";
+    helperItem.textContent = "";
+    renderItemsPersonalizados();
+  });
+
+  contenedorItems?.addEventListener("click", (e) => {
+    const btn = (e.target as HTMLElement).closest<HTMLButtonElement>("[data-quitar-item]");
+    if (!btn?.dataset.quitarItem) return;
+    const idx = Number(btn.dataset.quitarItem);
+    itemsPersonalizados.splice(idx, 1);
+    renderItemsPersonalizados();
+  });
+
+  function limpiar() {
+    document.querySelectorAll<HTMLInputElement>("input[name='qa-modalidad']").forEach((r, i) => {
+      r.checked = i === 0; // default: necesita
+    });
+    document.querySelectorAll<HTMLInputElement>(".quick-add input[type='checkbox']").forEach((c) => {
+      c.checked = false;
+    });
+    itemsPersonalizados = [];
+    renderItemsPersonalizados();
+    if (inputItemNombre) inputItemNombre.value = "";
+    if (inputItemCantidad) inputItemCantidad.value = "";
+    if (inputItemUnidad) inputItemUnidad.value = "";
+    if (inputDestino) inputDestino.value = "";
+    if (inputContacto) inputContacto.value = "";
+    if (inputNota) inputNota.value = "";
+    if (msg) msg.textContent = "";
+    alternarDestino();
+  }
+
+  function abrir() {
+    if (!el || !caja || !contexto || !quickAdd) return;
+    limpiar();
+    ultimoFoco = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    // Contexto del punto clicado: nombre + tipo + ciudad + precisión del pin.
+    contexto.textContent =
+      `Declarar necesidad u oferta para ${quickAdd.nombre || etiquetaTipo(quickAdd.tipo)}` +
+      `${quickAdd.ciudad ? ` · ${quickAdd.ciudad}` : ""}` +
+      `${etiquetaPrecision(quickAdd.coordenadas_nivel) ? ` · ${etiquetaPrecision(quickAdd.coordenadas_nivel)}` : ""}`;
+    el.hidden = false;
+    requestAnimationFrame(() => {
+      const primerRadio = caja.querySelector<HTMLInputElement>("input[name='qa-modalidad']");
+      primerRadio?.focus();
+    });
+  }
+
+  function cerrar() {
+    // Un POST en vuelo no se cancela: el punto se publicaría igual.
+    if (enviando) return;
+    if (!el) return;
+    quickAdd = null;
+    el.hidden = true;
+    // El botón del popup que abrió el modal puede haber desaparecido (el
+    // popup se re-renderiza): solo restaurar el foco si sigue en el DOM.
+    if (ultimoFoco && document.contains(ultimoFoco)) ultimoFoco.focus();
+    ultimoFoco = null;
+  }
+
+  btnCancelar?.addEventListener("click", cerrar);
+  el?.addEventListener("click", (e) => {
+    if (e.target === el) cerrar(); // clic en el overlay
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && el && !el.hidden) cerrar();
+  });
+
+  // Trampa de foco: un diálogo aria-modal debe contener el Tab (ARIA APG);
+  // sin esto, Tab sale al nav/rail/mapa de atrás (el modal tiene 30+ tab
+  // stops — 21 chips de ítems — así que la fuga es probable).
+  document.addEventListener("keydown", (e) => {
+    if (e.key !== "Tab" || !el || el.hidden || !caja) return;
+    const focusables = Array.from(
+      caja.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      )
+    );
+    if (focusables.length === 0) return;
+    const primero = focusables[0];
+    const ultimo = focusables[focusables.length - 1];
+    if (e.shiftKey && document.activeElement === primero) {
+      e.preventDefault();
+      ultimo.focus();
+    } else if (!e.shiftKey && document.activeElement === ultimo) {
+      e.preventDefault();
+      primero.focus();
+    }
+  });
+
+  // Apertura desde el mapa: el popup de un punto (catálogo o en vivo) despacha
+  // enlace:mapa:quick-add-ayuda con la ubicación/tipo/nombre prefijados.
+  window.addEventListener(
+    "enlace:mapa:quick-add-ayuda",
+    ((e: CustomEvent<ContextoQuickAdd>) => {
+      const d = e.detail;
+      if (!d || typeof d !== "object") return;
+      quickAdd = {
+        lat: Number(d.lat),
+        lng: Number(d.lng),
+        tipo: d.tipo ?? "otro",
+        ciudad: d.ciudad ?? "",
+        nombre: (d.nombre ?? "").slice(0, 120),
+        coordenadas_nivel: d.coordenadas_nivel ?? "premisa",
+      };
+      abrir();
+    }) as EventListener
+  );
+
+  function itemsDelModal(): ItemAyuda[] {
+    const items = Array.from(
+      document.querySelectorAll<HTMLInputElement>(".quick-add .necesidades-grid input[type='checkbox']:checked")
+    ).map((c) => ({ tipo: "catalogo" as const, id: c.value }));
+    return [...items, ...itemsPersonalizados];
+  }
+
+  btnPublicar?.addEventListener("click", async () => {
+    if (!quickAdd || !btnPublicar || !msg) return;
+    const modalidad = modalidadActual();
+    // Descripción: nota del usuario o genérica adaptada a la modalidad.
+    const nota = inputNota?.value.trim() ?? "";
+    const descripcion = nota || (DESCRIPCION_GENERICA[modalidad] ?? "Punto declarado desde el mapa.");
+    // Destino: solo si la modalidad recolecta/ambos y hay ciudades escritas.
+    const ciudades = (inputDestino?.value ?? "")
+      .split(",")
+      .map((s) => s.trim())
+      .filter((s) => s.length >= 2)
+      .slice(0, 10);
+    const destino =
+      (modalidad === "recolecta" || modalidad === "ambos") && ciudades.length > 0
+        ? { transporta: true, ciudades }
+        : undefined;
+
+    const body = {
+      tipo: quickAdd.tipo,
+      modalidad,
+      nombre: quickAdd.nombre || undefined,
+      lat: quickAdd.lat,
+      lng: quickAdd.lng,
+      coordenadas_nivel: quickAdd.coordenadas_nivel,
+      items: itemsDelModal(),
+      descripcion,
+      destino,
+      contacto: inputContacto?.value.trim() || undefined,
+      website: "", // honeypot
+    };
+
+    msg.textContent = "";
+    enviando = true;
+    btnPublicar.disabled = true;
+    btnPublicar.setAttribute("aria-busy", "true");
+    try {
+      const res = await fetch(apiUrl("/api/ayuda"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = (await res.json().catch(() => null)) as { ok?: boolean; id?: string; token_edicion?: string; error?: string } | null;
+      if (res.ok && data?.ok) {
+        if (data.id && data.token_edicion) guardarToken(data.id, data.token_edicion);
+        enviando = false;
+        cerrar();
+        window.dispatchEvent(new CustomEvent("enlace:ayuda:publicado", { detail: { id: data.id } }));
+      } else {
+        msg.textContent = data?.error ?? "No se pudo publicar. Intenta nuevamente.";
+      }
+    } catch (err) {
+      console.error("enlace-sismo: error al publicar punto desde el mapa", err);
+      const esRed = err instanceof TypeError;
+      const esLocal = location.hostname === "localhost" || location.hostname === "127.0.0.1";
+      msg.textContent =
+        esRed && esLocal
+          ? `No hay conexión con el servidor de reportes (${apiUrl("/api/ayuda")}). En desarrollo, corre también “npm run dev:api” en otra terminal.`
+          : esRed
+            ? "No hay conexión con el servidor de reportes. Intenta nuevamente en unos minutos."
+            : "Ocurrió un error inesperado al publicar el punto. Intenta nuevamente.";
+    } finally {
+      enviando = false;
+      btnPublicar.disabled = false;
+      btnPublicar.removeAttribute("aria-busy");
+    }
+  });
+</script>
