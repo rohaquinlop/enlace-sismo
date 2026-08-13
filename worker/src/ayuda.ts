@@ -20,6 +20,9 @@ const ITEMS = [
   "elementos-aseo", "cobijas", "colchonetas", "camas", "ropa", "calzado",
   "panales", "kits-cocina", "carpas", "herramientas", "linternas", "baterias",
   "generador", "combustible", "maquinaria", "voluntarios", "transporte",
+  // Vocabulario del seed de catálogos (acopios): los acopios oficiales
+  // declaran estas necesidades; la comunidad debe poder reportarlas igual.
+  "alimentos-bebe", "mascotas",
 ];
 const MAX_ITEMS = 20;
 const MAX_DESCRIPCION = 1000;
@@ -61,6 +64,19 @@ interface FilaPunto {
   verificado_por: string | null;
   fecha_verificacion: string | null;
   verificacion: string | null;
+  // Columnas del seed de catálogos (migración 0002): opcionales, las
+  // escriben el seed y el mantenedor; el formulario ciudadano no las usa.
+  subtipo: string | null;
+  departamento: string | null;
+  capacidad: number | null;
+  ocupacion: number | null;
+  admite_mascotas: number | null;
+  servicios: string | null;
+  urgencias_24h: number | null;
+  recoleccion_periodica: number | null;
+  recoleccion_detalle: string | null;
+  evidencia_links: string | null;
+  imagen_url: string | null;
 }
 
 /** Entrada pública: sin ip_hash, token_hash ni ediciones; flags como conteo;
@@ -162,6 +178,42 @@ async function filaPorId(c: Context<Bindings>, id: string): Promise<FilaPunto | 
   return res ?? null;
 }
 
+/** Columnas opcionales del seed de catálogos, normalizadas a la forma del
+ *  schema (booleanos 0/1 de SQLite → boolean; arreglos JSON → arreglo).
+ *  Se omite la clave si la columna es NULL (el schema no admite null). */
+function extrasDe(f: FilaPunto): Record<string, unknown> {
+  const extras: Record<string, unknown> = {};
+  const agregar = (clave: string, valor: unknown) => {
+    if (valor !== null && valor !== undefined) extras[clave] = valor;
+  };
+  agregar("subtipo", f.subtipo);
+  agregar("departamento", f.departamento);
+  agregar("capacidad", f.capacidad);
+  agregar("ocupacion", f.ocupacion);
+  if (f.admite_mascotas !== null) agregar("admite_mascotas", f.admite_mascotas === 1);
+  if (f.servicios) {
+    try {
+      const arr = JSON.parse(f.servicios);
+      if (Array.isArray(arr)) agregar("servicios", arr);
+    } catch {
+      // respaldo defensivo
+    }
+  }
+  if (f.urgencias_24h !== null) agregar("urgencias_24h", f.urgencias_24h === 1);
+  if (f.recoleccion_periodica !== null) agregar("recoleccion_periodica", f.recoleccion_periodica === 1);
+  agregar("recoleccion_detalle", f.recoleccion_detalle);
+  if (f.evidencia_links) {
+    try {
+      const arr = JSON.parse(f.evidencia_links);
+      if (Array.isArray(arr)) agregar("evidencia_links", arr);
+    } catch {
+      // respaldo defensivo (incluye el literal 'null' de seeds viejos)
+    }
+  }
+  agregar("imagen_url", f.imagen_url);
+  return extras;
+}
+
 /** Reconstruye la forma interna de la entrada desde una fila (para Ajv). */
 function filaAEntrada(f: FilaPunto): Record<string, unknown> {
   const entrada: Record<string, unknown> = {
@@ -187,6 +239,9 @@ function filaAEntrada(f: FilaPunto): Record<string, unknown> {
   ];
   for (const [k, v] of opcionales) {
     if (v) entrada[k] = v;
+  }
+  for (const [k, v] of Object.entries(extrasDe(f))) {
+    entrada[k] = v;
   }
   if (f.destino) {
     try {
@@ -235,6 +290,7 @@ function aPublico(f: FilaPunto): EntradaPublica {
   const { flags: _flags, ediciones: _ediciones, token_hash: _token_hash, ip_hash: _ip_hash, items: _items, ...resto } = f;
   const salida: Record<string, unknown> = {
     ...Object.fromEntries(Object.entries(resto).filter(([, v]) => v !== null && v !== undefined)),
+    ...extrasDe(f),
     items,
     flags: conteoFlags,
   };

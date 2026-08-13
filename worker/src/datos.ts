@@ -10,9 +10,6 @@ import addFormats from "ajv-formats";
 import type { Bindings } from "./index";
 import { KV_REGISTRO } from "./github";
 import verificadoSchema from "../../data/schema/verificado.schema.json";
-import acopioSchema from "../../data/schema/acopio.schema.json";
-import albergueSchema from "../../data/schema/albergue.schema.json";
-import centroSaludSchema from "../../data/schema/centro-salud.schema.json";
 import jornadaSangreSchema from "../../data/schema/jornada-sangre.schema.json";
 import canalAyudaSchema from "../../data/schema/canal-ayuda.schema.json";
 import zonasSchema from "../../data/schema/zonas.schema.json";
@@ -47,11 +44,13 @@ interface DefCatalogo {
 
 const compilar = (schema: unknown) => ajv.compile(schema as never);
 
-// Espejo de CATALOGOS en scripts/validate-data.mjs (archivo → schema → clave).
+// Los catálogos de lugares (acopios, albergues, centros de salud) viven en
+// el registro unificado de puntos de ayuda (D1 vía /api/ayuda): los archivos
+// data/*.json correspondientes son el registro histórico del seed y el API ya
+// no los lee (cambio catalogos-comunitarios). Aquí quedan los catálogos
+// estáticos de fuentes oficiales (jornadas, canales, zonas, contactos) y el
+// registro de rescates conservado.
 const CATALOGOS: Record<string, DefCatalogo> = {
-  acopios: { ruta: "data/acopios.json", campo: "acopios", valida: compilar(acopioSchema) },
-  albergues: { ruta: "data/albergues.json", campo: "albergues", valida: compilar(albergueSchema) },
-  "centros-salud": { ruta: "data/centros-salud.json", campo: "centros", valida: compilar(centroSaludSchema) },
   "donacion-sangre": { ruta: "data/donacion-sangre.json", campo: "jornadas", valida: compilar(jornadaSangreSchema) },
   "canales-ayuda": { ruta: "data/canales-ayuda.json", campo: null, valida: compilar(canalAyudaSchema) },
   "zonas-afectadas": { ruta: "data/zonas-afectadas.json", campo: null, valida: compilar(zonasSchema) },
