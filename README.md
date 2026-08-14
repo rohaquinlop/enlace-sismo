@@ -46,7 +46,9 @@ equivocado**, así que la precisión es parte del protocolo.
 
 ## Cómo participar (todo en la plataforma)
 
-- **Reportar** — desde `/reportar` (o el botón "Declarar necesidad u oferta" del mapa),
+- **Reportar** — desde los formularios por tipo de cada sección ("Agregar punto de
+  acopio", "Agregar albergue", "Agregar centro de salud"), el formulario genérico
+  `/reportar` o el botón "Declarar necesidad u oferta" del modal de punto en el mapa:
   cualquier persona publica un lugar o una necesidad con ubicación, ítems y destino.
 - **Auditar** — el botón "Reportar punto falso" en cada tarjeta: 3 reportes de la
   comunidad ocultan el punto hasta que el equipo lo revise.
