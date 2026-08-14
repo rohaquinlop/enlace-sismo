@@ -1,11 +1,15 @@
 # Redirecciones de Cloudflare Pages.
-# Las URLs de sugerencia desaparecieron con el flujo de Issues/PRs de datos
-# (cambio catalogos-comunitarios): reportar vive en /reportar (registro en vivo).
+# Las URLs de sugerencia apuntan a los formularios por tipo dentro de cada
+# sección (ajustes-ux-frontend): /acopios/reportar, /albergues/reportar y
+# /salud/reportar. La sección Desaparecidos se eliminó: su URL va directo al
+# portal de referencia.
 /mapa   /#mapa   301
 /mapa/  /#mapa   301
-/acopios/sugerir-acopio   /reportar   301
-/acopios/sugerir-acopio/  /reportar   301
-/albergues/sugerir-albergue   /reportar   301
-/albergues/sugerir-albergue/  /reportar   301
-/salud/sugerir-centro-salud   /reportar   301
-/salud/sugerir-centro-salud/  /reportar   301
+/acopios/sugerir-acopio   /acopios/reportar   301
+/acopios/sugerir-acopio/  /acopios/reportar   301
+/albergues/sugerir-albergue   /albergues/reportar   301
+/albergues/sugerir-albergue/  /albergues/reportar   301
+/salud/sugerir-centro-salud   /salud/reportar   301
+/salud/sugerir-centro-salud/  /salud/reportar   301
+/desaparecidos   https://colombiatebusca.com   301
+/desaparecidos/  https://colombiatebusca.com   301

@@ -1486,15 +1486,6 @@ body:has(.dash.con-mapa) .nav-secciones {
   cursor: progress;
 }
 
-/* CTA del encabezado: etiqueta completa en desktop, compacta en móvil */
-.btn-cta-full {
-  display: inline;
-}
-
-.btn-cta-movil {
-  display: none;
-}
-
 /* ============================================================
    Tarjetas — hairline, radio 6px, sin sombras
    ============================================================ */
@@ -3035,14 +3026,6 @@ body:has(.dash.con-mapa) .nav-secciones {
   .btn.btn-primary {
     padding: 0 var(--space-sm);
     font-size: var(--text-sm);
-  }
-
-  .btn-cta-full {
-    display: none;
-  }
-
-  .btn-cta-movil {
-    display: inline;
   }
 
   /* Franja de verificación compacta: sin label (los badges se explican solos

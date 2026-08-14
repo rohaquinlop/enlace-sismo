@@ -3,7 +3,6 @@ import BaseLayout from "../layouts/BaseLayout.astro";
 import StatusBadge from "../components/StatusBadge.astro";
 import { type CanalAyuda } from "../lib/catalogs";
 import canalesData from "../../../data/canales-ayuda.json";
-import contactos from "../../../data/contactos.json";
 
 // Tipado del JSON: el schema canal-ayuda.schema.json permite `cuenta_bancaria`
 // (solo con estado 'oficial' + 2 aprobaciones); hoy ninguna entrada la lleva.
@@ -51,29 +50,13 @@ const canales = canalesData as CanalAyuda[];
       ))
     }
   </div>
-
-  <h2>Líneas de emergencia</h2>
-  <table class="tabla">
-    <thead>
-      <tr><th>Servicio</th><th>Número</th><th>Descripción</th></tr>
-    </thead>
-    <tbody>
-      {
-        contactos
-          .filter((c) => c.tipo === "emergencia")
-          .map((c) => (
-            <tr>
-              <td data-label="Servicio"><strong>{c.nombre}</strong></td>
-              <td data-label="Número"><strong>{c.telefono}</strong></td>
-              <td data-label="Descripción">{c.descripcion}</td>
-            </tr>
-          ))
-      }
-    </tbody>
-  </table>
   </div>
 
   <p style="margin-top: 1rem">
+    ¿Necesitas una línea de emergencia? Están en <a href="/contactos">Líneas de emergencia</a>.
+  </p>
+
+  <p>
     ¿Representas una entidad oficial con un punto de acopio o canal de ayuda?
     <a href="https://github.com/rohaquinlop/enlace-sismo/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener">
       Publica tu información verificada (guía para contribuir)
@@ -83,25 +66,16 @@ const canales = canalesData as CanalAyuda[];
 
 <script>
   import { fetchCatalogo } from "../lib/datos";
-  import { renderAyudaPagina, type Contacto } from "../lib/render-catalogos";
+  import { renderAyudaPagina } from "../lib/render-catalogos";
   import type { CanalAyuda } from "../lib/catalogs";
-  // Baseline SSG: si un fetch falla, se usa el del build (nunca vaciar una
-  // sección por culpa del refresco).
-  import canalesSSG from "../../../data/canales-ayuda.json";
-  import contactosSSG from "../../../data/contactos.json";
-
+  // Baseline SSG: si el fetch falla, la página conserva lo renderizado en
+  // build (nunca vaciar una sección por culpa del refresco).
   async function refrescar() {
-    const [canalesD, contactosD] = await Promise.all([
-      fetchCatalogo<CanalAyuda[]>("canales-ayuda"),
-      fetchCatalogo<Contacto[]>("contactos"),
-    ]);
-    if (!canalesD && !contactosD) return;
+    const canalesD = await fetchCatalogo<CanalAyuda[]>("canales-ayuda");
+    if (!canalesD) return;
     const cont = document.getElementById("contenido-ayuda");
     if (!cont) return;
-    cont.innerHTML = renderAyudaPagina(
-      canalesD ?? (canalesSSG as CanalAyuda[]),
-      contactosD ?? (contactosSSG as Contacto[])
-    );
+    cont.innerHTML = renderAyudaPagina(canalesD);
   }
   void refrescar();
 </script>

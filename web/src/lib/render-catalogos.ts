@@ -346,46 +346,24 @@ export function renderSangrePagina(items: JornadaSangre[]): string {
 }
 
 // ---------- Página /ayuda (espejo de ayuda.astro) ----------
-export interface Contacto {
-  id: string;
-  nombre: string;
-  telefono: string;
-  descripcion?: string;
-  tipo: string;
-}
-
-export function renderAyudaPagina(canales: CanalAyuda[], contactos: Contacto[]): string {
-  const grid =
-    canales.length === 0
-      ? ""
-      : `<div class="grid">${canales
-          .map(
-            (c) =>
-              `<article class="card">` +
-              `<div class="card-head"><h3>${escapar(c.organizacion)}</h3>${badgeHTML(c.estado)}</div>` +
-              `${c.descripcion ? `<p>${escapar(c.descripcion)}</p>` : ""}` +
-              `${c.como_aportar ? `<p><strong>Cómo aportar:</strong> ${escapar(c.como_aportar)}</p>` : ""}` +
-              `<p>${c.sitio ? `<a href="${escapar(c.sitio)}" target="_blank" rel="noopener">Sitio oficial</a>` : ""}` +
-              `${c.redes ? ` · <a href="${escapar(c.redes)}" target="_blank" rel="noopener">Redes</a>` : ""}</p>` +
-              `${c.cuenta_bancaria ? `<p><strong>Cuenta bancaria oficial:</strong> ${escapar(c.cuenta_bancaria)}</p>` : ""}` +
-              `</article>`
-          )
-          .join("")}</div>`;
-  const emergencias = contactos.filter((c) => c.tipo === "emergencia");
-  const tabla =
-    emergencias.length === 0
-      ? ""
-      : `<table class="tabla"><thead><tr><th>Servicio</th><th>Número</th><th>Descripción</th></tr></thead><tbody>` +
-        emergencias
-          .map(
-            (c) =>
-              `<tr><td data-label="Servicio"><strong>${escapar(c.nombre)}</strong></td>` +
-              `<td data-label="Número"><strong>${escapar(c.telefono)}</strong></td>` +
-              `<td data-label="Descripción">${c.descripcion ? escapar(c.descripcion) : ""}</td></tr>`
-          )
-          .join("") +
-        `</tbody></table>`;
-  return `<h2>Canales verificados</h2>${grid}<h2>Líneas de emergencia</h2>${tabla}`;
+// Solo canales verificados: las líneas de emergencia viven en /contactos
+// (sección "Líneas de emergencia" — ajustes-ux-frontend).
+export function renderAyudaPagina(canales: CanalAyuda[]): string {
+  return canales.length === 0
+    ? ""
+    : `<h2>Canales verificados</h2><div class="grid">${canales
+        .map(
+          (c) =>
+            `<article class="card">` +
+            `<div class="card-head"><h3>${escapar(c.organizacion)}</h3>${badgeHTML(c.estado)}</div>` +
+            `${c.descripcion ? `<p>${escapar(c.descripcion)}</p>` : ""}` +
+            `${c.como_aportar ? `<p><strong>Cómo aportar:</strong> ${escapar(c.como_aportar)}</p>` : ""}` +
+            `<p>${c.sitio ? `<a href="${escapar(c.sitio)}" target="_blank" rel="noopener">Sitio oficial</a>` : ""}` +
+            `${c.redes ? ` · <a href="${escapar(c.redes)}" target="_blank" rel="noopener">Redes</a>` : ""}</p>` +
+            `${c.cuenta_bancaria ? `<p><strong>Cuenta bancaria oficial:</strong> ${escapar(c.cuenta_bancaria)}</p>` : ""}` +
+            `</article>`
+        )
+        .join("")}</div>`;
 }
 
 // ---------- Panel Zonas del dashboard (espejo de ZonasLista.astro) ----------
