@@ -1,0 +1,16 @@
+---
+import FormularioPuntoAyuda from "../../components/FormularioPuntoAyuda.astro";
+---
+
+<!-- Formulario de la sección Albergues y refugios: mismo estándar del
+     registro único, con el tipo "albergue" pre-fijado y modalidad sugerida
+     "necesita". -->
+<FormularioPuntoAyuda
+  title="Agregar albergue — Enlace Sismo"
+  description="Publica un albergue o refugio con lo que necesita y su capacidad. Se publica como sin confirmar."
+  titulo="Agregar albergue"
+  intro="Publica un albergue o refugio con lo que necesita y cuánta gente puede recibir. Se muestra al instante como <strong>“sin confirmar”</strong> y cualquiera puede reportarlo si es falso."
+  breadcrumbItems={[{ label: "Albergues y refugios", href: "/albergues" }, { label: "Agregar albergue" }]}
+  labelBoton="Publicar albergue"
+  tipoFijo="albergue"
+/>

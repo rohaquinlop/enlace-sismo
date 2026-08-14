@@ -251,7 +251,23 @@ const VACIOS: Record<string, { titulo: string; texto: string }> = {
   },
 };
 
-const CTA_REPORTAR = `<a class="btn btn-primary" href="/reportar">Reportar una necesidad u oferta</a>`;
+// CTA de reporte por tipo: cada sección lleva a su sub-página con el tipo
+// pre-fijado (ajustes-ux-frontend). Copy alineado con los títulos de los
+// formularios y con el nombre de la sección, con UN solo verbo ("Agregar"):
+// "Agregar punto de acopio", "Agregar albergue", "Agregar centro de salud".
+const CTA_POR_TIPO: Record<
+  "acopio" | "albergue" | "hospital",
+  { label: string; href: string }
+> = {
+  acopio: { label: "Agregar punto de acopio", href: "/acopios/reportar" },
+  albergue: { label: "Agregar albergue", href: "/albergues/reportar" },
+  hospital: { label: "Agregar centro de salud", href: "/salud/reportar" },
+};
+
+const CTA_REPORTAR = (tipo: "acopio" | "albergue" | "hospital") => {
+  const cta = CTA_POR_TIPO[tipo];
+  return `<a class="btn btn-primary" href="${cta.href}">${cta.label}</a>`;
+};
 
 /** Agrupa las entradas del registro por ciudad (mismo patrón que las páginas). */
 function agruparPuntos(puntos: PuntoAyuda[]) {
@@ -275,7 +291,7 @@ function agruparPuntos(puntos: PuntoAyuda[]) {
 export function renderCatalogoPagina(tipo: "acopio" | "albergue" | "hospital", puntos: PuntoAyuda[]): string {
   const v = VACIOS[tipo];
   if (puntos.length === 0) {
-    return VACIO(v.titulo, v.texto, CTA_REPORTAR);
+    return VACIO(v.titulo, v.texto, CTA_REPORTAR(tipo));
   }
   const grupos = agruparPuntos(puntos);
   const filtros =
@@ -289,7 +305,7 @@ export function renderCatalogoPagina(tipo: "acopio" | "albergue" | "hospital", p
       ? `<label class="filtro-check"><input type="checkbox" id="filtro-oficiales" /> Puntos de acopio oficiales</label>`
       : "") +
     `</div>` +
-    CTA_REPORTAR +
+    CTA_REPORTAR(tipo) +
     `</div>`;
   return (
     filtros +

@@ -1,0 +1,15 @@
+---
+import FormularioPuntoAyuda from "../../components/FormularioPuntoAyuda.astro";
+---
+
+<!-- Formulario de la sección Centros de salud: mismo estándar del registro
+     único, con el tipo "hospital" pre-fijado y modalidad sugerida "necesita". -->
+<FormularioPuntoAyuda
+  title="Agregar centro de salud — Enlace Sismo"
+  description="Publica un centro de salud con lo que necesita. Se publica como sin confirmar."
+  titulo="Agregar centro de salud"
+  intro="Publica un centro de salud con lo que necesita. Se muestra al instante como <strong>“sin confirmar”</strong> y cualquiera puede reportarlo si es falso."
+  breadcrumbItems={[{ label: "Centros de salud", href: "/salud" }, { label: "Agregar centro de salud" }]}
+  labelBoton="Publicar centro de salud"
+  tipoFijo="hospital"
+/>

@@ -1925,6 +1925,29 @@ body:has(.dash.con-mapa) .nav-secciones {
   margin-bottom: var(--space-2xs);
 }
 
+/* Tipo pre-fijado de las sub-páginas de reporte (ajustes-ux-frontend):
+   etiqueta + valor fijo en lugar del selector. */
+.form-group .form-label {
+  display: block;
+  font-weight: 500;
+  font-size: var(--text-sm);
+  margin-bottom: var(--space-2xs);
+}
+
+.form-tipo-fijo {
+  font-size: var(--text-base);
+  font-weight: 500;
+  color: var(--color-ink);
+  border: var(--rule-hair) solid var(--color-rule-2);
+  border-radius: var(--radius-sm);
+  background: var(--color-paper-2);
+  padding: var(--space-xs) var(--space-sm);
+  min-height: 44px;
+  line-height: 1.4;
+  display: inline-flex;
+  align-items: center;
+}
+
 .form-group input,
 .form-group select,
 .form-group textarea {
