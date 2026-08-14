@@ -492,6 +492,33 @@ h2 {
   background: var(--color-paper-2);
 }
 
+/* Chip "Ver todas": aparece solo con un filtro de ciudad activo (el script
+   del mapa lo muestra/oculta) — deselecciona la zona y vuelve a todos los
+   puntos. Borde cobalto: es la acción de escape del filtro. */
+.tira-chip-todas {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+  background: transparent;
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  white-space: nowrap;
+  flex: none;
+}
+
+.tira-chip-todas:hover {
+  background: var(--color-paper-2);
+}
+
+.tira-chip-todas:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+.tira-chip-todas[hidden] {
+  display: none;
+}
+
 .tira-chip:active {
   background: var(--color-paper-3);
 }
@@ -591,6 +618,10 @@ h2 {
   transform: translateY(1px);
 }
 
+.tira-chip-geo-icono {
+  flex: none;
+}
+
 /* Anillo de foco contrastado: el foco es cobalto y el botón es cobalto;
    el anillo interior en paper mantiene ≥ 3:1 sobre ambas superficies. */
 .tira-chip-geo:focus-visible {
@@ -681,11 +712,6 @@ h2 {
   height: 0.65rem;
   border-radius: 50%;
   flex: none;
-}
-
-/* Toggle del rail: solo visible en móvil (ver media query max-width: 60rem) */
-.rail-toggle {
-  display: none;
 }
 
 /* Rail derecho con pestañas (Zonas · Ayuda) */
@@ -2148,6 +2174,10 @@ body:has(.dash.con-mapa) .nav-secciones {
 }
 
 .modal-acciones {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-xs);
   margin-bottom: var(--space-sm);
 }
 
@@ -2246,123 +2276,114 @@ body:has(.dash.con-mapa) .nav-secciones {
 }
 
 /* ============================================================
-   Mapa — popups del sistema
+   Mapa — modal de punto (reemplazó los popups del sistema)
    ============================================================ */
 
-.maplibregl-popup-content {
-  font-family: var(--font-body);
-  font-size: var(--text-sm);
-  color: var(--color-ink);
+/* Overlay: diálogo centrado en TODOS los viewports (móvil y desktop): el
+   foco se mueve al botón de cierre al abrir (ModalPuntoMapa). */
+.modal-punto {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-modal-overlay);
+  padding: var(--space-md);
+}
+
+.modal-punto[hidden] {
+  display: none;
+}
+
+.modal-punto-caja {
+  width: min(30rem, 100%);
+  max-height: min(90dvh, 42rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
   background: var(--color-paper);
-  border: var(--rule-hair) solid var(--color-rule-2);
-  border-radius: var(--radius-sm);
-  box-shadow: var(--shadow-lift);
-  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-modal);
+  padding: var(--space-md);
 }
 
-.maplibregl-popup-tip {
-  border-top-color: var(--color-paper);
-  border-bottom-color: var(--color-paper);
-  border-left-color: var(--color-paper);
-  border-right-color: var(--color-paper);
+.modal-punto-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-sm);
 }
 
-/* Cierre del popup: con tokens, no el default negro del navegador */
-.maplibregl-popup-close-button {
-  color: var(--color-muted);
+.modal-punto-titulo-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2xs) var(--space-xs);
+  min-width: 0;
+}
+
+.modal-punto-badges {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2xs);
+}
+
+.modal-punto-titulo {
   font-size: var(--text-md);
-  line-height: 1;
-  padding: var(--space-xs) var(--space-sm);
-  border-radius: var(--radius-xs);
+  letter-spacing: -0.02em;
+  margin: 0;
+  overflow-wrap: anywhere;
 }
 
-.maplibregl-popup-close-button:hover {
+.modal-punto-cerrar {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  margin-top: calc(-1 * var(--space-2xs));
+  border: none;
+  border-radius: var(--radius-badge);
+  background: none;
+  font-size: var(--text-lg);
+  line-height: 1;
+  color: var(--color-muted);
+  cursor: pointer;
+}
+
+.modal-punto-cerrar:hover {
   background: var(--color-paper-2);
   color: var(--color-ink);
 }
 
-.popup-titulo {
-  display: block;
-  font-family: var(--font-body);
-  font-weight: 600;
-  font-size: var(--text-md);
-  letter-spacing: -0.01em;
-  line-height: 1.2;
-  font-style: normal;
-  color: var(--color-ink);
+.modal-punto-cerrar:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
 }
 
-.popup-meta {
-  margin: var(--space-2xs) 0 0;
-  font-size: var(--text-sm);
-  color: var(--color-ink-2);
+/* La tarjeta interna no repite borde dentro del modal */
+.modal-punto-cuerpo .card {
+  border: none;
+  box-shadow: none;
+  padding: 0;
+  margin: 0;
 }
 
-.popup-linea {
-  margin: var(--space-2xs) 0 0;
-  font-size: var(--text-sm);
-  color: var(--color-muted);
-}
-
-.popup-coords {
-  margin: var(--space-2xs) 0 0;
-  font-family: var(--font-body);
-  font-size: var(--text-xs);
-  font-variant-numeric: tabular-nums;
-  color: var(--color-muted);
-}
-
-.popup-fuente {
-  margin: var(--space-sm) 0 0;
-  padding-top: var(--space-xs);
+.modal-punto-fila {
   border-top: var(--rule-hair) solid var(--color-rule);
-  font-size: var(--text-xs);
-  color: var(--color-muted);
+  padding-top: var(--space-xs);
+  margin-top: var(--space-xs);
 }
 
-.popup-fuente a {
-  font-size: var(--text-xs);
-}
-
-.popup-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-family: var(--font-body);
-  font-size: var(--text-xs);
-  font-weight: 500;
-  letter-spacing: 0.01em;
-  padding: var(--space-2xs);
-  border: var(--rule-hair) solid;
-  border-radius: var(--radius-badge);
-  line-height: 1;
-  margin-right: var(--space-2xs);
-  vertical-align: baseline;
-}
-
-.popup-badge-acopio {
-  color: var(--color-accent);
-  border-color: var(--color-accent);
-}
-
-.popup-badge-albergue {
-  color: var(--color-ok);
-  border-color: var(--color-ok);
-}
-
-.popup-badge-salud {
-  color: var(--color-error);
-  border-color: var(--color-error);
-}
-
-.popup-badge-sangre {
-  color: var(--color-sangre);
-  border-color: var(--color-sangre);
-}
-
-.popup-badge-ayuda {
-  color: var(--color-ayuda);
-  border-color: var(--color-ayuda);
+.modal-punto-acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+  margin-top: var(--space-sm);
+  padding-top: var(--space-sm);
+  border-top: var(--rule-hair) solid var(--color-rule);
 }
 
 /* Puntos de ayuda: chips de ítems y acciones */
@@ -2551,7 +2572,9 @@ body:has(.dash.con-mapa) .nav-secciones {
 .dialogo-accion {
   position: fixed;
   inset: 0;
-  z-index: var(--z-modal);
+  /* Sobre el modal de punto (--z-modal): las acciones de flag/cerrar se
+     abren desde él y deben quedar encima (ajustes-ux-frontend). */
+  z-index: var(--z-toast);
   display: grid;
   place-items: center;
   background: var(--color-modal-overlay);
@@ -2605,7 +2628,7 @@ body:has(.dash.con-mapa) .nav-secciones {
 }
 
 /* ============================================================
-   Quick-add de ayuda desde el mapa (popup → mini-formulario modal)
+   Quick-add de ayuda desde el mapa (modal de punto → mini-formulario)
    Mismo patrón que .dialogo-accion: overlay fijo, caja centrada,
    cierre por Escape/overlay. Reusa .form-group, .necesidad-chip,
    .modalidad-opcion y .btn del sistema (definidos arriba).
@@ -2613,7 +2636,8 @@ body:has(.dash.con-mapa) .nav-secciones {
 .quick-add {
   position: fixed;
   inset: 0;
-  z-index: var(--z-modal);
+  /* Sobre el modal de punto (--z-modal): se abre desde él. */
+  z-index: var(--z-toast);
   display: grid;
   place-items: center;
   background: var(--color-modal-overlay);
@@ -2670,13 +2694,6 @@ body:has(.dash.con-mapa) .nav-secciones {
   justify-content: flex-end;
   gap: var(--space-xs);
   margin-top: var(--space-2xs);
-}
-
-/* Botón de acción dentro de los popups del mapa (quick-add) */
-.popup-accion {
-  width: 100%;
-  margin-top: var(--space-sm);
-  text-align: center;
 }
 
 /* ============================================================
@@ -2871,26 +2888,30 @@ body:has(.dash.con-mapa) .nav-secciones {
    ============================================================ */
 
 /* Dashboard sin espacio para el rail lateral (< 60rem): barra compacta
-   arriba; tira + rail en hoja inferior. Cubre celulares, iPhone landscape
-   y tablet portrait — antes solo llegaba a 40rem y esos viewports recibían
-   el layout de escritorio con la tira aplastada en la esquina. */
+   arriba y la tira de leyenda como franja inferior única. El rail no se
+   muestra en móvil (ajustes-ux-frontend): el mapa, el modal de punto y la
+   tira son la UI. Cubre celulares, iPhone landscape y tablet portrait. */
 @media (max-width: 60rem) {
   .dash.con-mapa .mapa-overlays {
-    position: absolute;
+    /* FIXED como el nav (no absolute): con scrollbar clásica visible, los
+       offsets de un absoluto se resuelven contra el layout viewport (más
+       ancho) y la barra desbordaba a la derecha, cortando el botón flotante
+       de ubicación. Fixed garantiza la MISMA correlación de márgenes que
+       el nav superior. */
+    position: fixed;
     top: auto;
     left: max(var(--space-sm), env(safe-area-inset-left));
     right: max(var(--space-sm), env(safe-area-inset-right));
     bottom: max(var(--space-sm), env(safe-area-inset-bottom));
-    max-height: 50dvh;
-    overflow: hidden;
+    /* La regla base de flujo .mapa-overlays fija width: 100%: con left+width
+       seteados, CSS ignora right (caja sobre-restringida) y la barra medía el
+       viewport completo (430 vs 406 del nav). width:auto deja que left+right
+       la constriñan al mismo ancho que el nav. */
+    width: auto;
+    margin: 0;
     display: flex;
     flex-direction: column;
-    gap: var(--space-2xs);
-    background: var(--color-paper);
-    border: var(--rule-hair) solid var(--color-rule-2);
-    border-radius: var(--radius-sm);
-    box-shadow: var(--shadow-lift);
-    padding: var(--space-xs);
+    gap: 0;
     z-index: var(--z-raised);
   }
 
@@ -2936,81 +2957,72 @@ body:has(.dash.con-mapa) .nav-secciones {
     box-shadow: var(--shadow-lift);
   }
 
-  .dash.con-mapa .leyenda-tira {
-    position: static;
-    max-width: none;
-    border: none;
-    border-bottom: var(--rule-hair) solid var(--color-rule);
-    border-radius: 0;
-    box-shadow: none;
-    padding: 0 0 var(--space-2xs);
-  }
-
+  /* Rail fuera en móvil: la información vive en el mapa + modal de punto.
+     Sin .con-mapa (fallback sin JS/WebGL) el rail sigue en flujo. */
   .dash.con-mapa .rail {
-    position: static;
-    width: auto;
-    max-width: none;
-    flex: 1;
-    min-height: 0;
-    border: none;
-    border-radius: 0;
-    box-shadow: none;
-    overflow: hidden;
-  }
-
-  /* Botón toggle del rail en móvil */
-  .rail-toggle {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 100%;
-    min-height: 44px;
-    padding: var(--space-xs) 0;
-    background: none;
-    border: none;
-    border-bottom: var(--rule-hair) solid var(--color-rule);
-    cursor: pointer;
-    color: var(--color-neutral);
-    transition: color var(--dur-short) var(--ease-out);
-    flex-shrink: 0;
-  }
-
-  .rail-toggle:hover {
-    color: var(--color-ink);
-  }
-
-  .rail-toggle:focus-visible {
-    outline: 2px solid var(--color-focus);
-    outline-offset: 2px;
-  }
-
-  .rail-toggle:active {
-    opacity: 0.7;
-  }
-
-  .rail-toggle svg {
-    transition: transform var(--dur-short) var(--ease-out);
-  }
-
-  .rail-toggle[aria-expanded="false"] svg {
-    transform: rotate(180deg);
-  }
-
-  /* Rail colapsado: ocultar el aside Y la tira de leyenda */
-  .rail-toggle[aria-expanded="false"] ~ .rail,
-  .rail-toggle[aria-expanded="false"] ~ .leyenda-tira {
     display: none;
   }
 
-  .dash.con-mapa .mapa-overlays:has(.rail-toggle[aria-expanded="false"]) {
-    max-height: fit-content;
+  /* Franja inferior: la tira conserva su caja (papel + hairline) y los
+     chips escrolan en una línea dentro de .tira-scroll; "Cerca de mí" queda
+     fija fuera del scroll. "Cómo ayudar" se oculta en el mapa móvil: ya está
+     en el menú del nav y solo estorbaba (validación del usuario). */
+  .dash.con-mapa .leyenda-tira {
+    position: relative;
+    /* La regla desktop deja left/bottom (absolute): con relative esos
+       offsets desplazan la caja 12px a la derecha. Se resetean. */
+    left: auto;
+    bottom: auto;
+    max-width: 100%;
+    width: 100%;
+    min-width: 0;
+    flex-wrap: nowrap;
+    overflow: visible;
   }
-}
 
-/* Landscape móvil: la hoja cede altura al mapa */
-@media (max-width: 60rem) and (orientation: landscape) {
-  .dash.con-mapa .mapa-overlays {
-    max-height: 40dvh;
+  /* El scroll toma exactamente el espacio sobrante (basis 0): los chips no
+     empujan la barra fuera del viewport a 320 px y el contenido cortado
+     queda contenido en su propia fila. */
+  .dash.con-mapa .leyenda-tira .tira-scroll {
+    flex: 1 1 0%;
+    min-width: 0;
+  }
+
+  /* "Cerca de mí" flota sobre la barra como botón circular de ubicación
+     (SVG propio): fuera del scroll, la barra queda solo con los filtros y
+     centrada como el nav (validación del usuario). */
+  .dash.con-mapa .tira-chip-geo {
+    position: absolute;
+    right: 0;
+    bottom: calc(100% + var(--space-sm));
+    width: 44px;
+    min-width: 44px;
+    height: 44px;
+    padding: 0;
+    border-radius: 50%;
+  }
+
+  .dash.con-mapa .tira-chip-geo-label {
+    display: none;
+  }
+
+  /* Buscando posición: el spinner reemplaza el icono (no conviven). */
+  .dash.con-mapa .tira-chip-geo[aria-busy="true"] .tira-chip-geo-icono {
+    display: none;
+  }
+
+  .dash.con-mapa .tira-chip-ayuda {
+    display: none;
+  }
+
+  /* Mensaje de geolocalización: vuelve a su propia línea (el contenedor
+     envuelve solo cuando el mensaje está visible). */
+  .dash.con-mapa .leyenda-tira:has(.geo-mensaje:not([hidden])) {
+    flex-wrap: wrap;
+  }
+
+  .dash.con-mapa .leyenda-tira:has(.geo-mensaje:not([hidden])) .tira-scroll {
+    flex-basis: 100%;
   }
 }
 

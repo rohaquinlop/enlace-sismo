@@ -89,6 +89,11 @@ export function mostrarModalResultado(
   modalTitulo.textContent = titulo;
   modalMensaje.textContent = mensaje;
   modalAcciones.innerHTML = accionesHtml;
+  // Un solo CTA primario: si el modal de éxito trae acciones ("Ver en el
+  // mapa"), "Cerrar" pasa a secundario — dos botones cobalto compiten.
+  if (modalCerrar) {
+    modalCerrar.className = tipo === "ok" && accionesHtml ? "btn" : "btn btn-primary";
+  }
   modal.dataset.open = "true";
   // Diálogo modal: el foco entra al control de cierre.
   requestAnimationFrame(() => modalCerrar?.focus());

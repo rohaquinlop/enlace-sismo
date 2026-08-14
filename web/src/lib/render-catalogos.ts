@@ -78,14 +78,19 @@ const DESCRIPCION_SEED = new Set([
   "Centro de salud verificado — ver fuente.",
 ]);
 
-/** Tarjeta de una entrada del registro (espejo del panel Ayuda del dashboard). */
-export function cardPuntoAyudaHTML(p: PuntoAyuda): string {
+/** Tarjeta de una entrada del registro (espejo del panel Ayuda del dashboard).
+ *  `sinCabeza` omite el h3 + badges (los aporta quien la embebe, p. ej. el
+ *  modal de punto, cuyo encabezado ya muestra el nombre). */
+export function cardPuntoAyudaHTML(p: PuntoAyuda, opts: { sinCabeza?: boolean } = {}): string {
   // El tipo se muestra UNA sola vez: badge del sub-tipo si existe (Refugio,
-  // Clínica), texto del tipo en su ausencia (convención de CatalogCard).
+  // Clínica), texto del tipo SOLO cuando el h3 muestra un nombre. Sin nombre,
+  // el h3 ES el tipo ("Punto de acopio") y una línea de tipo lo duplicaría.
   const tipoLinea =
     p.subtipo && p.subtipo !== p.tipo
       ? `<p class="card-tipo"><span class="badge badge-tipo">${escapar(ETIQUETAS_SUBTIPO[p.subtipo] ?? p.subtipo)}</span></p>`
-      : `<p class="card-tipo">${escapar(etiquetaTipo(p.tipo))}</p>`;
+      : p.nombre
+        ? `<p class="card-tipo">${escapar(etiquetaTipo(p.tipo))}</p>`
+        : "";
   // Rol (modalidad) + precisión del pin en su propia línea: la meta de la
   // card queda corta (ciudad · Cómo llegar) y no rompe a 320 px.
   const rol = `${escapar(etiquetaModalidadCorta(p.modalidad))}${p.coordenadas_nivel ? ` · ${escapar(etiquetaPrecision(p.coordenadas_nivel))}` : ""}`;
@@ -141,7 +146,9 @@ export function cardPuntoAyudaHTML(p: PuntoAyuda): string {
       : "";
   return (
     `<article class="card" id="${escapar(p.id)}">` +
-    `<div class="card-head"><h3>${escapar(p.nombre ?? etiquetaTipo(p.tipo))}</h3><span class="card-badges">${badgesPuntoAyudaHTML(p)}</span></div>` +
+    (opts.sinCabeza
+      ? ""
+      : `<div class="card-head"><h3>${escapar(p.nombre ?? etiquetaTipo(p.tipo))}</h3><span class="card-badges">${badgesPuntoAyudaHTML(p)}</span></div>`) +
     tipoLinea +
     `<p class="card-dir">${escapar(p.direccion ?? "")}</p>` +
     `<p class="card-ciudad">${escapar(p.ciudad ?? "")}${p.departamento ? `, ${escapar(p.departamento)}` : ""} · ` +

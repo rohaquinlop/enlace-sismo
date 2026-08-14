@@ -85,6 +85,8 @@ const ZONAS = [
             ))}
           </select>
         </span>
+        <!-- Deseleccionar zona: visible solo con un filtro de ciudad activo -->
+        <button type="button" class="tira-chip tira-chip-todas" id="btn-todas-ciudades" hidden>Ver todas</button>
       )
     }
     <!-- Cada chip lleva su conteo ("Donar sangre (N)", "Ayuda (N)"); el
@@ -99,8 +101,12 @@ const ZONAS = [
   }
   {
     mostrarZonas && (
-      <button type="button" class="tira-chip-geo" id="btn-cerca-de-mi">
-        Cerca de mí
+      <button type="button" class="tira-chip-geo" id="btn-cerca-de-mi" aria-label="Cerca de mí: usar mi ubicación">
+        <svg class="tira-chip-geo-icono" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" fill="none">
+          <circle cx="8" cy="8" r="4" stroke="currentColor" stroke-width="1.5" />
+          <path d="M8 1.5v2.5M8 12v2.5M1.5 8H4M12 8h2.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+        </svg>
+        <span class="tira-chip-geo-label">Cerca de mí</span>
       </button>
     )
   }
