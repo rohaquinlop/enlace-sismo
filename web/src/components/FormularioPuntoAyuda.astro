@@ -1,0 +1,646 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import UbicacionPicker from "./UbicacionPicker.astro";
+import Breadcrumb from "./Breadcrumb.astro";
+import ModalResultado from "./ModalResultado.astro";
+import { ITEMS_AYUDA, TIPOS_AYUDA, MODALIDADES, etiquetaTipo } from "../lib/items-ayuda";
+
+interface Props {
+  title: string;
+  description: string;
+  titulo: string;
+  intro: string;
+  breadcrumbItems: { label: string; href?: string }[];
+  labelBoton: string;
+  /** Tipo pre-fijado de las sub-páginas de sección; sin él, selector libre. */
+  tipoFijo?: "acopio" | "albergue" | "hospital";
+}
+
+const { title, description, titulo, intro, breadcrumbItems, labelBoton, tipoFijo } = Astro.props;
+// Modalidad sugerida por tipo (siempre cambiable): un acopio normalmente
+// recolecta; un albergue o centro de salud normalmente necesita.
+const modalidadDefault = tipoFijo === "acopio" ? "recolecta" : tipoFijo ? "necesita" : undefined;
+const destinoVisible = modalidadDefault === "recolecta";
+const etiquetaTipoFijo = tipoFijo ? etiquetaTipo(tipoFijo) : null;
+---
+
+<BaseLayout title={title} description={description}>
+  <section class="seccion-titulo">
+    <Breadcrumb items={breadcrumbItems} />
+    <h1>{titulo}</h1>
+    <p set:html={intro} />
+  </section>
+
+  <div class="aviso warning">
+    <strong>Antes de enviar</strong>
+    Verifica que la ubicación sea la correcta: un pin equivocado desvía ayuda.
+    No publiques datos de terceros sin su consentimiento. Los reportes falsos se
+    retiran con 3 reportes de la comunidad o por un mantenedor. El alimento debe ser
+    <strong>no perecedero</strong> (el transporte entre ciudades lejanas exige durabilidad).
+  </div>
+
+  <noscript>
+    <div class="aviso danger">
+      <strong>Este formulario necesita JavaScript para enviarse.</strong>
+      Mientras tanto, coordina por los canales oficiales: Defensa Civil (144), Bomberos (119),
+      Cruz Roja (132) o la línea de emergencia <strong>123</strong>.
+    </div>
+  </noscript>
+
+  <div class="aviso warning" id="aviso-edicion" hidden>
+    <strong>Modo edición</strong>
+    Estás actualizando un punto que creaste. Solo puedes editar puntos con tu token
+    de edición (guardado en este navegador).
+  </div>
+
+  <form
+    id="form-ayuda"
+    class="panel form-punto"
+    novalidate
+    data-tipo-fijo={tipoFijo ?? ""}
+    data-label-boton={labelBoton}
+  >
+    <h2>El lugar</h2>
+    {
+      tipoFijo ? (
+        <div class="form-group">
+          <span class="form-label">Tipo de lugar</span>
+          <span class="form-tipo-fijo">{etiquetaTipoFijo}</span>
+          <input type="hidden" id="tipo" name="tipo" value={tipoFijo} />
+        </div>
+      ) : (
+        <div class="form-group">
+          <label for="tipo">Tipo de lugar *</label>
+          <select id="tipo" name="tipo" required>
+            <option value="">Seleccionar…</option>
+            {TIPOS_AYUDA.map((t) => (
+              <option value={t.id}>{t.label}</option>
+            ))}
+          </select>
+          <span class="helper" id="helper-tipo"></span>
+        </div>
+      )
+    }
+
+    <fieldset class="form-group" id="modalidad">
+      <legend>¿Qué hace este lugar? *</legend>
+      {MODALIDADES.map((m) => (
+        <label class="modalidad-opcion">
+          <input type="radio" name="modalidad" value={m.id} checked={m.id === modalidadDefault} />
+          <span>{m.label}</span>
+        </label>
+      ))}
+      <span class="helper">"Necesita" pide ayuda; "recolecta" reúne para otros lugares (p. ej. un acopio que lleva a otras ciudades).</span>
+      <span class="helper" id="helper-modalidad"></span>
+    </fieldset>
+
+    <div class="form-group">
+      <label for="nombre">Nombre del lugar</label>
+      <input type="text" id="nombre" name="nombre" maxlength="120" placeholder="Hospital San Juan de Dios, Bodega de la Junta de Acción Comunal…" />
+      <span class="helper">Opcional, pero ayuda a que otros identifiquen el punto.</span>
+    </div>
+
+    <div class="form-group">
+      <label for="direccion">Dirección *</label>
+      <input type="text" id="direccion" name="direccion" required minlength="5" placeholder="Carrera 67 #3c 15, Cali" />
+      <span class="helper">Se completa con la dirección del pin; corrígela si no es la exacta.</span>
+      <span class="helper" id="helper-direccion"></span>
+    </div>
+
+    <h2>Ubicación exacta *</h2>
+    <UbicacionPicker />
+
+    <!-- Deduplicación: punto cercano existente (≤150 m) del registro de ayuda.
+         El registro es el ÚNICO catálogo de lugares: acopios, albergues y
+         hospitales viven aquí, así que el dedupe cubre también los oficiales. -->
+    <div class="dedupe-panel" id="dedupe-panel" hidden>
+      <strong>Este lugar ya está reportado</strong>
+      <p id="dedupe-info"></p>
+      <div class="form-acciones">
+        <button type="button" class="btn" id="btn-reportar-igual">Reportar de todas formas</button>
+      </div>
+    </div>
+
+    <h2>Qué se necesita o se recolecta</h2>
+    <div class="form-group">
+      <label for="descripcion">Descripción *</label>
+      <span class="helper">
+        Describe el punto: qué lugar es, cuánta gente atiende, horarios de entrega,
+        condiciones de acceso.
+      </span>
+      <textarea id="descripcion" name="descripcion" rows="3" minlength="3" required placeholder="Acopio del barrio: recibimos entre 8 y 17 h. Necesitamos carpas y kits de cocina para enviar a San José del Palmar…"></textarea>
+      <span class="helper" id="helper-descripcion"></span>
+    </div>
+
+    <fieldset class="form-group necesidades">
+      <legend>Ítems</legend>
+      <div class="necesidades-grid">
+        {ITEMS_AYUDA.map((n) => (
+          <label class="necesidad-chip">
+            <input type="checkbox" value={n.id} />
+            <span>{n.label}</span>
+          </label>
+        ))}
+      </div>
+      <span class="helper">Alimento solo no perecedero (transporte de larga distancia).</span>
+    </fieldset>
+
+    <div class="form-group">
+      <label for="item-nombre">Agregar un ítem específico</label>
+      <span class="helper">P. ej. “leche”, “galletas”, “toallas” — con cantidad y unidad opcionales.</span>
+      <div class="items-personalizados-fila">
+        <input type="text" id="item-nombre" maxlength="80" placeholder="Nombre del ítem (p. ej. leche)" />
+        <input type="number" id="item-cantidad" min="0" max="999999" placeholder="Cantidad" aria-label="Cantidad" />
+        <input type="text" id="item-unidad" maxlength="20" placeholder="Unidad (opcional)" aria-label="Unidad" />
+        <button type="button" class="btn" id="btn-agregar-item">Agregar</button>
+      </div>
+      <span class="helper" id="helper-item"></span>
+      <div class="necesidades-grid" id="items-personalizados" hidden></div>
+    </div>
+
+    <div class="form-group" id="grupo-destino" hidden={!destinoVisible}>
+      <label for="destino-transporta">Transporte a otras zonas</label>
+      <label class="modalidad-opcion">
+        <input type="checkbox" id="destino-transporta" />
+        <span>Voy a transportar la ayuda a otra zona</span>
+      </label>
+      <span class="helper">Muchos lugares reúnen ayuda para ciudades que no reciben nada. Indica a dónde la llevarás.</span>
+      <input type="text" id="destino-ciudades" maxlength="400" placeholder="Ciudades destino, separadas por coma (p. ej. Cali, Armenia, San José del Palmar)" />
+      <textarea id="destino-nota" rows="2" maxlength="300" placeholder="Nota del envío (opcional): cuándo sale, condiciones, capacidad…"></textarea>
+    </div>
+
+    <div class="form-group">
+      <label for="horario">Horario (opcional)</label>
+      <input type="text" id="horario" maxlength="120" placeholder="P. ej. lunes a sábado, 8:00–17:00" />
+    </div>
+
+    <div class="form-group">
+      <label for="contacto">Contacto (opcional)</label>
+      <input type="text" id="contacto" maxlength="200" placeholder="Teléfono o WhatsApp para coordinar la llegada" />
+      <span class="helper">Se publica tal cual: úsalo con criterio.</span>
+    </div>
+
+    <!-- Honeypot: oculto para humanos, visible para bots -->
+    <div class="form-honeypot" aria-hidden="true">
+      <label for="website">Website</label>
+      <input type="text" id="website" name="website" tabindex="-1" autocomplete="off" />
+    </div>
+
+    <!-- Estado del servidor de reportes: la búsqueda tiene fallback directo,
+         el envío no — este aviso evita un callejón sin salida confuso. -->
+    <p class="aviso danger" id="aviso-servidor" hidden>
+      <strong>El servidor de reportes no responde ahora.</strong>
+      El punto no podrá publicarse hasta que se recupere.
+    </p>
+
+    <div class="form-acciones">
+      <button type="submit" class="btn btn-primary" id="btn-enviar">{labelBoton}</button>
+    </div>
+  </form>
+
+  <ModalResultado />
+</BaseLayout>
+
+<script>
+  import { apiUrl } from "../lib/api";
+  import { initModalResultado, mostrarModalResultado, marcarModalEnviado } from "../lib/modal-resultado";
+  import { fetchPuntosAyuda } from "../lib/datos";
+  import { haversineKm } from "../lib/geo";
+  import { puntoAyudaVisible, type PuntoAyuda } from "../lib/puntos-ayuda";
+  import { etiquetaItemAyuda, etiquetaTipo, ESTADOS_AYUDA, validarItemPersonalizado, type ItemAyuda } from "../lib/items-ayuda";
+  import { escapar } from "../lib/render-catalogos";
+  import { EVENTO_FIJADA, EVENTO_FIJAR, EVENTO_REINICIAR, type UbicacionFijada } from "../lib/ubicacion-picker";
+
+  const RADIO_DEDUPE_KM = 0.15; // 150 m
+  const CLAVE_TOKENS = "enlace-ayuda:tokens";
+
+  function leerTokens(): Record<string, string> {
+    try {
+      return JSON.parse(localStorage.getItem(CLAVE_TOKENS) ?? "{}") as Record<string, string>;
+    } catch {
+      return {};
+    }
+  }
+  function guardarToken(id: string, token: string) {
+    try {
+      const t = leerTokens();
+      t[id] = token;
+      localStorage.setItem(CLAVE_TOKENS, JSON.stringify(t));
+    } catch {
+      // Sin localStorage (modo privado): la edición queda respaldada por IP.
+    }
+  }
+
+  // ---------- Modo edición (¿editar=<id> con token) ----------
+  const params = new URLSearchParams(location.search);
+  const editarId = params.get("editar");
+  const tokenEdicion = editarId ? leerTokens()[editarId] : null;
+  const avisoEdicion = document.getElementById("aviso-edicion") as HTMLDivElement | null;
+  const btnEnviar = document.getElementById("btn-enviar") as HTMLButtonElement | null;
+  if (editarId && !tokenEdicion && avisoEdicion) {
+    avisoEdicion.textContent =
+      "Este punto no se puede editar desde este navegador: falta el token de edición. Si lo creaste, usa el mismo dispositivo donde lo publicaste.";
+    avisoEdicion.hidden = false;
+  }
+  if (editarId) {
+    document.title = "Actualizar punto de ayuda — Enlace Sismo";
+    if (btnEnviar) btnEnviar.textContent = "Guardar cambios";
+  }
+
+  // ---------- Referencias del DOM ----------
+  const form = document.getElementById("form-ayuda") as HTMLFormElement | null;
+  const tipoFijo = form?.dataset.tipoFijo ?? "";
+  const labelBoton = form?.dataset.labelBoton ?? "Publicar punto de ayuda";
+  const latEl = document.getElementById("lat") as HTMLInputElement | null;
+  const lngEl = document.getElementById("lng") as HTMLInputElement | null;
+  const dedupePanel = document.getElementById("dedupe-panel") as HTMLDivElement | null;
+  const dedupeInfo = document.getElementById("dedupe-info") as HTMLParagraphElement | null;
+  const btnReportarIgual = document.getElementById("btn-reportar-igual") as HTMLButtonElement | null;
+  const avisoServidor = document.getElementById("aviso-servidor") as HTMLParagraphElement | null;
+
+  let vivos: PuntoAyuda[] = [];
+
+  // ---------- Ítems personalizados (forma estándar, no texto libre) ----------
+  let itemsPersonalizados: ItemAyuda[] = [];
+  const contenedorItems = document.getElementById("items-personalizados") as HTMLDivElement | null;
+  const inputItemNombre = document.getElementById("item-nombre") as HTMLInputElement | null;
+  const inputItemCantidad = document.getElementById("item-cantidad") as HTMLInputElement | null;
+  const inputItemUnidad = document.getElementById("item-unidad") as HTMLInputElement | null;
+  const helperItem = document.getElementById("helper-item") as HTMLSpanElement | null;
+
+  function renderItemsPersonalizados() {
+    if (!contenedorItems) return;
+    contenedorItems.hidden = itemsPersonalizados.length === 0;
+    contenedorItems.innerHTML = itemsPersonalizados
+      .map(
+        (i, idx) =>
+          `<span class="necesidad-chip"><span>${escapar(etiquetaItemAyuda(i))}</span>` +
+          `<button type="button" class="chip-quitar" data-quitar-item="${idx}" aria-label="Quitar ${escapar(etiquetaItemAyuda(i))}">×</button></span>`
+      )
+      .join("");
+  }
+
+  document.getElementById("btn-agregar-item")?.addEventListener("click", () => {
+    if (!inputItemNombre || !helperItem) return;
+    const validado = validarItemPersonalizado(
+      inputItemNombre.value,
+      inputItemCantidad?.value ?? "",
+      inputItemUnidad?.value ?? ""
+    );
+    if (!validado.ok) {
+      helperItem.textContent = validado.error;
+      return;
+    }
+    const { item } = validado;
+    if (itemsPersonalizados.some((i) => (i.nombre ?? "").toLowerCase() === (item.nombre ?? "").toLowerCase())) {
+      helperItem.textContent = "Ese ítem ya está en la lista.";
+      return;
+    }
+    itemsPersonalizados.push(item);
+    inputItemNombre.value = "";
+    if (inputItemCantidad) inputItemCantidad.value = "";
+    if (inputItemUnidad) inputItemUnidad.value = "";
+    helperItem.textContent = "";
+    renderItemsPersonalizados();
+  });
+
+  contenedorItems?.addEventListener("click", (e) => {
+    const btn = (e.target as HTMLElement).closest<HTMLButtonElement>("[data-quitar-item]");
+    if (!btn?.dataset.quitarItem) return;
+    const idx = Number(btn.dataset.quitarItem);
+    itemsPersonalizados.splice(idx, 1);
+    renderItemsPersonalizados();
+  });
+
+  // ---------- Destino (solo para recolecta/ambos) ----------
+  const grupoDestino = document.getElementById("grupo-destino") as HTMLDivElement | null;
+  function alternarDestino() {
+    if (!grupoDestino) return;
+    const valor = document.querySelector<HTMLInputElement>("input[name='modalidad']:checked")?.value;
+    grupoDestino.hidden = valor !== "recolecta" && valor !== "ambos";
+  }
+  document.querySelectorAll<HTMLInputElement>("input[name='modalidad']").forEach((radio) => {
+    radio.addEventListener("change", alternarDestino);
+  });
+  alternarDestino();
+
+  // ---------- Pre-relleno de la dirección desde el picker ----------
+  const direccionEl = document.getElementById("direccion") as HTMLInputElement | null;
+  let ultimaAutoDireccion = "";
+  document.addEventListener(EVENTO_FIJADA, ((e: Event) => {
+    const d = (e as CustomEvent<UbicacionFijada>).detail;
+    if (!direccionEl || !d.direccion) return;
+    if (direccionEl.value === "" || direccionEl.value === ultimaAutoDireccion) {
+      direccionEl.value = d.direccion;
+      ultimaAutoDireccion = d.direccion;
+    }
+  }) as EventListener);
+
+  // Dedupe contra el registro de ayuda (dominio propio: sin degradación por
+  // tiempo; la visibilidad la decide estado + flags).
+  document.addEventListener(EVENTO_FIJADA, ((e: Event) => {
+    const d = (e as CustomEvent<UbicacionFijada>).detail;
+    buscarDedupe(d.lat, d.lng);
+  }) as EventListener);
+
+  async function cargarVivos() {
+    const data = await fetchPuntosAyuda();
+    if (Array.isArray(data)) {
+      vivos = data;
+      return;
+    }
+    try {
+      const res = await fetch("/datos/reportes-ayuda.json");
+      if (res.ok) {
+        const estatico = (await res.json()) as PuntoAyuda[];
+        if (Array.isArray(estatico)) {
+          vivos = estatico;
+          return;
+        }
+      }
+    } catch {
+      // Sin red: dedupe deshabilitado (el formulario igual funciona).
+    }
+    vivos = [];
+  }
+  void cargarVivos();
+
+  function buscarDedupe(lat: number, lng: number) {
+    if (!dedupePanel || !dedupeInfo) return;
+    // En modo edición, el propio punto en edición no debe auto-matchearse.
+    const cerca = vivos.find(
+      (p) => p.id !== editarId && puntoAyudaVisible(p) && haversineKm(lat, lng, p.lat, p.lng) <= RADIO_DEDUPE_KM
+    );
+    if (!cerca) {
+      dedupePanel.hidden = true;
+      return;
+    }
+    const items = cerca.items.length
+      ? `Ítems: ${cerca.items.map(etiquetaItemAyuda).join(", ")}.`
+      : "Sin ítems listados.";
+    dedupeInfo.textContent =
+      `${cerca.nombre ?? etiquetaTipo(cerca.tipo)}${cerca.direccion ? ` — ${cerca.direccion}` : ""}. ` +
+      `${items} ${ESTADOS_AYUDA[cerca.estado] ?? cerca.estado}.`;
+    dedupePanel.hidden = false;
+  }
+
+  btnReportarIgual?.addEventListener("click", () => {
+    if (dedupePanel) dedupePanel.hidden = true;
+  });
+
+  document.addEventListener(EVENTO_REINICIAR, () => {
+    if (dedupePanel) dedupePanel.hidden = true;
+  });
+
+  // ---------- Modal ----------
+  initModalResultado({
+    irTrasExito: "/#mapa",
+    compartir: { url: "/#mapa", titulo: "Mapa de ayuda" },
+  });
+
+  // ---------- Estado del servidor (health check temprano) ----------
+  async function revisarServidor() {
+    if (!avisoServidor) return;
+    try {
+      const res = await fetch(apiUrl("/api/health"));
+      if (res.ok) return;
+    } catch {
+      // cae al aviso
+    }
+    avisoServidor.hidden = false;
+  }
+  void revisarServidor();
+
+  // ---------- Validación y envío ----------
+  function limpiarErrores() {
+    if (!form) return;
+    form.querySelectorAll<HTMLElement>("[aria-invalid]").forEach((el) => el.removeAttribute("aria-invalid"));
+    form.querySelectorAll<HTMLElement>(".helper.error").forEach((el) => el.classList.remove("error"));
+  }
+
+  function errorCampo(id: string, msg: string) {
+    const input = document.getElementById(id) as HTMLInputElement | HTMLSelectElement | null;
+    const helper = document.getElementById(`helper-${id}`);
+    if (input) input.setAttribute("aria-invalid", "true");
+    if (helper) {
+      helper.textContent = msg;
+      helper.classList.add("error");
+    }
+  }
+
+  function validar(): boolean {
+    let ok = true;
+    if (!tipoFijo) {
+      const tipo = (document.getElementById("tipo") as HTMLSelectElement | null)?.value ?? "";
+      if (!tipo) {
+        errorCampo("tipo", "Selecciona el tipo de lugar");
+        ok = false;
+      }
+    }
+    const modalidad = document.querySelector<HTMLInputElement>("input[name='modalidad']:checked")?.value ?? "";
+    if (!modalidad) {
+      errorCampo("modalidad", "Elige qué hace este lugar (necesita, recolecta o ambos)");
+      ok = false;
+    }
+    const lat = Number(latEl?.value);
+    const lng = Number(lngEl?.value);
+    if (!latEl?.value || Number.isNaN(lat) || lat < -90 || lat > 90) {
+      errorCampo("lat", "Fija la ubicación: latitud debe estar entre -90 y 90");
+      ok = false;
+    }
+    if (!lngEl?.value || Number.isNaN(lng) || lng < -180 || lng > 180) {
+      errorCampo("lng", "Fija la ubicación: longitud debe estar entre -180 y 180");
+      ok = false;
+    }
+    const descripcion = (document.getElementById("descripcion") as HTMLTextAreaElement | null)?.value.trim() ?? "";
+    if (descripcion.length < 3) {
+      errorCampo("descripcion", "Describe el punto (mínimo 3 caracteres)");
+      ok = false;
+    }
+    const direccion = (document.getElementById("direccion") as HTMLInputElement | null)?.value.trim() ?? "";
+    if (direccion.length < 5) {
+      errorCampo("direccion", "La dirección debe tener al menos 5 caracteres");
+      ok = false;
+    }
+    return ok;
+  }
+
+  function itemsDelFormulario(): ItemAyuda[] {
+    const items = Array.from(
+      form?.querySelectorAll<HTMLInputElement>(".necesidades-grid input[type='checkbox']:checked") ?? []
+    ).map((c) => ({ tipo: "catalogo" as const, id: c.value }));
+    return [...items, ...itemsPersonalizados];
+  }
+
+  function rellenarFormulario(p: PuntoAyuda) {
+    const setVal = (id: string, v: string) => {
+      const el = document.getElementById(id) as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | null;
+      if (el) el.value = v;
+    };
+    setVal("tipo", p.tipo);
+    const radio = document.querySelector<HTMLInputElement>(`input[name='modalidad'][value='${p.modalidad}']`);
+    if (radio) radio.checked = true;
+    alternarDestino();
+    setVal("nombre", p.nombre ?? "");
+    setVal("direccion", p.direccion ?? "");
+    setVal("descripcion", p.descripcion);
+    setVal("horario", p.horario ?? "");
+    setVal("contacto", p.contacto ?? "");
+    // Ítems: chips del catálogo + personalizados.
+    const catalogoIds = new Set(p.items.filter((i) => i.tipo === "catalogo").map((i) => i.id));
+    form?.querySelectorAll<HTMLInputElement>(".necesidades-grid input[type='checkbox']").forEach((c) => {
+      c.checked = catalogoIds.has(c.value);
+    });
+    itemsPersonalizados = p.items.filter((i) => i.tipo === "personalizado");
+    renderItemsPersonalizados();
+    // Destino.
+    if (p.destino) {
+      const trans = document.getElementById("destino-transporta") as HTMLInputElement | null;
+      if (trans) trans.checked = p.destino.transporta;
+      setVal("destino-ciudades", p.destino.ciudades.join(", "));
+      setVal("destino-nota", p.destino.nota ?? "");
+    }
+    // Pin: los hidden lat/lng los fija el picker (fallback si no hay mapa:
+    // el picker igual los escribe); el picker además vuela al punto existente.
+    if (latEl) latEl.value = String(p.lat);
+    if (lngEl) lngEl.value = String(p.lng);
+    // El picker coloca el marcador, vuela y corre reverse geocode + dedupe
+    // (el dedupe ignora este mismo punto).
+    document.dispatchEvent(
+      new CustomEvent(EVENTO_FIJAR, {
+        detail: { lat: p.lat, lng: p.lng, precision: p.coordenadas_nivel ?? "premisa" },
+      })
+    );
+  }
+
+  if (editarId && tokenEdicion) {
+    void fetch(apiUrl(`/api/ayuda/${encodeURIComponent(editarId)}`))
+      .then((r) => (r.ok ? r.json() : null))
+      .then((p: PuntoAyuda | null) => {
+        if (p) rellenarFormulario(p);
+      })
+      .catch(() => {
+        // API caída: el formulario queda vacío; el usuario puede reintentar.
+      });
+  }
+
+  if (form) {
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      limpiarErrores();
+      if (!validar()) return;
+      if (editarId && !tokenEdicion) {
+        mostrarModalResultado(
+          "error",
+          "No autorizado",
+          "Este punto no se puede editar desde este navegador: falta el token de edición."
+        );
+        return;
+      }
+
+      if (btnEnviar) {
+        btnEnviar.disabled = true;
+        btnEnviar.setAttribute("aria-busy", "true");
+        btnEnviar.textContent = "Publicando…";
+      }
+
+      const getVal = (id: string) =>
+        (document.getElementById(id) as HTMLInputElement | null)?.value.trim() ?? "";
+
+      const nivelEl = document.getElementById("coordenadas_nivel") as HTMLInputElement | null;
+      const modalidad = document.querySelector<HTMLInputElement>("input[name='modalidad']:checked")?.value ?? "";
+      const transporta = (document.getElementById("destino-transporta") as HTMLInputElement | null)?.checked ?? false;
+      const ciudadesDestino = getVal("destino-ciudades")
+        .split(",")
+        .map((s) => s.trim())
+        .filter((s) => s.length >= 2)
+        .slice(0, 10);
+      const destino =
+        modalidad === "recolecta" || modalidad === "ambos"
+          ? {
+              transporta,
+              ciudades: ciudadesDestino,
+              ...(getVal("destino-nota") ? { nota: getVal("destino-nota") } : {}),
+            }
+          : undefined;
+
+      const body = {
+        tipo: tipoFijo || ((document.getElementById("tipo") as HTMLInputElement | null)?.value ?? ""),
+        modalidad,
+        nombre: getVal("nombre") || undefined,
+        lat: Number(latEl?.value),
+        lng: Number(lngEl?.value),
+        coordenadas_nivel: nivelEl?.value ?? "via",
+        direccion: getVal("direccion"),
+        descripcion: getVal("descripcion"),
+        items: itemsDelFormulario(),
+        destino,
+        horario: getVal("horario") || undefined,
+        contacto: getVal("contacto") || undefined,
+        website: getVal("website"), // honeypot
+      };
+
+      if (!(body.coordenadas_nivel === "premisa" || body.coordenadas_nivel === "via" || body.coordenadas_nivel === "barrio")) {
+        body.coordenadas_nivel = "via";
+      }
+
+      try {
+        const metodo = editarId ? "PATCH" : "POST";
+        const url = editarId ? `/api/ayuda/${encodeURIComponent(editarId)}` : "/api/ayuda";
+        const payload = editarId ? { ...body, token: tokenEdicion } : body;
+        const res = await fetch(apiUrl(url), {
+          method: metodo,
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        const data = (await res.json().catch(() => null)) as { ok?: boolean; id?: string; token_edicion?: string; error?: string } | null;
+
+        if (res.ok && data?.ok) {
+          form.reset();
+          itemsPersonalizados = [];
+          renderItemsPersonalizados();
+          document.dispatchEvent(new CustomEvent(EVENTO_REINICIAR));
+          if (data.id && data.token_edicion) guardarToken(data.id, data.token_edicion);
+          marcarModalEnviado();
+          const exito =
+            editarId && data.id
+              ? { titulo: "Punto actualizado", mensaje: "Los cambios ya quedaron publicados y aparecen en el mapa." }
+              : {
+                  titulo: "Punto publicado",
+                  mensaje: "El punto ya quedó en la cola de publicación y aparece en el mapa en unos minutos como “sin confirmar”. Gracias por reportar.",
+                };
+          mostrarModalResultado(
+            "ok",
+            exito.titulo,
+            exito.mensaje,
+            `<a class="btn btn-primary" href="/#mapa">Ver en el mapa</a>` +
+              `<button type="button" class="btn" data-compartir>Compartir</button>`
+          );
+        } else {
+          mostrarModalResultado("error", "No se pudo publicar", data?.error ?? "Intenta nuevamente más tarde.");
+        }
+      } catch (err) {
+        // fetch rechazado = error de red/CORS (TypeError); lo demás es interno.
+        console.error("enlace-sismo: error al publicar el punto de ayuda", err);
+        const esRed = err instanceof TypeError;
+        const esLocal =
+          location.hostname === "localhost" || location.hostname === "127.0.0.1";
+        mostrarModalResultado(
+          "error",
+          "No se pudo publicar",
+          esRed && esLocal
+            ? `No hay conexión con el servidor de reportes (${apiUrl("/api/ayuda")}). En desarrollo, corre también “npm run dev:api” en otra terminal.`
+            : esRed
+              ? "No hay conexión con el servidor de reportes. Intenta nuevamente en unos minutos."
+              : "Ocurrió un error inesperado al enviar el punto. Intenta nuevamente."
+        );
+      }
+
+      if (btnEnviar) {
+        btnEnviar.disabled = false;
+        btnEnviar.removeAttribute("aria-busy");
+        btnEnviar.textContent = editarId ? "Guardar cambios" : labelBoton;
+      }
+    });
+  }
+</script>

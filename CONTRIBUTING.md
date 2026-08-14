@@ -8,9 +8,10 @@ Los lugares (acopios, albergues, centros de salud) y los puntos de ayuda viven e
 solo registro en vivo** (base D1 + API público). La contribución de datos es **100 %
 en la plataforma**: reportar, auditar y corregir no requiere GitHub ni PRs.
 
-- **Reportar** — `/reportar` o el botón "Declarar necesidad u oferta" de los popups del
-  mapa. El punto se publica al instante (sin cola de revisión) con ubicación, ítems y
-  destino.
+- **Reportar** — los formularios por tipo de cada sección (`/acopios/reportar`,
+  `/albergues/reportar`, `/salud/reportar`), el formulario genérico `/reportar` o el
+  botón "Declarar necesidad u oferta" del modal de punto en el mapa. El punto se
+  publica al instante (sin cola de revisión) con ubicación, ítems y destino.
 - **Auditar** — "Reportar punto falso" en cada tarjeta: 3 reportes de la comunidad
   ocultan el punto hasta que el equipo lo revisa.
 - **Actualizar / cerrar** — el autor con su token de edición; el equipo promueve con
@@ -35,8 +36,10 @@ repo, `npm run validate:data` bloquea cualquier entrada sin esos campos.
 
 ## Cómo reportar un dato correcto en la plataforma
 
-1. Abre `/reportar` (o el quick-add del mapa) y publica el lugar con su ubicación.
-   El formulario detecta duplicados a ≤150 m del registro.
+1. Abre el formulario de la sección (`/acopios/reportar`, `/albergues/reportar`,
+   `/salud/reportar`), el formulario genérico `/reportar` o el quick-add del modal de
+   punto en el mapa, y publica el lugar con su ubicación. El formulario detecta
+   duplicados a ≤150 m del registro.
 2. El punto aparece al instante como **sin confirmar** en la página de su tipo
    (`/acopios`, `/albergues`, `/salud`), en el panel Ayuda y en el mapa.
 3. Si tienes la fuente oficial, compártela (campo "fuente" en la verificación del
@@ -54,8 +57,9 @@ cerró o cambió, el autor puede actualizarlo o cerrarlo con su token.
 - **Cuentas bancarias y enlaces de pago**: solo en `data/canales-ayuda.json` con
   `"estado": "oficial"` (publicados por la entidad) y **2 aprobaciones de mantenedores**.
   Nunca publiques cuentas personales.
-- **Personas desaparecidas**: se referencia a ColombiaTeBusca (https://colombiatebusca.com);
-  este proyecto no mantiene un registro propio ni una API de reportes.
+- **Personas desaparecidas**: se referencia a ColombiaTeBusca (https://colombiatebusca.com)
+  desde el botón del encabezado; este proyecto no mantiene un registro propio ni una
+  API de reportes.
 - **Ingresos hospitalarios: prohibidos.** No hay registro de pacientes en ningún formato
   (nombres, iniciales, hospital, fecha/hora): dato sensible sin consentimiento posible
   (Ley 1581/2012). Los PRs que lo propongan se rechazan.

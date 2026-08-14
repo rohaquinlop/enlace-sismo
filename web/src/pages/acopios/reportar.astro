@@ -1,0 +1,15 @@
+---
+import FormularioPuntoAyuda from "../../components/FormularioPuntoAyuda.astro";
+---
+
+<!-- Formulario de la sección Puntos de acopio: mismo estándar del registro
+     único, con el tipo "acopio" pre-fijado y modalidad sugerida "recolecta". -->
+<FormularioPuntoAyuda
+  title="Agregar punto de acopio — Enlace Sismo"
+  description="Publica un punto de acopio con los ítems que recibe y a dónde los lleva. Se publica como sin confirmar."
+  titulo="Agregar punto de acopio"
+  intro="Publica un punto de acopio con los ítems que recibe y a dónde los lleva. Se muestra al instante como <strong>“sin confirmar”</strong> y cualquiera puede reportarlo si es falso."
+  breadcrumbItems={[{ label: "Puntos de acopio", href: "/acopios" }, { label: "Agregar punto de acopio" }]}
+  labelBoton="Publicar punto de acopio"
+  tipoFijo="acopio"
+/>

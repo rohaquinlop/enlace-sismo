@@ -2,15 +2,20 @@
 import BaseLayout from "../layouts/BaseLayout.astro";
 import StatusBadge from "../components/StatusBadge.astro";
 import contactos from "../../../data/contactos.json";
+
+// La sección se llama "Líneas de emergencia" (antes "Contactos"): muestra
+// SOLO las líneas de emergencia (tipo === "emergencia"). UNGRD y SGC ya
+// están como canales verificados en /ayuda (ajustes-ux-frontend).
+const lineas = contactos.filter((c) => c.tipo === "emergencia");
 ---
 
 <BaseLayout
-  title="Contactos de emergencia — Enlace Sismo"
-  description="Números oficiales de emergencia y entidades de respuesta para el sismo en Colombia: 123, Bomberos, Cruz Roja, Defensa Civil, UNGRD y SGC."
+  title="Líneas de emergencia — Enlace Sismo"
+  description="Números oficiales de emergencia para el sismo en Colombia: 123, Bomberos 119, Cruz Roja 132 y Defensa Civil 144."
 >
   <section class="seccion-titulo">
-    <h1>Contactos de emergencia</h1>
-    <p>Canales oficiales de respuesta y coordinación. Todos verificados contra fuentes oficiales.</p>
+    <h1>Líneas de emergencia</h1>
+    <p>Números oficiales de emergencia. Todos verificados contra fuentes oficiales.</p>
   </section>
 
   <div class="aviso warning">
@@ -24,7 +29,7 @@ import contactos from "../../../data/contactos.json";
     </thead>
     <tbody>
       {
-        contactos.map((c) => (
+        lineas.map((c) => (
           <tr>
             <td data-label="Servicio"><strong>{c.nombre}</strong></td>
             <td data-label="Número"><strong>{c.telefono}</strong></td>

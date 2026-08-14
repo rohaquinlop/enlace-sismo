@@ -15,10 +15,8 @@ const SECCIONES = [
   { href: "/acopios", label: "Puntos de acopio", descripcion: "Dónde entregar alimentos, ropa, agua y medicamentos." },
   { href: "/albergues", label: "Albergues y refugios", descripcion: "Refugios habilitados para damnificados." },
   { href: "/salud", label: "Centros de salud", descripcion: "Hospitales, clínicas y primeros auxilios." },
-  { href: "/desaparecidos", label: "Desaparecidos", descripcion: "Reportes de personas desaparecidas en ColombiaTeBusca." },
-  { href: "/reportar", label: "Puntos de ayuda", descripcion: "Necesidades y ofertas de ayuda: reporta o actualiza un punto." },
   { href: "/ayuda", label: "Cómo ayudar", descripcion: "Canales oficiales de donación y voluntariado." },
-  { href: "/contactos", label: "Contactos", descripcion: "Líneas de emergencia oficiales." },
+  { href: "/contactos", label: "Líneas de emergencia", descripcion: "Números oficiales de emergencia: 123, 119, 132 y 144." },
 ];
 
 // La paleta enlaza ciudades al mapa de la portada con deep-link: /?ciudad=<id>#mapa
@@ -112,8 +110,7 @@ const seccionActiva = (href: string) => {
         </button>
       </div>
       <a class="btn btn-primary" href="https://colombiatebusca.com" target="_blank" rel="noopener noreferrer">
-        <span class="btn-cta-full">Buscar o reportar desaparecidos</span>
-        <span class="btn-cta-movil" aria-hidden="true">Desaparecidos</span>
+        Desaparecidos
       </a>
     </header>
 

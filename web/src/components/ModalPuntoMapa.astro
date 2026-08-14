@@ -1,0 +1,313 @@
+---
+// Modal de punto del mapa: reemplaza los popups MapLibre (ajustes-ux-frontend).
+// El mapa despacha enlace:mapa:modal-punto con los datos del elemento tocado;
+// este componente renderiza la tarjeta completa + acciones. Hoja inferior en
+// móvil, diálogo centrado en desktop (CSS). Las acciones de flag/cerrar las
+// maneja el diálogo compartido de index.astro vía delegación [data-flag]/
+// [data-cerrar]; el quick-add se despacha a QuickAddAyuda.
+---
+
+<div class="modal-punto" id="modal-punto" hidden>
+  <div
+    class="modal-punto-caja"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="modal-punto-titulo"
+  >
+    <div class="modal-punto-head">
+      <div class="modal-punto-titulo-wrap">
+        <h3 id="modal-punto-titulo" class="modal-punto-titulo"></h3>
+        <span class="modal-punto-badges" id="modal-punto-badges"></span>
+      </div>
+      <button type="button" class="modal-punto-cerrar" id="modal-punto-cerrar-btn" aria-label="Cerrar">×</button>
+    </div>
+    <div id="modal-punto-contenido"></div>
+  </div>
+</div>
+
+<script>
+  import { badgeHTML, badgesPuntoAyudaHTML, cardPuntoAyudaHTML, escapar } from "../lib/render-catalogos";
+  import { etiquetaItemAyuda, etiquetaModalidadCorta, etiquetaTipo } from "../lib/items-ayuda";
+  import { formatearDistancia } from "../lib/geo";
+  import type { PuntoAyuda } from "../lib/puntos-ayuda";
+
+  const ROMANOS = ["", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII"];
+
+  // Payloads del mapa (tipos aplanados de Map.astro).
+  type JornadaModal = {
+    id: string;
+    nombre: string;
+    lat: number;
+    lng: number;
+    estado: string;
+    ciudad: string;
+    direccion: string;
+    fuente: string;
+    coordenadas_nivel?: string;
+    detalle?: string;
+  };
+  type ZonaModal = {
+    id: string;
+    nombre: string;
+    tipo: "epicentro" | "ciudad";
+    lat: number;
+    lng: number;
+    intensidad?: number;
+    detalle?: string;
+    fuente: string;
+    distEpicentroKm: number;
+    fecha?: string;
+  };
+  type PuntoCiudadModal = {
+    id: string;
+    etiqueta: string;
+    lat: number;
+    lng: number;
+    items: { tipo: "catalogo" | "personalizado"; id?: string; nombre?: string; cantidad?: number; unidad?: string }[];
+    modalidad: string;
+    flags: number;
+    estado: string;
+  };
+  type DetalleModal =
+    | { tipo: "ayuda"; datos: PuntoAyuda; desdeQuickAdd?: boolean }
+    | { tipo: "jornada"; datos: JornadaModal }
+    | { tipo: "zona"; datos: ZonaModal }
+    | { tipo: "ciudad"; datos: { nombre: string; puntos: PuntoCiudadModal[] } };
+
+  const el = document.getElementById("modal-punto") as HTMLDivElement | null;
+  const caja = el?.querySelector<HTMLDivElement>(".modal-punto-caja") ?? null;
+  const titulo = document.getElementById("modal-punto-titulo") as HTMLHeadingElement | null;
+  const badges = document.getElementById("modal-punto-badges") as HTMLSpanElement | null;
+  const contenido = document.getElementById("modal-punto-contenido") as HTMLDivElement | null;
+  const btnCerrar = document.getElementById("modal-punto-cerrar-btn") as HTMLButtonElement | null;
+
+  // Tokens de edición: misma clave del registro (los botones Actualizar/Cerrar
+  // solo aparecen para puntos creados en este navegador).
+  const CLAVE_TOKENS = "enlace-ayuda:tokens";
+  function leerTokens(): Record<string, string> {
+    try {
+      return JSON.parse(localStorage.getItem(CLAVE_TOKENS) ?? "{}") as Record<string, string>;
+    } catch {
+      return {};
+    }
+  }
+
+  const enlaceMaps = (lat: number, lng: number) =>
+    `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
+
+  // Cierre del modal post-publicación (volar-ayuda con desdeQuickAdd): devuelve
+  // el mapa a la vista completa, como hacía el popup quick-add.
+  let desdeQuickAdd = false;
+  let ultimoFoco: HTMLElement | null = null;
+
+  function abrir(d: DetalleModal) {
+    if (!el || !titulo || !contenido) return;
+    ultimoFoco = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    desdeQuickAdd = d.tipo === "ayuda" && d.datos && (d as { desdeQuickAdd?: boolean }).desdeQuickAdd === true;
+    titulo.textContent = tituloDe(d);
+    // Badges del encabezado: el cuerpo no repite el nombre ni los badges
+    // (la tarjeta se renderiza sin cabeza — el tipo se muestra una sola vez).
+    if (badges) {
+      badges.innerHTML =
+        d.tipo === "ayuda" ? badgesPuntoAyudaHTML(d.datos) : d.tipo === "jornada" ? badgeHTML(d.datos.estado) : "";
+    }
+    contenido.innerHTML = cuerpoDe(d);
+    el.hidden = false;
+    contenido.scrollTop = 0;
+    btnCerrar?.focus();
+  }
+
+  function cerrar() {
+    if (!el || el.hidden) return;
+    el.hidden = true;
+    if (desdeQuickAdd) {
+      desdeQuickAdd = false;
+      window.dispatchEvent(new CustomEvent("enlace:mapa:reiniciar"));
+    }
+    if (ultimoFoco && document.contains(ultimoFoco)) ultimoFoco.focus();
+    ultimoFoco = null;
+  }
+
+  function tituloDe(d: DetalleModal): string {
+    switch (d.tipo) {
+      case "ayuda":
+        // Sin nombre, el título ES el tipo (la tarjeta sinCabeza omite la
+        // línea de tipo en ese caso): el tipo nunca desaparece del modal.
+        return d.datos.nombre ?? etiquetaTipo(d.datos.tipo);
+      case "jornada":
+        return d.datos.nombre;
+      case "zona":
+        return d.datos.nombre;
+      case "ciudad":
+        return d.datos.nombre;
+    }
+  }
+
+  function cuerpoDe(d: DetalleModal): string {
+    switch (d.tipo) {
+      case "ayuda":
+        return cuerpoAyuda(d.datos);
+      case "jornada":
+        return cuerpoJornada(d.datos);
+      case "zona":
+        return cuerpoZona(d.datos);
+      case "ciudad":
+        return cuerpoCiudad(d.datos);
+    }
+  }
+
+  function cuerpoAyuda(p: PuntoAyuda): string {
+    const conToken = Boolean(leerTokens()[p.id]);
+    const acciones = [
+      `<a class="btn" href="${enlaceMaps(p.lat, p.lng)}" target="_blank" rel="noopener">Cómo llegar</a>`,
+      `<button type="button" class="btn" data-flag="${escapar(p.id)}">Reportar punto falso</button>`,
+    ];
+    if (conToken) {
+      acciones.push(
+        `<a class="btn" href="/reportar?editar=${encodeURIComponent(p.id)}">Actualizar</a>`,
+        `<button type="button" class="btn" data-cerrar="${escapar(p.id)}">Cerrar punto</button>`
+      );
+    }
+    acciones.push(botonQuickAdd(p.lat, p.lng, p.tipo, p.ciudad ?? "", p.nombre ?? "", p.coordenadas_nivel ?? "premisa"));
+    return (
+      `<div class="modal-punto-cuerpo">${cardPuntoAyudaHTML(p, { sinCabeza: true })}</div>` +
+      `<div class="modal-punto-acciones">${acciones.join("")}</div>`
+    );
+  }
+
+  function cuerpoJornada(p: JornadaModal): string {
+    const detalle = p.detalle ? `<p class="card-dato"><strong>${escapar(p.detalle)}</strong></p>` : "";
+    return (
+      `<div class="modal-punto-cuerpo"><article class="card">` +
+      `<p class="card-tipo">Donación de sangre</p>` +
+      `<p class="card-dir">${escapar(p.direccion)}</p>` +
+      `<p class="card-ciudad">${escapar(p.ciudad)} · <a href="${enlaceMaps(p.lat, p.lng)}" target="_blank" rel="noopener">Cómo llegar</a></p>` +
+      detalle +
+      `<p class="card-fuente">Fuente: <a href="${escapar(p.fuente)}" target="_blank" rel="noopener">${escapar(p.fuente)}</a></p>` +
+      `</article></div>` +
+      `<div class="modal-punto-acciones">` +
+      `<a class="btn" href="${enlaceMaps(p.lat, p.lng)}" target="_blank" rel="noopener">Cómo llegar</a>` +
+      botonQuickAdd(p.lat, p.lng, "otro", p.ciudad, p.nombre, p.coordenadas_nivel ?? "premisa") +
+      `</div>`
+    );
+  }
+
+  function cuerpoZona(z: ZonaModal): string {
+    const intensidad = z.intensidad
+      ? `Intensidad ${ROMANOS[z.intensidad]} — Mercalli`
+      : "Sin reporte de intensidad";
+    const distancia =
+      z.distEpicentroKm > 0 ? `A ${formatearDistancia(z.distEpicentroKm)} del epicentro` : "";
+    const detalle = z.detalle ? `${escapar(z.detalle)}${z.fecha ? ` · ${escapar(z.fecha)}` : ""} · SGC` : "";
+    return (
+      `<div class="modal-punto-cuerpo"><article class="card">` +
+      `<p class="card-tipo">${escapar(intensidad)}</p>` +
+      (distancia ? `<p class="card-dato"><strong>${escapar(distancia)}</strong></p>` : "") +
+      (detalle ? `<p class="card-dato">${detalle}</p>` : "") +
+      `<p class="card-fuente">Fuente: <a href="${escapar(z.fuente)}" target="_blank" rel="noopener">SGC</a> · ` +
+      `<a href="${enlaceMaps(z.lat, z.lng)}" target="_blank" rel="noopener">Cómo llegar</a></p>` +
+      `</article></div>` +
+      `<div class="modal-punto-acciones">` +
+      `<a class="btn" href="${enlaceMaps(z.lat, z.lng)}" target="_blank" rel="noopener">Cómo llegar</a>` +
+      `</div>`
+    );
+  }
+
+  function cuerpoCiudad(c: { nombre: string; puntos: PuntoCiudadModal[] }): string {
+    const filas = c.puntos
+      .map((p) => {
+        const chips =
+          p.items.length > 0
+            ? `<span class="popup-ayuda-ns">${p.items.map((i) => `<span>${escapar(etiquetaItemAyuda(i))}</span>`).join("")}</span>`
+            : "";
+        return (
+          `<div class="modal-punto-fila">` +
+          `<p class="card-dato"><strong>${escapar(p.etiqueta)}</strong> · ${escapar(etiquetaModalidadCorta(p.modalidad))}${p.flags > 0 ? ` · ${p.flags} rep.` : ""}</p>` +
+          chips +
+          `<p class="card-ciudad"><a href="${enlaceMaps(p.lat, p.lng)}" target="_blank" rel="noopener">Cómo llegar</a></p>` +
+          `</div>`
+        );
+      })
+      .join("");
+    return (
+      `<div class="modal-punto-cuerpo"><article class="card">` +
+      `<p class="card-tipo">Sin reporte de intensidad · ${c.puntos.length} punto${c.puntos.length === 1 ? "" : "s"} ciudadano${c.puntos.length === 1 ? "" : "s"}</p>` +
+      filas +
+      `<p class="card-dato">Reportada por ciudadanos · sin intensidad (falta fuente oficial)</p>` +
+      `</article></div>`
+    );
+  }
+
+  function botonQuickAdd(lat: number, lng: number, tipo: string, ciudad: string, nombre: string, nivel: string): string {
+    return (
+      `<button type="button" class="btn" data-quick-add data-qa-lat="${lat}" data-qa-lng="${lng}" ` +
+      `data-qa-tipo="${escapar(tipo)}" data-qa-ciudad="${escapar(ciudad)}" data-qa-nombre="${escapar(nombre)}" ` +
+      `data-qa-nivel="${escapar(nivel)}">Declarar necesidad u oferta</button>`
+    );
+  }
+
+  // Quick-add desde el modal: abre el mini-formulario (QuickAddAyuda) con el
+  // contexto del punto. Antes vivía en los popups del mapa.
+  document.addEventListener("click", (e) => {
+    const btn = (e.target as HTMLElement).closest<HTMLElement>("[data-quick-add]");
+    if (!btn || !btn.dataset.qaLat || !btn.dataset.qaLng) return;
+    window.dispatchEvent(
+      new CustomEvent("enlace:mapa:quick-add-ayuda", {
+        detail: {
+          lat: Number(btn.dataset.qaLat),
+          lng: Number(btn.dataset.qaLng),
+          tipo: btn.dataset.qaTipo ?? "otro",
+          ciudad: btn.dataset.qaCiudad ?? "",
+          nombre: btn.dataset.qaNombre ?? "",
+          coordenadas_nivel: btn.dataset.qaNivel ?? "premisa",
+        },
+      })
+    );
+  });
+
+  btnCerrar?.addEventListener("click", cerrar);
+  el?.addEventListener("click", (e) => {
+    if (e.target === el) cerrar(); // clic en el overlay
+  });
+  document.addEventListener("keydown", (e) => {
+    // Escape solo cierra el modal si no hay un diálogo por encima (quick-add
+    // o diálogo de acción): cada uno cierra el suyo.
+    if (e.key !== "Escape" || !el || el.hidden) return;
+    const quickAdd = document.getElementById("quick-add-ayuda");
+    const dialogoAccion = document.getElementById("dialogo-accion");
+    if ((quickAdd && !quickAdd.hidden) || (dialogoAccion && !dialogoAccion.hidden)) return;
+    cerrar();
+  });
+
+  // Trampa de foco: un diálogo aria-modal debe contener el Tab (ARIA APG).
+  document.addEventListener("keydown", (e) => {
+    if (e.key !== "Tab" || !el || el.hidden || !caja) return;
+    const focusables = Array.from(
+      caja.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      )
+    );
+    if (focusables.length === 0) return;
+    const primero = focusables[0];
+    const ultimo = focusables[focusables.length - 1];
+    if (e.shiftKey && document.activeElement === primero) {
+      e.preventDefault();
+      ultimo.focus();
+    } else if (!e.shiftKey && document.activeElement === ultimo) {
+      e.preventDefault();
+      primero.focus();
+    }
+  });
+
+  // El mapa reemplaza los popups por este evento; la vista "reiniciar"
+  // (marca Enlace Sismo) y las acciones exitosas del diálogo cierran el modal.
+  window.addEventListener(
+    "enlace:mapa:modal-punto",
+    ((e: CustomEvent<DetalleModal>) => {
+      const d = e.detail;
+      if (d && typeof d === "object" && d.tipo) abrir(d);
+    }) as EventListener
+  );
+  window.addEventListener("enlace:mapa:reiniciar", cerrar);
+  window.addEventListener("enlace:mapa:modal-cerrar", cerrar);
+</script>

@@ -78,14 +78,19 @@ const DESCRIPCION_SEED = new Set([
   "Centro de salud verificado — ver fuente.",
 ]);
 
-/** Tarjeta de una entrada del registro (espejo del panel Ayuda del dashboard). */
-export function cardPuntoAyudaHTML(p: PuntoAyuda): string {
+/** Tarjeta de una entrada del registro (espejo del panel Ayuda del dashboard).
+ *  `sinCabeza` omite el h3 + badges (los aporta quien la embebe, p. ej. el
+ *  modal de punto, cuyo encabezado ya muestra el nombre). */
+export function cardPuntoAyudaHTML(p: PuntoAyuda, opts: { sinCabeza?: boolean } = {}): string {
   // El tipo se muestra UNA sola vez: badge del sub-tipo si existe (Refugio,
-  // Clínica), texto del tipo en su ausencia (convención de CatalogCard).
+  // Clínica), texto del tipo SOLO cuando el h3 muestra un nombre. Sin nombre,
+  // el h3 ES el tipo ("Punto de acopio") y una línea de tipo lo duplicaría.
   const tipoLinea =
     p.subtipo && p.subtipo !== p.tipo
       ? `<p class="card-tipo"><span class="badge badge-tipo">${escapar(ETIQUETAS_SUBTIPO[p.subtipo] ?? p.subtipo)}</span></p>`
-      : `<p class="card-tipo">${escapar(etiquetaTipo(p.tipo))}</p>`;
+      : p.nombre
+        ? `<p class="card-tipo">${escapar(etiquetaTipo(p.tipo))}</p>`
+        : "";
   // Rol (modalidad) + precisión del pin en su propia línea: la meta de la
   // card queda corta (ciudad · Cómo llegar) y no rompe a 320 px.
   const rol = `${escapar(etiquetaModalidadCorta(p.modalidad))}${p.coordenadas_nivel ? ` · ${escapar(etiquetaPrecision(p.coordenadas_nivel))}` : ""}`;
@@ -141,7 +146,9 @@ export function cardPuntoAyudaHTML(p: PuntoAyuda): string {
       : "";
   return (
     `<article class="card" id="${escapar(p.id)}">` +
-    `<div class="card-head"><h3>${escapar(p.nombre ?? etiquetaTipo(p.tipo))}</h3><span class="card-badges">${badgesPuntoAyudaHTML(p)}</span></div>` +
+    (opts.sinCabeza
+      ? ""
+      : `<div class="card-head"><h3>${escapar(p.nombre ?? etiquetaTipo(p.tipo))}</h3><span class="card-badges">${badgesPuntoAyudaHTML(p)}</span></div>`) +
     tipoLinea +
     `<p class="card-dir">${escapar(p.direccion ?? "")}</p>` +
     `<p class="card-ciudad">${escapar(p.ciudad ?? "")}${p.departamento ? `, ${escapar(p.departamento)}` : ""} · ` +
@@ -251,7 +258,23 @@ const VACIOS: Record<string, { titulo: string; texto: string }> = {
   },
 };
 
-const CTA_REPORTAR = `<a class="btn btn-primary" href="/reportar">Reportar una necesidad u oferta</a>`;
+// CTA de reporte por tipo: cada sección lleva a su sub-página con el tipo
+// pre-fijado (ajustes-ux-frontend). Copy alineado con los títulos de los
+// formularios y con el nombre de la sección, con UN solo verbo ("Agregar"):
+// "Agregar punto de acopio", "Agregar albergue", "Agregar centro de salud".
+const CTA_POR_TIPO: Record<
+  "acopio" | "albergue" | "hospital",
+  { label: string; href: string }
+> = {
+  acopio: { label: "Agregar punto de acopio", href: "/acopios/reportar" },
+  albergue: { label: "Agregar albergue", href: "/albergues/reportar" },
+  hospital: { label: "Agregar centro de salud", href: "/salud/reportar" },
+};
+
+const CTA_REPORTAR = (tipo: "acopio" | "albergue" | "hospital") => {
+  const cta = CTA_POR_TIPO[tipo];
+  return `<a class="btn btn-primary" href="${cta.href}">${cta.label}</a>`;
+};
 
 /** Agrupa las entradas del registro por ciudad (mismo patrón que las páginas). */
 function agruparPuntos(puntos: PuntoAyuda[]) {
@@ -275,7 +298,7 @@ function agruparPuntos(puntos: PuntoAyuda[]) {
 export function renderCatalogoPagina(tipo: "acopio" | "albergue" | "hospital", puntos: PuntoAyuda[]): string {
   const v = VACIOS[tipo];
   if (puntos.length === 0) {
-    return VACIO(v.titulo, v.texto, CTA_REPORTAR);
+    return VACIO(v.titulo, v.texto, CTA_REPORTAR(tipo));
   }
   const grupos = agruparPuntos(puntos);
   const filtros =
@@ -289,7 +312,7 @@ export function renderCatalogoPagina(tipo: "acopio" | "albergue" | "hospital", p
       ? `<label class="filtro-check"><input type="checkbox" id="filtro-oficiales" /> Puntos de acopio oficiales</label>`
       : "") +
     `</div>` +
-    CTA_REPORTAR +
+    CTA_REPORTAR(tipo) +
     `</div>`;
   return (
     filtros +
@@ -323,46 +346,24 @@ export function renderSangrePagina(items: JornadaSangre[]): string {
 }
 
 // ---------- Página /ayuda (espejo de ayuda.astro) ----------
-export interface Contacto {
-  id: string;
-  nombre: string;
-  telefono: string;
-  descripcion?: string;
-  tipo: string;
-}
-
-export function renderAyudaPagina(canales: CanalAyuda[], contactos: Contacto[]): string {
-  const grid =
-    canales.length === 0
-      ? ""
-      : `<div class="grid">${canales
-          .map(
-            (c) =>
-              `<article class="card">` +
-              `<div class="card-head"><h3>${escapar(c.organizacion)}</h3>${badgeHTML(c.estado)}</div>` +
-              `${c.descripcion ? `<p>${escapar(c.descripcion)}</p>` : ""}` +
-              `${c.como_aportar ? `<p><strong>Cómo aportar:</strong> ${escapar(c.como_aportar)}</p>` : ""}` +
-              `<p>${c.sitio ? `<a href="${escapar(c.sitio)}" target="_blank" rel="noopener">Sitio oficial</a>` : ""}` +
-              `${c.redes ? ` · <a href="${escapar(c.redes)}" target="_blank" rel="noopener">Redes</a>` : ""}</p>` +
-              `${c.cuenta_bancaria ? `<p><strong>Cuenta bancaria oficial:</strong> ${escapar(c.cuenta_bancaria)}</p>` : ""}` +
-              `</article>`
-          )
-          .join("")}</div>`;
-  const emergencias = contactos.filter((c) => c.tipo === "emergencia");
-  const tabla =
-    emergencias.length === 0
-      ? ""
-      : `<table class="tabla"><thead><tr><th>Servicio</th><th>Número</th><th>Descripción</th></tr></thead><tbody>` +
-        emergencias
-          .map(
-            (c) =>
-              `<tr><td data-label="Servicio"><strong>${escapar(c.nombre)}</strong></td>` +
-              `<td data-label="Número"><strong>${escapar(c.telefono)}</strong></td>` +
-              `<td data-label="Descripción">${c.descripcion ? escapar(c.descripcion) : ""}</td></tr>`
-          )
-          .join("") +
-        `</tbody></table>`;
-  return `<h2>Canales verificados</h2>${grid}<h2>Líneas de emergencia</h2>${tabla}`;
+// Solo canales verificados: las líneas de emergencia viven en /contactos
+// (sección "Líneas de emergencia" — ajustes-ux-frontend).
+export function renderAyudaPagina(canales: CanalAyuda[]): string {
+  return canales.length === 0
+    ? ""
+    : `<h2>Canales verificados</h2><div class="grid">${canales
+        .map(
+          (c) =>
+            `<article class="card">` +
+            `<div class="card-head"><h3>${escapar(c.organizacion)}</h3>${badgeHTML(c.estado)}</div>` +
+            `${c.descripcion ? `<p>${escapar(c.descripcion)}</p>` : ""}` +
+            `${c.como_aportar ? `<p><strong>Cómo aportar:</strong> ${escapar(c.como_aportar)}</p>` : ""}` +
+            `<p>${c.sitio ? `<a href="${escapar(c.sitio)}" target="_blank" rel="noopener">Sitio oficial</a>` : ""}` +
+            `${c.redes ? ` · <a href="${escapar(c.redes)}" target="_blank" rel="noopener">Redes</a>` : ""}</p>` +
+            `${c.cuenta_bancaria ? `<p><strong>Cuenta bancaria oficial:</strong> ${escapar(c.cuenta_bancaria)}</p>` : ""}` +
+            `</article>`
+        )
+        .join("")}</div>`;
 }
 
 // ---------- Panel Zonas del dashboard (espejo de ZonasLista.astro) ----------
